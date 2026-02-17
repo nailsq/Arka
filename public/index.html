@@ -13,7 +13,9 @@
 <body>
   <header id="header">
     <a href="#" id="logo-link" onclick="navigateTo('home'); return false;">
-      <div id="logo-text">
+      <img src="/images/logo.png" alt="АРКА СТУДИЯ ЦВЕТОВ" id="logo"
+           onerror="this.style.display='none'; document.getElementById('logo-text').style.display='flex';">
+      <div id="logo-text" style="display:none;">
         <span class="logo-arka">АРКА</span>
         <span class="logo-sub">СТУДИЯ ЦВЕТОВ</span>
       </div>

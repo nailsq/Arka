@@ -53,10 +53,25 @@ button, select {
 
 /* Header */
 #header {
-  padding: 28px 0 20px;
+  padding: 16px 0 8px;
   border-bottom: none;
   background: #fff;
   text-align: center;
+}
+
+#logo {
+  width: 60%;
+  max-width: 300px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+  transition: transform 0.3s ease;
+}
+
+#logo:hover {
+  transform: scale(1.03);
 }
 
 #logo-link {
