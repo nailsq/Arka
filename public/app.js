@@ -1924,24 +1924,28 @@
     var row = document.getElementById('cart-row-' + productId);
     if (row) {
       var h = row.offsetHeight;
-      row.style.transition = 'opacity 0.2s, transform 0.2s';
+      var gap = 14;
+      row.style.height = h + 'px';
+      row.style.overflow = 'hidden';
+      row.style.transition = 'opacity 0.35s cubic-bezier(0.4,0,0.2,1), ' +
+        'transform 0.35s cubic-bezier(0.4,0,0.2,1), ' +
+        'height 0.4s cubic-bezier(0.4,0,0.2,1) 0.1s, ' +
+        'padding 0.4s cubic-bezier(0.4,0,0.2,1) 0.1s, ' +
+        'margin 0.4s cubic-bezier(0.4,0,0.2,1) 0.1s, ' +
+        'min-height 0.4s cubic-bezier(0.4,0,0.2,1) 0.1s';
+      row.offsetHeight;
       row.style.opacity = '0';
-      row.style.transform = 'translateX(-30px)';
+      row.style.transform = 'scale(0.95) translateX(-20px)';
+      row.style.height = '0px';
+      row.style.minHeight = '0px';
+      row.style.paddingTop = '0px';
+      row.style.paddingBottom = '0px';
+      row.style.marginBottom = '0px';
       setTimeout(function () {
-        row.style.transition = 'height 0.25s ease, margin 0.25s ease, padding 0.25s ease, min-height 0.25s ease';
-        row.style.height = h + 'px';
-        row.style.overflow = 'hidden';
-        row.offsetHeight;
-        row.style.height = '0px';
-        row.style.minHeight = '0px';
-        row.style.padding = '0 16px';
-        row.style.marginBottom = '0px';
-        setTimeout(function () {
-          row.remove();
-          var totalEl = document.getElementById('cart-total-val');
-          if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
-        }, 250);
-      }, 200);
+        row.remove();
+        var totalEl = document.getElementById('cart-total-val');
+        if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
+      }, 500);
     } else {
       var totalEl = document.getElementById('cart-total-val');
       if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
