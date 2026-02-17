@@ -1438,7 +1438,12 @@
         '<div id="profile-tracking"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
       '</div>' +
 
-      '<div class="profile-section">' +
+      '<div class="nav-buttons">' +
+        '<button class="nav-btn" onclick="toggleProfileSection(\'addresses\')">Мои адреса</button>' +
+        '<button class="nav-btn" onclick="toggleProfileSection(\'orders\')">История заказов</button>' +
+      '</div>' +
+
+      '<div id="section-addresses" class="profile-section" style="display:none">' +
         '<div class="profile-section-header">' +
           '<span class="profile-section-title">Мои адреса</span>' +
           '<button class="profile-add-btn" onclick="showAddAddress()">+ Добавить</button>' +
@@ -1446,7 +1451,7 @@
         '<div id="profile-addresses"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
       '</div>' +
 
-      '<div class="profile-section">' +
+      '<div id="section-orders" class="profile-section" style="display:none">' +
         '<div class="profile-section-header">' +
           '<span class="profile-section-title">История заказов</span>' +
         '</div>' +
@@ -1455,8 +1460,6 @@
     );
 
     loadProfileTracking();
-    loadProfileAddresses();
-    loadProfileOrders();
   }
 
   function loadProfileTracking() {
@@ -1544,6 +1547,18 @@
     if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
   };
 
+  window.toggleProfileSection = function (section) {
+    var el = document.getElementById('section-' + section);
+    if (!el) return;
+    var isHidden = el.style.display === 'none';
+    el.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) {
+      if (section === 'addresses') loadProfileAddresses();
+      if (section === 'orders') loadProfileOrders();
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   window.showAddAddress = function () {
     var el = document.getElementById('profile-addresses');
     if (!el) return;
@@ -1553,7 +1568,7 @@
         '<div class="form-group"><label>Название (напр. Дом, Работа)</label>' +
         '<input type="text" id="addr-label" placeholder="Дом"></div>' +
         '<div class="form-group"><label>Город</label>' +
-        '<input type="text" id="addr-city" value="' + escapeHtml(cityName) + '" readonly style="background:#f5f5f5"></div>' +
+        '<input type="text" id="addr-city" value="' + escapeHtml(cityName) + '" placeholder="Город"></div>' +
         '<div class="form-group"><label>Район</label>' +
         '<input type="text" id="addr-district" placeholder="Район"></div>' +
         '<div class="form-group"><label>Улица, дом</label>' +
