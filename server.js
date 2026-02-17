@@ -13,6 +13,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const PAYMENT_PROVIDER = process.env.PAYMENT_PROVIDER || 'test';
 const PUBLIC_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+const ADMIN_TELEGRAM_IDS = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
 
 const adminTokens = new Set();
 
@@ -417,6 +418,25 @@ app.post('/api/admin/logout', adminAuth, function (req, res) {
   var token = req.headers['x-admin-token'];
   adminTokens.delete(token);
   res.json({ ok: true });
+});
+
+app.post('/api/admin/telegram-login', function (req, res) {
+  var telegramId = String(req.body.telegram_id || '');
+  if (!telegramId) {
+    return res.status(400).json({ error: 'telegram_id required' });
+  }
+  if (!ADMIN_TELEGRAM_IDS.includes(telegramId)) {
+    return res.status(403).json({ error: 'Not an admin' });
+  }
+  var token = crypto.randomBytes(32).toString('hex');
+  adminTokens.add(token);
+  res.json({ token: token });
+});
+
+app.get('/api/user/is-admin', function (req, res) {
+  var telegramId = String(req.query.telegram_id || '');
+  var isAdmin = ADMIN_TELEGRAM_IDS.includes(telegramId);
+  res.json({ is_admin: isAdmin });
 });
 
 // ============================================================

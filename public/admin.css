@@ -104,8 +104,26 @@ button { cursor: pointer; }
   font-weight: 600;
 }
 
+.sidebar-back-btn {
+  margin: auto 16px 0;
+  padding: 10px 16px;
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.8);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  width: calc(100% - 32px);
+}
+
+.sidebar-back-btn:hover {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+}
+
 #logout-btn {
-  margin: 12px 16px 0;
+  margin: 8px 16px 0;
   padding: 10px 16px;
   background: transparent;
   color: rgba(255,255,255,0.6);

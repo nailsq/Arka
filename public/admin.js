@@ -1004,14 +1004,41 @@
   // Init
   // ============================================================
 
+  function tryTelegramAutoLogin() {
+    var params = new URLSearchParams(window.location.search);
+    var tgAuth = params.get('tg_auth');
+    if (!tgAuth) return false;
+    fetch('/api/admin/telegram-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telegram_id: tgAuth })
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      if (data.token) {
+        token = data.token;
+        localStorage.setItem('arka_admin_token', token);
+        window.history.replaceState({}, '', '/admin.html');
+        showDashboard();
+      } else {
+        showLogin();
+      }
+    }).catch(function () {
+      showLogin();
+    });
+    return true;
+  }
+
   if (token) {
     api('GET', '/api/admin/orders').then(function () {
       showDashboard();
     }).catch(function () {
-      showLogin();
+      if (!tryTelegramAutoLogin()) {
+        showLogin();
+      }
     });
   } else {
-    showLogin();
+    if (!tryTelegramAutoLogin()) {
+      showLogin();
+    }
   }
 
 })();

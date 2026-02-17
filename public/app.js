@@ -1420,9 +1420,13 @@
       '<div class="profile-header">' +
         avatarHtml +
         '<div class="profile-info">' +
-          '<div class="profile-name">' + escapeHtml(fullName) + '</div>' +
+          '<div class="profile-name">' + escapeHtml(fullName) + '<span id="admin-badge" style="display:none" class="admin-badge">ADMIN</span></div>' +
           (username ? '<div class="profile-username">@' + escapeHtml(username) + '</div>' : '') +
         '</div>' +
+      '</div>' +
+
+      '<div id="admin-panel-btn-wrap" style="display:none">' +
+        '<button class="admin-panel-btn" onclick="openAdminPanel()">Админ-панель</button>' +
       '</div>' +
 
       '<div class="profile-section profile-tracking-section">' +
@@ -1453,8 +1457,27 @@
       '</div>'
     );
 
+    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    if (telegramId) {
+      fetchJSON('/api/user/is-admin?telegram_id=' + telegramId).then(function (data) {
+        if (data && data.is_admin) {
+          var badge = document.getElementById('admin-badge');
+          if (badge) badge.style.display = 'inline-block';
+          var btnWrap = document.getElementById('admin-panel-btn-wrap');
+          if (btnWrap) btnWrap.style.display = 'block';
+        }
+      }).catch(function () {});
+    }
+
     loadProfileTracking();
   }
+
+  window.openAdminPanel = function () {
+    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    if (telegramId) {
+      window.location.href = '/admin.html?tg_auth=' + telegramId;
+    }
+  };
 
   function loadProfileTracking() {
     var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);

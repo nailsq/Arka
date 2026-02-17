@@ -1529,6 +1529,44 @@ button, select {
   font-size: 16px;
   font-weight: 600;
   color: #000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-badge {
+  background: #000;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.admin-panel-btn {
+  width: 100%;
+  padding: 14px;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: opacity 0.2s;
+}
+
+.admin-panel-btn:active {
+  opacity: 0.7;
+}
+
+#admin-panel-btn-wrap {
+  margin-bottom: 20px;
 }
 
 .profile-username {
