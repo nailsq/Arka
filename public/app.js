@@ -1425,9 +1425,9 @@
         '</div>' +
       '</div>' +
 
-      '<div class="profile-section">' +
+      '<div class="profile-section profile-tracking-section">' +
         '<div class="profile-section-header">' +
-          '<span class="profile-section-title">Отслеживание доставки</span>' +
+          '<span class="profile-section-title tracking-title">Отслеживание доставки</span>' +
         '</div>' +
         '<div id="profile-tracking"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
       '</div>' +
@@ -1483,7 +1483,10 @@
           timelineHtml += '<div class="' + cls + '"><div class="timeline-dot"></div><div class="timeline-label">' + escapeHtml(step) + '</div></div>';
         });
         return '<div class="track-card-mini">' +
-          '<div class="track-header"><span class="track-id">N ' + o.id + '</span><span class="track-date">' + formatDate(o.created_at) + '</span></div>' +
+          '<div class="track-header"><span class="track-id">Заказ #' + o.id + '</span><span class="track-date">' + formatDate(o.created_at) + '</span></div>' +
+          '<div class="track-status-row"><span class="track-status-badge">' + escapeHtml(o.status) + '</span>' +
+            (o.total ? '<span class="track-total">' + formatPrice(o.total) + '</span>' : '') +
+          '</div>' +
           '<div class="timeline">' + timelineHtml + '</div>' +
         '</div>';
       }).join('');
