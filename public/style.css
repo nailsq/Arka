@@ -154,20 +154,20 @@ button, select {
 }
 
 .tab-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 15px;
-  height: 15px;
   background: #000;
   color: #fff;
-  border-radius: 50%;
   font-size: 9px;
-  font-weight: 700;
-  line-height: 1;
+  font-weight: 600;
+  line-height: 14px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 7px;
   text-align: center;
   flex-shrink: 0;
-  padding: 0;
+  box-shadow: none;
+  border: none;
+  outline: none;
 }
 
 /* Main */
@@ -2186,10 +2186,12 @@ button, select {
     letter-spacing: 0.2px;
   }
   .tab-badge {
-    width: 13px;
-    height: 13px;
     font-size: 8px;
-    padding: 0;
+    line-height: 12px;
+    min-width: 12px;
+    height: 12px;
+    padding: 0 3px;
+    border-radius: 6px;
   }
   .product-list {
     gap: 10px;
