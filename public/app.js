@@ -1931,17 +1931,18 @@
       setTimeout(function () {
         row.style.height = h + 'px';
         row.style.overflow = 'hidden';
-        row.style.transition = 'height 0.35s ease, padding 0.35s ease, min-height 0.35s ease';
+        row.style.transition = 'height 0.4s ease, padding 0.4s ease, margin 0.4s ease, min-height 0.4s ease';
         row.offsetHeight;
         row.style.height = '0px';
         row.style.minHeight = '0px';
         row.style.paddingTop = '0px';
         row.style.paddingBottom = '0px';
+        row.style.marginBottom = '0px';
         setTimeout(function () {
           row.remove();
           var totalEl = document.getElementById('cart-total-val');
           if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
-        }, 350);
+        }, 420);
       }, 400);
     } else {
       var totalEl = document.getElementById('cart-total-val');

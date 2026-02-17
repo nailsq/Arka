@@ -941,8 +941,15 @@ button, select {
 .cart-items {
   display: flex;
   flex-direction: column;
-  gap: 14px;
   margin-bottom: 24px;
+}
+
+.cart-items .cart-item {
+  margin-bottom: 14px;
+}
+
+.cart-items .cart-item:last-child {
+  margin-bottom: 0;
 }
 
 .cart-item {
