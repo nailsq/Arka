@@ -913,6 +913,7 @@
           '<div id="delivery-fields">' +
             (zonesHtml ? '<div class="form-group"><label>Зона доставки</label>' +
               '<div class="radio-group" id="zone-group">' + zonesHtml + '</div></div>' : '') +
+            '<div id="saved-addr-picker"></div>' +
             '<div class="form-group"><label>Город</label>' +
             '<input type="text" id="field-addr-city" placeholder="Город" value="' + escapeHtml(selectedCity ? selectedCity.name : '') + '" readonly style="background:#f5f5f5"></div>' +
             '<div class="form-group"><label>Район</label>' +
@@ -984,7 +985,46 @@
 
     updateCheckoutSummary();
     renderIntervals();
+    loadCheckoutAddresses();
   }
+
+  function loadCheckoutAddresses() {
+    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    if (!telegramId) return;
+    fetchJSON('/api/user/addresses?telegram_id=' + telegramId).then(function (addrs) {
+      var el = document.getElementById('saved-addr-picker');
+      if (!el || !addrs || !addrs.length) return;
+      var html = '<div class="form-group"><label>Сохранённые адреса</label><div class="saved-addr-chips">';
+      addrs.forEach(function (a) {
+        html += '<button class="saved-addr-chip" onclick="fillSavedAddress(' + a.id + ')">' +
+          escapeHtml(a.label || a.full_address) + '</button>';
+      });
+      html += '</div></div>';
+      el.innerHTML = html;
+      window._checkoutAddresses = addrs;
+    });
+  }
+
+  window.fillSavedAddress = function (addrId) {
+    var addrs = window._checkoutAddresses || [];
+    var a = addrs.find(function (x) { return x.id === addrId; });
+    if (!a) return;
+    var city = document.getElementById('field-addr-city');
+    var district = document.getElementById('field-addr-district');
+    var street = document.getElementById('field-addr-street');
+    var apt = document.getElementById('field-addr-apt');
+    var note = document.getElementById('field-addr-note');
+    if (city && a.city) city.value = a.city;
+    if (district) district.value = a.district || '';
+    if (street) street.value = a.street || '';
+    if (apt) apt.value = a.apartment || '';
+    if (note) note.value = a.note || '';
+    var chips = document.querySelectorAll('.saved-addr-chip');
+    chips.forEach(function (c) { c.classList.remove('active'); });
+    var clicked = document.querySelector('.saved-addr-chip[onclick*="' + addrId + '"]');
+    if (clicked) clicked.classList.add('active');
+    showToast('Адрес заполнен');
+  };
 
   window.goToStep = function (step) {
     if (step > currentStep) {
@@ -1377,21 +1417,185 @@
     }
 
     render(
-      '<div class="section-title">Профиль</div>' +
       '<div class="profile-header">' +
         avatarHtml +
         '<div class="profile-info">' +
           '<div class="profile-name">' + escapeHtml(fullName) + '</div>' +
           (username ? '<div class="profile-username">@' + escapeHtml(username) + '</div>' : '') +
         '</div>' +
+        '<button class="profile-menu-btn" onclick="toggleProfileMenu()">' +
+          '<span class="dots">&#8226;&#8226;&#8226;</span>' +
+        '</button>' +
+        '<div class="profile-menu" id="profile-menu" style="display:none">' +
+          '<button onclick="showProfileEdit()">Мои данные</button>' +
+        '</div>' +
       '</div>' +
-      '<div class="nav-buttons">' +
-        '<button class="nav-btn" onclick="showProfileEdit()">Мои данные</button>' +
-        '<button class="nav-btn" onclick="showOrderHistory()">История заказов</button>' +
-        '<button class="nav-btn" onclick="showDeliveryTracking()">Отслеживание доставки</button>' +
+
+      '<div class="profile-section">' +
+        '<div class="profile-section-header">' +
+          '<span class="profile-section-title">Отслеживание доставки</span>' +
+        '</div>' +
+        '<div id="profile-tracking"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
+      '</div>' +
+
+      '<div class="profile-section">' +
+        '<div class="profile-section-header">' +
+          '<span class="profile-section-title">Мои адреса</span>' +
+          '<button class="profile-add-btn" onclick="showAddAddress()">+ Добавить</button>' +
+        '</div>' +
+        '<div id="profile-addresses"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
+      '</div>' +
+
+      '<div class="profile-section">' +
+        '<div class="profile-section-header">' +
+          '<span class="profile-section-title">История заказов</span>' +
+        '</div>' +
+        '<div id="profile-orders"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
       '</div>'
     );
+
+    loadProfileTracking();
+    loadProfileAddresses();
+    loadProfileOrders();
   }
+
+  function loadProfileTracking() {
+    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    if (!telegramId) return;
+    fetchJSON('/api/user/orders?telegram_id=' + telegramId).then(function (orders) {
+      var el = document.getElementById('profile-tracking');
+      if (!el) return;
+      if (!orders || !orders.length) {
+        el.innerHTML = '<div class="empty-state" style="padding:12px">Активных заказов нет</div>';
+        return;
+      }
+      var active = orders.filter(function (o) { return o.status !== 'Доставлен'; });
+      if (!active.length) {
+        el.innerHTML = '<div class="empty-state" style="padding:12px">Все заказы доставлены</div>';
+        return;
+      }
+      el.innerHTML = active.map(function (o) {
+        var currentIdx = TRACK_STEPS.indexOf(o.status);
+        if (currentIdx < 0) currentIdx = 0;
+        var timelineHtml = '';
+        TRACK_STEPS.forEach(function (step, idx) {
+          if (idx > 0) timelineHtml += '<div class="timeline-line' + (idx <= currentIdx ? ' filled' : '') + '"></div>';
+          var cls = 'timeline-step';
+          if (idx < currentIdx) cls += ' done';
+          if (idx === currentIdx) cls += ' current';
+          timelineHtml += '<div class="' + cls + '"><div class="timeline-dot"></div><div class="timeline-label">' + escapeHtml(step) + '</div></div>';
+        });
+        return '<div class="track-card-mini">' +
+          '<div class="track-header"><span class="track-id">N ' + o.id + '</span><span class="track-date">' + formatDate(o.created_at) + '</span></div>' +
+          '<div class="timeline">' + timelineHtml + '</div>' +
+        '</div>';
+      }).join('');
+    });
+  }
+
+  function loadProfileAddresses() {
+    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    if (!telegramId) return;
+    fetchJSON('/api/user/addresses?telegram_id=' + telegramId).then(function (addrs) {
+      var el = document.getElementById('profile-addresses');
+      if (!el) return;
+      window._savedAddresses = addrs || [];
+      if (!addrs || !addrs.length) {
+        el.innerHTML = '<div class="empty-state" style="padding:12px">Нет сохранённых адресов</div>';
+        return;
+      }
+      el.innerHTML = addrs.map(function (a) {
+        return '<div class="saved-addr-card">' +
+          '<div class="saved-addr-text">' +
+            (a.label ? '<strong>' + escapeHtml(a.label) + '</strong><br>' : '') +
+            escapeHtml(a.full_address) +
+          '</div>' +
+          '<button class="saved-addr-del" onclick="deleteAddress(' + a.id + ')">&#10005;</button>' +
+        '</div>';
+      }).join('');
+    });
+  }
+
+  function loadProfileOrders() {
+    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    if (!telegramId) return;
+    fetchJSON('/api/user/orders?telegram_id=' + telegramId).then(function (orders) {
+      var el = document.getElementById('profile-orders');
+      if (!el) return;
+      if (!orders || !orders.length) {
+        el.innerHTML = '<div class="empty-state" style="padding:12px">Заказов пока нет</div>';
+        return;
+      }
+      el.innerHTML = orders.map(function (o) {
+        return '<div class="order-card-mini">' +
+          '<div class="order-card-header">' +
+            '<span class="order-card-id">N ' + o.id + '</span>' +
+            '<span class="order-card-status">' + escapeHtml(o.status) + '</span>' +
+          '</div>' +
+          '<div class="order-card-date">' + formatDate(o.created_at) + '</div>' +
+          '<div class="order-card-total">' + formatPrice(o.total_amount) + '</div>' +
+        '</div>';
+      }).join('');
+    });
+  }
+
+  window.toggleProfileMenu = function () {
+    var menu = document.getElementById('profile-menu');
+    if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+  };
+
+  window.showAddAddress = function () {
+    var el = document.getElementById('profile-addresses');
+    if (!el) return;
+    var cityName = selectedCity ? selectedCity.name : '';
+    el.innerHTML =
+      '<div class="add-addr-form">' +
+        '<div class="form-group"><label>Название (напр. Дом, Работа)</label>' +
+        '<input type="text" id="addr-label" placeholder="Дом"></div>' +
+        '<div class="form-group"><label>Город</label>' +
+        '<input type="text" id="addr-city" value="' + escapeHtml(cityName) + '" readonly style="background:#f5f5f5"></div>' +
+        '<div class="form-group"><label>Район</label>' +
+        '<input type="text" id="addr-district" placeholder="Район"></div>' +
+        '<div class="form-group"><label>Улица, дом</label>' +
+        '<input type="text" id="addr-street" placeholder="Улица, дом"></div>' +
+        '<div class="form-group"><label>Квартира / офис</label>' +
+        '<input type="text" id="addr-apt" placeholder="Квартира, подъезд, этаж"></div>' +
+        '<div class="form-group"><label>Дополнение</label>' +
+        '<input type="text" id="addr-note" placeholder="Код домофона, ориентиры"></div>' +
+        '<div style="display:flex;gap:8px">' +
+          '<button class="nav-btn" onclick="saveNewAddress()">Сохранить</button>' +
+          '<button class="nav-btn" style="background:#eee;color:#000" onclick="loadProfileAddresses()">Отмена</button>' +
+        '</div>' +
+      '</div>';
+  };
+
+  window.saveNewAddress = function () {
+    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    if (!telegramId) return;
+    var district = document.getElementById('addr-district').value.trim();
+    var street = document.getElementById('addr-street').value.trim();
+    var apt = document.getElementById('addr-apt').value.trim();
+    if (!district || !street || !apt) { showToast('Заполните район, улицу и квартиру'); return; }
+    postJSON('/api/user/addresses', {
+      telegram_id: telegramId,
+      label: document.getElementById('addr-label').value.trim(),
+      city: document.getElementById('addr-city').value.trim(),
+      district: district,
+      street: street,
+      apartment: apt,
+      note: document.getElementById('addr-note').value.trim()
+    }).then(function () {
+      showToast('Адрес сохранён');
+      loadProfileAddresses();
+    });
+  };
+
+  window.deleteAddress = function (id) {
+    fetch('/api/user/addresses/' + id, { method: 'DELETE' }).then(function (r) { return r.json(); }).then(function () {
+      showToast('Адрес удалён');
+      loadProfileAddresses();
+    });
+  };
 
   window.showOrderHistory = function () {
     var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);

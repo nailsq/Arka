@@ -205,6 +205,37 @@ app.post('/api/user/update', function (req, res) {
 });
 
 // ============================================================
+// USER: Saved addresses
+// ============================================================
+
+app.get('/api/user/addresses', function (req, res) {
+  var telegramId = req.query.telegram_id;
+  if (!telegramId) return res.json([]);
+  var user = db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
+  if (!user) return res.json([]);
+  var addresses = db.prepare('SELECT * FROM user_addresses WHERE user_id = ? ORDER BY created_at DESC').all(user.id);
+  res.json(addresses);
+});
+
+app.post('/api/user/addresses', function (req, res) {
+  var telegramId = req.body.telegram_id;
+  if (!telegramId) return res.status(400).json({ error: 'telegram_id required' });
+  var user = db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  var b = req.body;
+  var fullAddr = (b.city || '') + ', ' + (b.district || '') + ', ' + (b.street || '') + ', кв./оф. ' + (b.apartment || '') + (b.note ? ', ' + b.note : '');
+  var r = db.prepare('INSERT INTO user_addresses (user_id, label, city, district, street, apartment, note, full_address) VALUES (?,?,?,?,?,?,?,?)').run(
+    user.id, b.label || '', b.city || '', b.district || '', b.street || '', b.apartment || '', b.note || '', fullAddr
+  );
+  res.json({ id: Number(r.lastInsertRowid), full_address: fullAddr });
+});
+
+app.delete('/api/user/addresses/:id', function (req, res) {
+  db.prepare('DELETE FROM user_addresses WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ============================================================
 // USER: Order history
 // ============================================================
 
