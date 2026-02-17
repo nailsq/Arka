@@ -758,29 +758,29 @@
             '<div class="cart-flower-label">Цветов в букете:</div>' +
             '<div class="cart-flower-row">' +
               '<button class="cart-flower-btn" onclick="changeFlowerCount(' + pid + ',-1)">-</button>' +
-              '<span class="cart-flower-val">' + (item.flower_count || item.flower_min) + '</span>' +
+              '<span class="cart-flower-val" id="flower-val-' + pid + '">' + (item.flower_count || item.flower_min) + '</span>' +
               '<button class="cart-flower-btn" onclick="changeFlowerCount(' + pid + ',1)">+</button>' +
             '</div>' +
           '</div>';
       }
-      h += '<div class="cart-item">' +
+      h += '<div class="cart-item" id="cart-row-' + pid + '">' +
         productImage(item.image_url, item.name, 'cart-item-img') +
         '<div class="cart-item-info">' +
           '<div>' +
             '<div class="cart-item-name">' + escapeHtml(item.name) + '</div>' +
             flowerSelector +
-            '<div class="cart-item-price">' + formatPrice(item.price) + '</div>' +
+            '<div class="cart-item-price" id="price-val-' + pid + '">' + formatPrice(item.price) + '</div>' +
           '</div>' +
           '<div class="cart-item-controls">' +
             '<button class="qty-btn" onclick="changeQty(' + pid + ',-1)">-</button>' +
-            '<span class="qty-value">' + item.quantity + '</span>' +
+            '<span class="qty-value" id="qty-val-' + pid + '">' + item.quantity + '</span>' +
             '<button class="qty-btn" onclick="changeQty(' + pid + ',1)">+</button>' +
             '<button class="remove-btn" onclick="removeItem(' + pid + ')">Удалить</button>' +
           '</div>' +
         '</div></div>';
     });
     h += '</div>';
-    h += '<div class="cart-total">Итого: ' + formatPrice(getCartTotal()) + '</div>';
+    h += '<div class="cart-total">Итого: <span id="cart-total-val">' + formatPrice(getCartTotal()) + '</span></div>';
     h += '<button class="nav-btn" onclick="navigateTo(\'checkout\')">Оформить заказ</button>';
     render(h);
   }
@@ -1672,20 +1672,49 @@
   window.changeQty = function (productId, delta) {
     updateCartQty(productId, delta);
     updateCartBadge();
-    showCart();
+    refreshCartInPlace();
   };
 
   window.removeItem = function (productId) {
     removeFromCart(productId);
     updateCartBadge();
-    showCart();
+    var row = document.getElementById('cart-row-' + productId);
+    if (row) {
+      row.style.transition = 'opacity 0.2s, transform 0.2s';
+      row.style.opacity = '0';
+      row.style.transform = 'translateX(-30px)';
+      setTimeout(function () {
+        refreshCartInPlace();
+      }, 200);
+    } else {
+      refreshCartInPlace();
+    }
   };
 
   window.changeFlowerCount = function (productId, dir) {
     updateCartFlowerCount(productId, dir);
     updateCartBadge();
-    showCart();
+    refreshCartInPlace();
   };
+
+  function refreshCartInPlace() {
+    var cart = getCart();
+    if (!cart.length) {
+      showCart();
+      return;
+    }
+    cart.forEach(function (item) {
+      var pid = item.product_id;
+      var qtyEl = document.getElementById('qty-val-' + pid);
+      if (qtyEl) qtyEl.textContent = item.quantity;
+      var priceEl = document.getElementById('price-val-' + pid);
+      if (priceEl) priceEl.textContent = formatPrice(item.price);
+      var flowerEl = document.getElementById('flower-val-' + pid);
+      if (flowerEl) flowerEl.textContent = item.flower_count || item.flower_min;
+    });
+    var totalEl = document.getElementById('cart-total-val');
+    if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
+  }
 
   // ============================================================
   // Init
