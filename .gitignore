@@ -1,1 +1,5 @@
-node_modules/ 
+node_modules/
+arka.db
+arka.db-shm
+arka.db-wal
+.env
