@@ -53,14 +53,14 @@ button, select {
 
 /* Header */
 #header {
-  padding: 16px 20px;
+  padding: 8px 12px;
   border-bottom: none;
   background: #fff;
   text-align: center;
 }
 
 #logo-link {
-  display: inline-block;
+  display: block;
   text-decoration: none;
   color: #000;
 }
@@ -91,8 +91,9 @@ button, select {
 }
 
 #logo {
-  height: 280px;
-  width: auto;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
   display: block;
   object-fit: contain;
   transition: transform 0.3s ease;
