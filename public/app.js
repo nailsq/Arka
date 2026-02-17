@@ -913,8 +913,17 @@
           '<div id="delivery-fields">' +
             (zonesHtml ? '<div class="form-group"><label>Зона доставки</label>' +
               '<div class="radio-group" id="zone-group">' + zonesHtml + '</div></div>' : '') +
-            '<div class="form-group"><label>Точный адрес</label>' +
-            '<input type="text" id="field-address" placeholder="Улица, дом, квартира, подъезд, этаж" value="' + escapeHtml(userAddr) + '"></div>' +
+            '<div class="form-group"><label>Город</label>' +
+            '<input type="text" id="field-addr-city" placeholder="Город" value="' + escapeHtml(selectedCity ? selectedCity.name : '') + '" readonly style="background:#f5f5f5"></div>' +
+            '<div class="form-group"><label>Район</label>' +
+            '<input type="text" id="field-addr-district" placeholder="Район (напр. Ленинский)"></div>' +
+            '<div class="form-group"><label>Улица, дом</label>' +
+            '<input type="text" id="field-addr-street" placeholder="Улица, дом"></div>' +
+            '<div class="form-group"><label>Квартира / офис</label>' +
+            '<input type="text" id="field-addr-apt" placeholder="Квартира, подъезд, этаж"></div>' +
+            '<div class="form-group"><label>Дополнение к адресу</label>' +
+            '<input type="text" id="field-addr-note" placeholder="Код домофона, ориентиры и т.д."></div>' +
+            '<input type="hidden" id="field-address">' +
           '</div>' +
 
           '<div id="date-cutoff-notice" class="cutoff-notice"' + (isTodayClosed ? '' : ' style="display:none"') + '>' +
@@ -999,15 +1008,28 @@
       }
       if (currentStep === 2) {
         if (checkoutState.deliveryType === 'delivery') {
-          var addr = document.getElementById('field-address').value.trim();
-          if (!addr) { showToast('Укажите адрес доставки'); return; }
+          var district = document.getElementById('field-addr-district') ? document.getElementById('field-addr-district').value.trim() : '';
+          var street = document.getElementById('field-addr-street') ? document.getElementById('field-addr-street').value.trim() : '';
+          var apt = document.getElementById('field-addr-apt') ? document.getElementById('field-addr-apt').value.trim() : '';
+          if (!district) { showToast('Укажите район'); return; }
+          if (!street) { showToast('Укажите улицу и дом'); return; }
+          if (!apt) { showToast('Укажите квартиру / офис'); return; }
+          var addrNote = document.getElementById('field-addr-note') ? document.getElementById('field-addr-note').value.trim() : '';
+          var cityVal = document.getElementById('field-addr-city') ? document.getElementById('field-addr-city').value.trim() : '';
+          var fullAddr = cityVal + ', ' + district + ', ' + street + ', кв./оф. ' + apt + (addrNote ? ', ' + addrNote : '');
+          var hiddenAddr = document.getElementById('field-address');
+          if (hiddenAddr) hiddenAddr.value = fullAddr;
         }
         var dateVal = document.getElementById('field-date').value;
-        if (!dateVal) { showToast('Укажите дату'); return; }
+        if (!dateVal) { showToast('Укажите дату доставки'); return; }
         var nowCheck = new Date();
         var todayCheck = nowCheck.getFullYear() + '-' + String(nowCheck.getMonth() + 1).padStart(2, '0') + '-' + String(nowCheck.getDate()).padStart(2, '0');
         if (checkoutState.deliveryType === 'delivery' && dateVal === todayCheck && nowCheck.getHours() >= getCutoffHour()) {
           showToast('Доставка на сегодня недоступна. Выберите другую дату или самовывоз.');
+          return;
+        }
+        if (!checkoutState.exactTime && checkoutState.deliveryType === 'delivery' && !checkoutState.deliveryInterval) {
+          showToast('Выберите время доставки (интервал или точное время)');
           return;
         }
         if (checkoutState.exactTime && !validateExactTime()) {
