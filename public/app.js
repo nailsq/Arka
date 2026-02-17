@@ -540,12 +540,10 @@
       var el = document.getElementById('category-select-wrap');
       if (!el) return;
       if (!cats || !cats.length) { el.innerHTML = ''; return; }
-      var html = '<select class="category-select" onchange="filterHome(this.value ? parseInt(this.value) : null, this.options[this.selectedIndex].text)">';
-      html += '<option value="">Все категории</option>';
+      var html = '<button class="cat-chip' + (!homeActiveCategory ? ' active' : '') + '" onclick="filterHome(null)">Все</button>';
       html += cats.map(function (c) {
-        return '<option value="' + c.id + '"' + (homeActiveCategory === c.id ? ' selected' : '') + '>' + escapeHtml(c.name) + '</option>';
+        return '<button class="cat-chip' + (homeActiveCategory === c.id ? ' active' : '') + '" onclick="filterHome(' + c.id + ',\'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\')">' + escapeHtml(c.name) + '</button>';
       }).join('');
-      html += '</select>';
       el.innerHTML = html;
       if (homeActiveCategory) {
         var selected = cats.find(function (c) { return c.id === homeActiveCategory; });
@@ -880,7 +878,7 @@
           '<div class="form-group"><label>Telegram</label>' +
           '<input type="text" id="field-tg" placeholder="@username" value="' + escapeHtml(tgUsername) + '"></div>' +
           '<div class="form-group"><label>Контактный телефон</label>' +
-          '<input type="tel" id="field-phone" placeholder="+7 (___) ___-__-__" value="' + escapeHtml(userPhone) + '"></div>' +
+          '<input type="tel" id="field-phone" placeholder="+7 (___) ___-__-__" value="' + escapeHtml(userPhone) + '" oninput="formatPhoneInput(this)" maxlength="18"></div>' +
           '<div class="form-group"><label>Электронная почта</label>' +
           '<input type="email" id="field-email" placeholder="mail@example.com" value="' + escapeHtml(userEmail) + '"></div>' +
           '<button type="button" class="step-next-btn" onclick="goToStep(2)">Далее</button>' +
@@ -974,6 +972,15 @@
         var email = document.getElementById('field-email').value.trim();
         if (!phone || !tg) {
           showToast('Заполните Telegram и телефон');
+          return;
+        }
+        var phoneDigits = phone.replace(/\D/g, '');
+        if (!/^[78]/.test(phoneDigits) || phoneDigits.length !== 11) {
+          showToast('Укажите корректный номер телефона (+7 или +8, 11 цифр)');
+          return;
+        }
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+          showToast('Укажите корректный адрес электронной почты');
           return;
         }
       }
@@ -1322,12 +1329,31 @@
     }
 
     var name = (dbUser && dbUser.first_name) || (tgUser && tgUser.first_name) || 'Пользователь';
+    var lastName = (tgUser && tgUser.last_name) || '';
+    var fullName = name + (lastName ? ' ' + lastName : '');
+    var username = (tgUser && tgUser.username) || '';
+    var photoUrl = (tgUser && tgUser.photo_url) || '';
+
+    var avatarHtml = '';
+    if (photoUrl) {
+      avatarHtml = '<img src="' + escapeHtml(photoUrl) + '" class="profile-avatar" onerror="this.outerHTML=\'<div class=profile-avatar-placeholder>' + escapeHtml(name.charAt(0).toUpperCase()) + '</div>\'">';
+    } else {
+      avatarHtml = '<div class="profile-avatar-placeholder">' + escapeHtml(name.charAt(0).toUpperCase()) + '</div>';
+    }
 
     render(
       '<div class="section-title">Профиль</div>' +
-      '<div class="account-greeting">' + escapeHtml(name) + '</div>' +
+      '<div class="profile-header">' +
+        avatarHtml +
+        '<div class="profile-info">' +
+          '<div class="profile-name">' + escapeHtml(fullName) + '</div>' +
+          (username ? '<div class="profile-username">@' + escapeHtml(username) + '</div>' : '') +
+        '</div>' +
+      '</div>' +
       '<div class="nav-buttons">' +
         '<button class="nav-btn" onclick="showProfileEdit()">Мои данные</button>' +
+        '<button class="nav-btn" onclick="showOrderHistory()">История заказов</button>' +
+        '<button class="nav-btn" onclick="showDeliveryTracking()">Отслеживание доставки</button>' +
       '</div>'
     );
   }
@@ -1380,7 +1406,7 @@
       '<div class="section-title">Мои данные</div>' +
       '<form class="order-form" onsubmit="saveProfile(event)">' +
         '<div class="form-group"><label>Телефон</label>' +
-        '<input type="tel" id="profile-phone" value="' + escapeHtml(phone) + '" placeholder="+7 (___) ___-__-__"></div>' +
+        '<input type="tel" id="profile-phone" value="' + escapeHtml(phone) + '" placeholder="+7 (___) ___-__-__" oninput="formatPhoneInput(this)" maxlength="18"></div>' +
         '<div class="form-group"><label>Адрес по умолчанию</label>' +
         '<input type="text" id="profile-address" value="' + escapeHtml(addr) + '" placeholder="Город, улица, дом, квартира"></div>' +
         '<button type="submit" class="nav-btn">Сохранить</button>' +
@@ -1411,20 +1437,21 @@
 
   var TRACK_STEPS = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен'];
 
-  function showDelivery() {
-    setActiveTab('delivery');
+  window.showDeliveryTracking = function () {
     var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
 
     if (!telegramId) {
       render(
-        '<div class="section-title">Доставка</div>' +
+        '<span class="back-link" onclick="navigateTo(\'account\')">К профилю</span>' +
+        '<div class="section-title">Отслеживание доставки</div>' +
         '<div class="empty-state">Откройте приложение через Telegram для отслеживания заказов.</div>'
       );
       return;
     }
 
     render(
-      '<div class="section-title">Мои заказы</div>' +
+      '<span class="back-link" onclick="navigateTo(\'account\')">К профилю</span>' +
+      '<div class="section-title">Отслеживание доставки</div>' +
       '<div id="delivery-list"><div class="empty-state">Загрузка...</div></div>'
     );
 
@@ -1481,7 +1508,7 @@
         '</div>';
       }).join('');
     });
-  }
+  };
 
   // ============================================================
   // Favorites page
@@ -1571,7 +1598,6 @@
       case 'favorites': showFavorites(); break;
       case 'cart': showCart(); break;
       case 'checkout': showCheckout(); break;
-      case 'delivery': showDelivery(); break;
       case 'account': showAccount(); break;
       case 'page-privacy': showPrivacy(); break;
       case 'page-returns': showReturns(); break;
@@ -1604,6 +1630,20 @@
     var sel = document.getElementById('flower-count');
     var fc = sel ? parseInt(sel.value) : ((p.is_bouquet && p.flower_min) ? p.flower_min : 0);
     addToCart(p, fc);
+  };
+
+  window.formatPhoneInput = function (input) {
+    var digits = input.value.replace(/\D/g, '');
+    if (digits.length === 0) { input.value = ''; return; }
+    if (digits[0] === '8') digits = '7' + digits.slice(1);
+    if (digits[0] !== '7') digits = '7' + digits;
+    var formatted = '+7';
+    if (digits.length > 1) formatted += ' (' + digits.slice(1, 4);
+    if (digits.length >= 4) formatted += ')';
+    if (digits.length > 4) formatted += ' ' + digits.slice(4, 7);
+    if (digits.length > 7) formatted += '-' + digits.slice(7, 9);
+    if (digits.length > 9) formatted += '-' + digits.slice(9, 11);
+    input.value = formatted;
   };
 
   window.updateFlowerPrice = function () {

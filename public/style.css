@@ -56,6 +56,7 @@ button, select {
   padding: 16px 20px;
   border-bottom: none;
   background: #fff;
+  text-align: center;
 }
 
 #logo-link {
@@ -319,32 +320,42 @@ button, select {
 
 /* Category dropdown */
 .category-select-wrap {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
   margin-bottom: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 4px;
 }
 
-.category-select {
-  width: 100%;
-  padding: 14px 16px;
-  padding-right: 40px;
-  background: #333;
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
+.category-select-wrap::-webkit-scrollbar {
+  display: none;
+}
+
+.cat-chip {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1.5px solid #000;
+  background: #fff;
+  color: #000;
+  font-size: 13px;
   font-weight: 500;
-  letter-spacing: 0.3px;
   cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='white'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 16px center;
-  transition: background 0.2s;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
-.category-select:focus {
-  outline: none;
+.cat-chip:hover {
+  background: #f0f0f0;
+}
+
+.cat-chip.active {
   background: #000;
+  color: #fff;
+  border-color: #000;
 }
 
 .category-title {
@@ -1454,6 +1465,56 @@ button, select {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 20px;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 14px;
+}
+
+.profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid #eee;
+}
+
+.profile-avatar-placeholder {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #000;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.profile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #000;
+}
+
+.profile-username {
+  font-size: 13px;
+  color: #888;
+  margin-top: 2px;
 }
 
 /* Order history */
