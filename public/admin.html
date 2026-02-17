@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Админ-панель -- АРКА</title>
+  <link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+  <aside id="sidebar">
+    <div class="sidebar-brand">АРКА <span class="brand-slash">/</span> <span class="brand-admin">ADMIN</span></div>
+    <nav id="sidebar-nav" style="display:none">
+      <button class="sidebar-link active" data-tab="orders" onclick="switchTab('orders')">Заказы</button>
+      <button class="sidebar-link" data-tab="products" onclick="switchTab('products')">Товары</button>
+      <button class="sidebar-link" data-tab="categories" onclick="switchTab('categories')">Категории</button>
+      <button class="sidebar-link" data-tab="settings" onclick="switchTab('settings')">Настройки</button>
+    </nav>
+    <button id="logout-btn" style="display:none" onclick="adminLogout()">Выйти</button>
+  </aside>
+
+  <div id="main-wrap">
+    <header id="topbar">
+      <button id="menu-toggle" onclick="toggleSidebar()">&#9776;</button>
+      <span id="topbar-title">Панель управления</span>
+      <div id="admin-search-wrap">
+        <input type="text" id="admin-search-input" placeholder="Поиск по панели..." autocomplete="off" oninput="adminSearch()" onfocus="adminSearchFocus()" onblur="adminSearchBlur()">
+        <div id="admin-search-cats">
+          <button class="search-cat active" data-cat="all" onmousedown="event.preventDefault(); setSearchCat('all')">Все</button>
+          <button class="search-cat" data-cat="products" onmousedown="event.preventDefault(); setSearchCat('products')">Товары</button>
+          <button class="search-cat" data-cat="orders" onmousedown="event.preventDefault(); setSearchCat('orders')">Заказы</button>
+          <button class="search-cat" data-cat="categories" onmousedown="event.preventDefault(); setSearchCat('categories')">Категории</button>
+          <button class="search-cat" data-cat="settings" onmousedown="event.preventDefault(); setSearchCat('settings')">Настройки</button>
+        </div>
+        <div id="admin-search-results" style="display:none"></div>
+      </div>
+    </header>
+    <main id="admin-app"></main>
+  </div>
+
+  <div id="admin-toast-container"></div>
+
+  <script src="/admin.js"></script>
+</body>
+</html>

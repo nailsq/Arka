@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>АРКА СТУДИЯ ЦВЕТОВ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <header id="header">
+    <a href="#" id="logo-link" onclick="navigateTo('home'); return false;">
+      <img src="/images/logo.png" alt="АРКА СТУДИЯ ЦВЕТОВ" id="logo"
+           onerror="this.style.display='none'; document.getElementById('logo-text').style.display='flex';">
+      <div id="logo-text" style="display:none;">
+        <span class="logo-arka">АРКА</span>
+        <span class="logo-sub">СТУДИЯ ЦВЕТОВ</span>
+      </div>
+    </a>
+  </header>
+
+  <nav id="tab-bar">
+    <button class="tab-btn active" data-tab="home" onclick="navigateTo('home')">Каталог</button>
+    <button class="tab-btn" data-tab="favorites" onclick="navigateTo('favorites')">
+      Избранное<span id="fav-badge" class="tab-badge" style="display:none"></span>
+    </button>
+    <button class="tab-btn" data-tab="cart" onclick="navigateTo('cart')">
+      Корзина<span id="cart-badge" class="tab-badge" style="display:none"></span>
+    </button>
+    <button class="tab-btn" data-tab="delivery" onclick="navigateTo('delivery')">Доставка</button>
+    <button class="tab-btn" data-tab="account" onclick="navigateTo('account')">Профиль</button>
+  </nav>
+
+  <main id="app"></main>
+
+  <footer id="footer">
+    <div class="footer-inner">
+      <div class="footer-section">
+        <div class="footer-title">Документы</div>
+        <a href="#" onclick="navigateTo('page-privacy'); return false;">Политика конфиденциальности</a>
+        <a href="#" onclick="navigateTo('page-returns'); return false;">Условия возврата</a>
+        <a href="#" onclick="navigateTo('page-consent'); return false;">Согласие на обработку данных</a>
+      </div>
+      <div class="footer-section">
+        <div class="footer-title">Мы в сетях</div>
+        <div id="social-links">
+          <a href="https://t.me/arka_studio" target="_blank">Telegram</a>
+          <a href="https://instagram.com/arka_studio" target="_blank">Instagram</a>
+          <a href="https://vk.com/arka_studio" target="_blank">ВКонтакте</a>
+        </div>
+      </div>
+      <div class="footer-copy">АРКА СТУДИЯ ЦВЕТОВ</div>
+    </div>
+  </footer>
+
+  <div id="city-overlay" style="display:none">
+    <div class="city-overlay-inner">
+      <div class="city-overlay-title">Выберите город</div>
+      <div class="city-overlay-list" id="city-list"></div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
