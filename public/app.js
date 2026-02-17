@@ -565,9 +565,22 @@
 
   window.filterHome = function (catId, catName) {
     homeActiveCategory = catId;
+
+    var chips = document.querySelectorAll('#category-select-wrap .cat-chip');
+    chips.forEach(function (chip) {
+      var isAll = chip.textContent === 'Все';
+      if (!catId && isAll) {
+        chip.classList.add('active');
+      } else if (catId && chip.getAttribute('onclick') && chip.getAttribute('onclick').indexOf('filterHome(' + catId) !== -1) {
+        chip.classList.add('active');
+      } else {
+        chip.classList.remove('active');
+      }
+    });
+
     var titleEl = document.getElementById('active-cat-title');
     if (titleEl) {
-      if (catId && catName && catName !== 'Все категории') {
+      if (catId && catName && catName !== 'Все') {
         titleEl.textContent = catName;
         titleEl.style.display = 'block';
       } else {
