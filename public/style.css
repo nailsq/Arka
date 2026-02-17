@@ -73,8 +73,8 @@ button, select {
 .logo-arka {
   font-family: 'Waverly CF', 'Georgia', serif;
   font-weight: 500;
-  font-size: 28px;
-  letter-spacing: 6px;
+  font-size: 42px;
+  letter-spacing: 8px;
   text-transform: uppercase;
   line-height: 1.1;
 }
@@ -82,20 +82,21 @@ button, select {
 .logo-sub {
   font-family: 'Nexa', 'Montserrat', sans-serif;
   font-weight: 400;
-  font-size: 10px;
-  letter-spacing: 4px;
+  font-size: 14px;
+  letter-spacing: 5px;
   text-transform: uppercase;
   color: #555;
   line-height: 1;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 #logo {
-  height: 180px;
+  height: 280px;
   width: auto;
   display: block;
   object-fit: contain;
   transition: transform 0.3s ease;
+  margin: 0 auto;
 }
 
 #logo:hover {
