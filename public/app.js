@@ -1423,12 +1423,6 @@
           '<div class="profile-name">' + escapeHtml(fullName) + '</div>' +
           (username ? '<div class="profile-username">@' + escapeHtml(username) + '</div>' : '') +
         '</div>' +
-        '<button class="profile-menu-btn" onclick="toggleProfileMenu()">' +
-          '<span class="dots">&#8226;&#8226;&#8226;</span>' +
-        '</button>' +
-        '<div class="profile-menu" id="profile-menu" style="display:none">' +
-          '<button onclick="showProfileEdit()">Мои данные</button>' +
-        '</div>' +
       '</div>' +
 
       '<div class="profile-section">' +
