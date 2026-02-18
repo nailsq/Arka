@@ -862,9 +862,9 @@
 
       h += '<div class="settings-section">';
       h += '<div class="settings-section-title">Бесплатная позиция к букету</div>';
-      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Когда клиент добавляет букет в корзину, выбранный товар автоматически добавляется бесплатно (0 ₽). Выберите товар из каталога или оставьте «Нет», чтобы отключить.</div>';
-      h += '<div class="form-group"><label class="form-label">Товар</label>' +
-        '<select class="form-select" id="s-free-product-id"><option value="">— Нет —</option></select></div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">При добавлении букета в корзину автоматически добавляется бесплатная позиция (0 р.). Количество = количеству букетов. Оставьте пустым, чтобы отключить.</div>';
+      h += '<div class="form-group"><label class="form-label">Название</label>' +
+        '<input type="text" class="form-input" id="s-free-service" value="' + esc(s.free_service_name || '') + '" placeholder="напр. Упаковка букета"></div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -881,19 +881,6 @@
       h += '</div></form>';
 
       el.innerHTML = h;
-
-      api('GET', '/api/admin/products').then(function (products) {
-        var sel = document.getElementById('s-free-product-id');
-        if (!sel || !products) return;
-        var currentVal = s.free_product_id || '';
-        products.forEach(function (p) {
-          var opt = document.createElement('option');
-          opt.value = p.id;
-          opt.textContent = p.name + ' — ' + fmtPrice(p.price);
-          if (String(p.id) === String(currentVal)) opt.selected = true;
-          sel.appendChild(opt);
-        });
-      });
     });
   }
 
@@ -919,7 +906,7 @@
       holiday_dates: document.getElementById('s-holidays').value,
       exact_time_surcharge: document.getElementById('s-exact-surcharge').value,
       delivery_info: document.getElementById('s-delivery-info').value,
-      free_product_id: document.getElementById('s-free-product-id').value,
+      free_service_name: document.getElementById('s-free-service').value,
       social_telegram: document.getElementById('s-social-tg').value,
       social_instagram: document.getElementById('s-social-ig').value,
       social_vk: document.getElementById('s-social-vk').value

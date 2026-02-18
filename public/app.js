@@ -209,35 +209,45 @@
       });
     }
 
+    syncFreeService(cart);
     saveCart(cart);
     updateCartBadge();
     showToast('Добавлено в корзину');
-
-    if (isBouquet) {
-      addFreeProductIfNeeded();
-    }
   }
 
-  function addFreeProductIfNeeded() {
-    var freeId = appSettings.free_product_id;
-    if (!freeId) return;
-    freeId = parseInt(freeId);
-    if (!freeId) return;
+  function countBouquets(cart) {
+    var n = 0;
+    cart.forEach(function (i) { if (i.is_bouquet && !i.is_free_service) n += i.quantity; });
+    return n;
+  }
 
-    var cart = getCart();
-    var already = cart.find(function (i) { return i.is_free_service; });
-    if (already) return;
-
-    fetchJSON('/api/products/' + freeId).then(function (p) {
-      if (!p || p.error) return;
-      var c = getCart();
-      if (c.find(function (i) { return i.is_free_service; })) return;
-      c.push({
-        product_id: p.id,
-        name: p.name,
+  function syncFreeService(cart) {
+    var name = appSettings.free_service_name;
+    if (!name) {
+      for (var i = cart.length - 1; i >= 0; i--) {
+        if (cart[i].is_free_service) cart.splice(i, 1);
+      }
+      return;
+    }
+    var bouquetCount = countBouquets(cart);
+    var idx = -1;
+    for (var j = 0; j < cart.length; j++) {
+      if (cart[j].is_free_service) { idx = j; break; }
+    }
+    if (bouquetCount <= 0) {
+      if (idx >= 0) cart.splice(idx, 1);
+      return;
+    }
+    if (idx >= 0) {
+      cart[idx].name = name;
+      cart[idx].quantity = bouquetCount;
+    } else {
+      cart.push({
+        product_id: 0,
+        name: name,
         price: 0,
-        image_url: p.image_url,
-        quantity: 1,
+        image_url: '',
+        quantity: bouquetCount,
         flower_count: 0,
         size_label: '',
         is_bouquet: 0,
@@ -245,21 +255,11 @@
         available_sizes: [],
         is_free_service: true
       });
-      saveCart(c);
-      updateCartBadge();
-    }).catch(function () {});
+    }
   }
 
   function cartItemKey(item) {
     return item.product_id + '_' + (item.size_label || '');
-  }
-
-  function cleanFreeService(cart) {
-    var hasBouquet = cart.some(function (i) { return i.is_bouquet && !i.is_free_service; });
-    if (!hasBouquet) {
-      return cart.filter(function (i) { return !i.is_free_service; });
-    }
-    return cart;
   }
 
   function updateCartQty(productId, sizeLabel, delta) {
@@ -272,14 +272,14 @@
         cart = cart.filter(function (i) { return cartItemKey(i) !== key; });
       }
     }
-    cart = cleanFreeService(cart);
+    syncFreeService(cart);
     saveCart(cart);
   }
 
   function removeFromCart(productId, sizeLabel) {
     var key = productId + '_' + (sizeLabel || '');
     var cart = getCart().filter(function (i) { return cartItemKey(i) !== key; });
-    cart = cleanFreeService(cart);
+    syncFreeService(cart);
     saveCart(cart);
   }
 
@@ -850,6 +850,8 @@
   function showCart(keepScroll) {
     setActiveTab('cart');
     var cart = getCart();
+    syncFreeService(cart);
+    saveCart(cart);
     var h = '<div class="section-title">Корзина</div>';
     if (!cart.length) { render(h + '<div class="empty-state">Корзина пуста</div>'); return; }
 
@@ -903,6 +905,11 @@
     var h = '<div class="section-title">Корзина</div>';
     h += '<div class="cart-items">';
     cart.forEach(function (item, idx) {
+      if (item.is_free_service) return;
+      h += buildCartRow(item, idx);
+    });
+    cart.forEach(function (item, idx) {
+      if (!item.is_free_service) return;
       h += buildCartRow(item, idx);
     });
     h += '</div>';
@@ -972,10 +979,10 @@
         '<div class="cart-item-info">' +
           '<div>' +
             '<div class="cart-item-name">' + escapeHtml(item.name) + '</div>' +
-            '<div class="cart-item-price">' + formatPrice(0) + ' — Бесплатно</div>' +
+            '<div class="cart-item-price">0 ₽</div>' +
           '</div>' +
           '<div class="cart-item-controls">' +
-            '<span class="qty-value">1</span>' +
+            '<span class="qty-value">' + item.quantity + '</span>' +
           '</div>' +
         '</div></div>';
     }
