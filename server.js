@@ -321,8 +321,8 @@ app.post('/api/orders', function (req, res) {
     var orderId = createOrder();
     res.json({ success: true, order_id: orderId, total_amount: totalAmount });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Order creation failed' });
+    console.error('Order creation error:', err);
+    res.status(500).json({ error: 'Order creation failed: ' + err.message });
   }
 });
 

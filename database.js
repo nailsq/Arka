@@ -110,4 +110,45 @@ db.exec(`
   );
 `);
 
+// Auto-migration: add missing columns to existing tables
+function addColumnIfMissing(table, column, definition) {
+  try {
+    var cols = db.pragma('table_info(' + table + ')');
+    var exists = cols.some(function (c) { return c.name === column; });
+    if (!exists) {
+      db.exec('ALTER TABLE ' + table + ' ADD COLUMN ' + column + ' ' + definition);
+      console.log('Migration: added ' + table + '.' + column);
+    }
+  } catch (e) {
+    console.error('Migration error (' + table + '.' + column + '):', e.message);
+  }
+}
+
+// orders table migrations
+addColumnIfMissing('orders', 'user_email', 'TEXT');
+addColumnIfMissing('orders', 'user_telegram', 'TEXT');
+addColumnIfMissing('orders', 'receiver_name', 'TEXT');
+addColumnIfMissing('orders', 'receiver_phone', 'TEXT');
+addColumnIfMissing('orders', 'delivery_date', 'TEXT');
+addColumnIfMissing('orders', 'exact_time', 'TEXT');
+addColumnIfMissing('orders', 'delivery_type', "TEXT DEFAULT 'delivery'");
+addColumnIfMissing('orders', 'delivery_zone', 'TEXT');
+addColumnIfMissing('orders', 'delivery_cost', 'INTEGER DEFAULT 0');
+addColumnIfMissing('orders', 'delivery_interval', 'TEXT');
+addColumnIfMissing('orders', 'comment', 'TEXT');
+addColumnIfMissing('orders', 'city_id', 'INTEGER');
+addColumnIfMissing('orders', 'payment_id', 'TEXT');
+addColumnIfMissing('orders', 'is_paid', 'INTEGER DEFAULT 0');
+addColumnIfMissing('orders', 'paid_at', 'DATETIME');
+
+// order_items table migrations
+addColumnIfMissing('order_items', 'flower_count', 'INTEGER DEFAULT 0');
+
+// products table migrations
+addColumnIfMissing('products', 'is_bouquet', 'INTEGER DEFAULT 0');
+addColumnIfMissing('products', 'flower_min', 'INTEGER DEFAULT 0');
+addColumnIfMissing('products', 'flower_max', 'INTEGER DEFAULT 0');
+addColumnIfMissing('products', 'flower_step', 'INTEGER DEFAULT 1');
+addColumnIfMissing('products', 'price_per_flower', 'INTEGER DEFAULT 0');
+
 module.exports = db;
