@@ -296,15 +296,37 @@
       '" class="' + (cls || '') + '" onerror="this.outerHTML=\'<div class=\\\'no-image\\\'>Фото</div>\'">';
   }
 
+  var SARATOV_TZ = 'Europe/Saratov';
+
+  function saratovNow() {
+    var parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: SARATOV_TZ,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    }).formatToParts(new Date());
+    var p = {};
+    parts.forEach(function (x) { p[x.type] = x.value; });
+    return {
+      year: parseInt(p.year),
+      month: parseInt(p.month),
+      day: parseInt(p.day),
+      hours: parseInt(p.hour === '24' ? '0' : p.hour),
+      minutes: parseInt(p.minute),
+      seconds: parseInt(p.second),
+      dateStr: p.year + '-' + p.month + '-' + p.day,
+      timeStr: (p.hour === '24' ? '00' : p.hour) + ':' + p.minute
+    };
+  }
+
   function formatDate(d) {
     if (!d) return '';
     var dt = new Date(d);
-    var day = String(dt.getDate()).padStart(2, '0');
-    var mon = String(dt.getMonth() + 1).padStart(2, '0');
-    var yr = dt.getFullYear();
-    var h = String(dt.getHours()).padStart(2, '0');
-    var m = String(dt.getMinutes()).padStart(2, '0');
-    return day + '.' + mon + '.' + yr + ' ' + h + ':' + m;
+    var formatted = new Intl.DateTimeFormat('ru-RU', {
+      timeZone: SARATOV_TZ,
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    }).format(dt);
+    return formatted;
   }
 
   var cartSvg = '<svg viewBox="0 0 24 24"><path class="cart-icon-path" d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.16 14.26l.04-.12.94-1.7h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0020.04 4H5.21l-.94-2H1v2h2l3.6 7.59-1.35 2.44C4.52 15.37 5.48 17 7 17h12v-2H7.42c-.13 0-.22-.11-.22-.2l-.04-.14z"/></svg>';
@@ -465,10 +487,7 @@
     if (!raw) return false;
     try {
       var dates = JSON.parse(raw);
-      var today = new Date();
-      var todayStr = today.getFullYear() + '-' +
-        String(today.getMonth() + 1).padStart(2, '0') + '-' +
-        String(today.getDate()).padStart(2, '0');
+      var todayStr = saratovNow().dateStr;
       return dates.indexOf(todayStr) >= 0;
     } catch (e) { return false; }
   }
@@ -867,8 +886,8 @@
     var tgUsername = (tgUser && tgUser.username) ? '@' + tgUser.username : '';
 
     var intervals = getIntervals();
-    var now = new Date();
-    var currentHour = now.getHours();
+    var sNow = saratovNow();
+    var currentHour = sNow.hours;
     var cutoff = getCutoffHour();
     var holiday = isHolidayToday();
     var pickup = appSettings.pickup_address || 'г. Саратов, 3-й Дегтярный проезд, 21к3';
@@ -886,10 +905,9 @@
         '<span class="radio-dot"></span> ' + escapeHtml(z.name) + ' (' + formatPrice(cost) + ')</label>';
     }).join('');
 
-    var todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-    var tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    var tomorrowStr = tomorrow.getFullYear() + '-' + String(tomorrow.getMonth() + 1).padStart(2, '0') + '-' + String(tomorrow.getDate()).padStart(2, '0');
+    var todayStr = sNow.dateStr;
+    var tmrw = new Date(sNow.year, sNow.month - 1, sNow.day + 1);
+    var tomorrowStr = tmrw.getFullYear() + '-' + String(tmrw.getMonth() + 1).padStart(2, '0') + '-' + String(tmrw.getDate()).padStart(2, '0');
     var isTodayClosed = currentHour >= cutoff;
     var minDate = todayStr;
     var defaultDate = isTodayClosed ? tomorrowStr : todayStr;
@@ -1092,9 +1110,9 @@
         }
         var dateVal = document.getElementById('field-date').value;
         if (!dateVal) { showToast('Укажите дату доставки'); return; }
-        var nowCheck = new Date();
-        var todayCheck = nowCheck.getFullYear() + '-' + String(nowCheck.getMonth() + 1).padStart(2, '0') + '-' + String(nowCheck.getDate()).padStart(2, '0');
-        if (checkoutState.deliveryType === 'delivery' && dateVal === todayCheck && nowCheck.getHours() >= getCutoffHour()) {
+        var sNowCheck = saratovNow();
+        var todayCheck = sNowCheck.dateStr;
+        if (checkoutState.deliveryType === 'delivery' && dateVal === todayCheck && sNowCheck.hours >= getCutoffHour()) {
           showToast('Доставка на сегодня недоступна. Выберите другую дату или самовывоз.');
           return;
         }
@@ -1176,10 +1194,10 @@
     if (!el) return;
     var dateField = document.getElementById('field-date');
     var selectedDate = dateField ? dateField.value : '';
-    var now = new Date();
-    var todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    var sNowIv = saratovNow();
+    var todayStr = sNowIv.dateStr;
     var isToday = selectedDate === todayStr;
-    var currentHour = now.getHours();
+    var currentHour = sNowIv.hours;
     var cutoff = getCutoffHour();
     var intervals = getIntervals();
 
@@ -1203,11 +1221,11 @@
   window.onDeliveryDateChange = function () {
     var dateField = document.getElementById('field-date');
     var notice = document.getElementById('date-cutoff-notice');
-    var now = new Date();
-    var todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    var sNowDc = saratovNow();
+    var todayStr = sNowDc.dateStr;
     var cutoff = getCutoffHour();
     var isToday = dateField && dateField.value === todayStr;
-    var isClosed = isToday && now.getHours() >= cutoff;
+    var isClosed = isToday && sNowDc.hours >= cutoff;
 
     if (notice) notice.style.display = isClosed ? 'block' : 'none';
 
@@ -1289,8 +1307,8 @@
     var dateField = document.getElementById('field-date');
     if (!warn || !timeInput) return true;
 
-    var now = new Date();
-    var todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    var sNowEt = saratovNow();
+    var todayStr = sNowEt.dateStr;
     var isToday = dateField && dateField.value === todayStr;
 
     if (!isToday) {
@@ -1302,7 +1320,7 @@
     var targetH = parseInt(parts[0]) || 0;
     var targetM = parseInt(parts[1]) || 0;
     var targetMinutes = targetH * 60 + targetM;
-    var nowMinutes = now.getHours() * 60 + now.getMinutes();
+    var nowMinutes = sNowEt.hours * 60 + sNowEt.minutes;
     var diff = targetMinutes - nowMinutes;
 
     if (diff < 90) {
@@ -1463,7 +1481,7 @@
 
       '<div class="profile-section profile-tracking-section">' +
         '<div class="profile-section-header">' +
-          '<span class="profile-section-title tracking-title">Доставка</span>' +
+          '<span class="profile-section-title tracking-title">Заказы</span>' +
         '</div>' +
         '<div id="profile-tracking"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
       '</div>' +
@@ -1519,6 +1537,20 @@
     }
   };
 
+  var TRACK_STEPS_DELIVERY = ['Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен'];
+  var TRACK_STEPS_PICKUP = ['Оплачен', 'Собирается', 'Готов к выдаче'];
+
+  function getTrackSteps(order) {
+    return order.delivery_type === 'pickup' ? TRACK_STEPS_PICKUP : TRACK_STEPS_DELIVERY;
+  }
+
+  function isOrderFinished(order) {
+    if (order.delivery_type === 'pickup') {
+      return order.status === 'Готов к выдаче';
+    }
+    return order.status === 'Доставлен';
+  }
+
   function loadProfileTracking() {
     var telegramId = getTelegramId();
     if (!telegramId) return;
@@ -1529,27 +1561,41 @@
         el.innerHTML = '<div class="empty-state" style="padding:12px">Активных заказов нет</div>';
         return;
       }
-      var active = orders.filter(function (o) { return o.status !== 'Доставлен'; });
+      var active = orders.filter(function (o) { return !isOrderFinished(o); });
       if (!active.length) {
-        el.innerHTML = '<div class="empty-state" style="padding:12px">Все заказы доставлены</div>';
+        el.innerHTML = '<div class="empty-state" style="padding:12px">Все заказы выполнены</div>';
         return;
       }
       el.innerHTML = active.map(function (o) {
-        var currentIdx = TRACK_STEPS.indexOf(o.status);
+        var steps = getTrackSteps(o);
+        var currentIdx = steps.indexOf(o.status);
         if (currentIdx < 0) currentIdx = 0;
         var timelineHtml = '';
-        TRACK_STEPS.forEach(function (step, idx) {
+        steps.forEach(function (step, idx) {
           if (idx > 0) timelineHtml += '<div class="timeline-line' + (idx <= currentIdx ? ' filled' : '') + '"></div>';
           var cls = 'timeline-step';
           if (idx < currentIdx) cls += ' done';
           if (idx === currentIdx) cls += ' current';
           timelineHtml += '<div class="' + cls + '"><div class="timeline-dot"></div><div class="timeline-label">' + escapeHtml(step) + '</div></div>';
         });
+
+        var isPickup = o.delivery_type === 'pickup';
+        var typeLabel = isPickup ? 'Самовывоз' : 'Доставка';
+        var timeInfo = '';
+        if (isPickup && o.delivery_date) {
+          timeInfo = '<div class="track-time-info">Готовность: ' + escapeHtml(o.delivery_date) +
+            (o.delivery_interval ? ', ' + escapeHtml(o.delivery_interval) : '') + '</div>';
+        } else if (!isPickup && o.delivery_date) {
+          timeInfo = '<div class="track-time-info">Доставка: ' + escapeHtml(o.delivery_date) +
+            (o.exact_time ? ' к ' + escapeHtml(o.exact_time) : (o.delivery_interval ? ', ' + escapeHtml(o.delivery_interval) : '')) + '</div>';
+        }
+
         return '<div class="track-card-mini">' +
-          '<div class="track-header"><span class="track-id">Заказ #' + o.id + '</span><span class="track-date">' + formatDate(o.created_at) + '</span></div>' +
+          '<div class="track-header"><span class="track-id">Заказ #' + o.id + '</span><span class="track-type-label">' + typeLabel + '</span></div>' +
           '<div class="track-status-row"><span class="track-status-badge">' + escapeHtml(o.status) + '</span>' +
-            (o.total ? '<span class="track-total">' + formatPrice(o.total) + '</span>' : '') +
+            '<span class="track-total">' + formatPrice(o.total_amount) + '</span>' +
           '</div>' +
+          timeInfo +
           '<div class="timeline">' + timelineHtml + '</div>' +
         '</div>';
       }).join('');
@@ -1750,15 +1796,13 @@
   // Delivery tracking
   // ============================================================
 
-  var TRACK_STEPS = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен'];
-
   window.showDeliveryTracking = function () {
     var telegramId = getTelegramId();
 
     if (!telegramId) {
       render(
         '<span class="back-link" onclick="navigateTo(\'account\')">К профилю</span>' +
-        '<div class="section-title">Доставка</div>' +
+        '<div class="section-title">Заказы</div>' +
         '<div class="empty-state">Откройте приложение через Telegram для отслеживания заказов.</div>'
       );
       return;
@@ -1766,7 +1810,7 @@
 
     render(
       '<span class="back-link" onclick="navigateTo(\'account\')">К профилю</span>' +
-      '<div class="section-title">Доставка</div>' +
+      '<div class="section-title">Заказы</div>' +
       '<div id="delivery-list"><div class="empty-state">Загрузка...</div></div>'
     );
 
@@ -1779,11 +1823,12 @@
       }
 
       el.innerHTML = orders.map(function (o) {
-        var currentIdx = TRACK_STEPS.indexOf(o.status);
+        var steps = getTrackSteps(o);
+        var currentIdx = steps.indexOf(o.status);
         if (currentIdx < 0) currentIdx = 0;
 
         var timelineHtml = '';
-        TRACK_STEPS.forEach(function (step, idx) {
+        steps.forEach(function (step, idx) {
           if (idx > 0) {
             timelineHtml += '<div class="timeline-line' + (idx <= currentIdx ? ' filled' : '') + '"></div>';
           }
@@ -1804,21 +1849,28 @@
             }).join('') + '</div>';
         }
 
-        var deliveryLine = '';
-        if (o.delivery_type === 'pickup') {
-          deliveryLine = 'Самовывоз';
-        } else {
-          deliveryLine = 'Доставка' + (o.delivery_interval ? ', ' + escapeHtml(o.delivery_interval) : '');
+        var isPickup = o.delivery_type === 'pickup';
+        var typeLabel = isPickup ? 'Самовывоз' : 'Доставка';
+        var timeInfo = '';
+        if (isPickup && o.delivery_date) {
+          timeInfo = '<div class="track-time-info">Готовность: ' + escapeHtml(o.delivery_date) +
+            (o.delivery_interval ? ', ' + escapeHtml(o.delivery_interval) : '') + '</div>';
+        } else if (!isPickup) {
+          var parts = [];
+          if (o.delivery_date) parts.push(escapeHtml(o.delivery_date));
+          if (o.exact_time) parts.push('к ' + escapeHtml(o.exact_time));
+          else if (o.delivery_interval) parts.push(escapeHtml(o.delivery_interval));
+          if (parts.length) timeInfo = '<div class="track-time-info">' + parts.join(', ') + '</div>';
         }
 
         return '<div class="track-card">' +
           '<div class="track-header">' +
-            '<span class="track-id">Заказ N ' + o.id + '</span>' +
-            '<span class="track-date">' + formatDate(o.created_at) + '</span>' +
+            '<span class="track-id">Заказ #' + o.id + '</span>' +
+            '<span class="track-type-label">' + typeLabel + '</span>' +
           '</div>' +
           '<div class="track-amount">' + formatPrice(o.total_amount) + '</div>' +
+          timeInfo +
           '<div class="timeline">' + timelineHtml + '</div>' +
-          '<div class="track-delivery-info">' + deliveryLine + '</div>' +
           itemsHtml +
         '</div>';
       }).join('');

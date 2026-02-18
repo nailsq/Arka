@@ -5,7 +5,9 @@
   var token = localStorage.getItem('arka_admin_token') || '';
   var currentTab = 'orders';
 
-  var ORDER_STATUSES = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен'];
+  var ORDER_STATUSES_DELIVERY = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен'];
+  var ORDER_STATUSES_PICKUP = ['Новый', 'Оплачен', 'Собирается', 'Готов к выдаче'];
+  var ORDER_STATUSES = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен', 'Готов к выдаче'];
 
   var STATUS_BADGE = {
     'Новый': 'badge-new',
@@ -13,8 +15,13 @@
     'Собирается': 'badge-preparing',
     'Собран': 'badge-ready',
     'Отправлен': 'badge-shipped',
-    'Доставлен': 'badge-delivered'
+    'Доставлен': 'badge-delivered',
+    'Готов к выдаче': 'badge-pickup-ready'
   };
+
+  function getStatusesForOrder(order) {
+    return order.delivery_type === 'pickup' ? ORDER_STATUSES_PICKUP : ORDER_STATUSES_DELIVERY;
+  }
 
   // ============================================================
   // Helpers
@@ -62,12 +69,16 @@
     return Number(p).toLocaleString('ru-RU') + ' р.';
   }
 
+  var SARATOV_TZ = 'Europe/Saratov';
+
   function fmtDate(d) {
     if (!d) return '—';
     var dt = new Date(d);
-    return String(dt.getDate()).padStart(2, '0') + '.' +
-      String(dt.getMonth() + 1).padStart(2, '0') + '.' + dt.getFullYear() + ' ' +
-      String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0');
+    return new Intl.DateTimeFormat('ru-RU', {
+      timeZone: SARATOV_TZ,
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    }).format(dt);
   }
 
   function render(html) {
@@ -381,7 +392,8 @@
       h += '<div style="border-top:1px solid var(--border);padding-top:20px;margin-top:20px">';
       h += '<div style="font-weight:600;margin-bottom:10px">Изменить статус</div>';
       h += '<div class="btn-group">';
-      ORDER_STATUSES.forEach(function (s) {
+      var applicableStatuses = getStatusesForOrder(o);
+      applicableStatuses.forEach(function (s) {
         var cls = s === o.status ? 'btn btn-sm btn-primary' : 'btn btn-sm';
         h += '<button class="' + cls + '" onclick="changeOrderStatus(' + o.id + ',\'' + esc(s) + '\')">' + esc(s) + '</button>';
       });
