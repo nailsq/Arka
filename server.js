@@ -1,30 +1,25 @@
 require('dotenv').config();
-const express = require('express');
-const path = require('path');
-const crypto = require('crypto');
-const multer = require('multer');
-const db = require('./database');
+var express = require('express');
+var path = require('path');
+var crypto = require('crypto');
+var multer = require('multer');
+var backup = require('./backup');
+var db = require('./database');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+var app = express();
+var PORT = process.env.PORT || 3000;
 
-const ADMIN_LOGIN = process.env.ADMIN_LOGIN || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
-const BOT_TOKEN = process.env.BOT_TOKEN || '';
-const PAYMENT_PROVIDER = process.env.PAYMENT_PROVIDER || 'test';
-const PUBLIC_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
-const ADMIN_TELEGRAM_IDS = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+var ADMIN_LOGIN = process.env.ADMIN_LOGIN || 'admin';
+var ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+var BOT_TOKEN = process.env.BOT_TOKEN || '';
+var PAYMENT_PROVIDER = process.env.PAYMENT_PROVIDER || 'test';
+var PUBLIC_URL = process.env.PUBLIC_URL || ('http://localhost:' + PORT);
+var ADMIN_TELEGRAM_IDS = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 
-const adminTokens = new Set();
+var adminTokens = new Set();
 
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: path.join(__dirname, 'public', 'images'),
-    filename: function (req, file, cb) {
-      const ext = path.extname(file.originalname) || '.jpg';
-      cb(null, 'product_' + Date.now() + ext);
-    }
-  }),
+var upload = multer({
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: function (req, file, cb) {
     if (/image\/(jpeg|jpg|png|webp)/.test(file.mimetype)) {
@@ -42,14 +37,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 // HELPERS
 // ============================================================
 
-function getSetting(key) {
-  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+async function getSetting(key) {
+  var row = await db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
   return row ? row.value : null;
 }
 
-function getAllSettings() {
-  const rows = db.prepare('SELECT key, value FROM settings').all();
-  const result = {};
+async function getAllSettings() {
+  var rows = await db.prepare('SELECT key, value FROM settings').all();
+  var result = {};
   rows.forEach(function (r) { result[r.key] = r.value; });
   return result;
 }
@@ -57,51 +52,96 @@ function getAllSettings() {
 function validateTelegramInitData(initData) {
   if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') return null;
   try {
-    const params = new URLSearchParams(initData);
-    const hash = params.get('hash');
+    var params = new URLSearchParams(initData);
+    var hash = params.get('hash');
     params.delete('hash');
-    const entries = [];
+    var entries = [];
     params.forEach(function (v, k) { entries.push(k + '=' + v); });
     entries.sort();
-    const dataCheckString = entries.join('\n');
-    const secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
-    const computed = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+    var dataCheckString = entries.join('\n');
+    var secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
+    var computed = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
     if (computed === hash) {
-      const userStr = params.get('user');
+      var userStr = params.get('user');
       return userStr ? JSON.parse(userStr) : null;
     }
-  } catch (e) {
-    // validation failed
-  }
+  } catch (e) { /* validation failed */ }
   return null;
 }
 
 function adminAuth(req, res, next) {
-  const token = req.headers['x-admin-token'];
+  var token = req.headers['x-admin-token'];
   if (!token || !adminTokens.has(token)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   next();
 }
 
+async function isAdminUser(telegramId, username) {
+  if (ADMIN_TELEGRAM_IDS.includes(String(telegramId))) return true;
+  if (telegramId) {
+    var byId = await db.prepare('SELECT id FROM admin_users WHERE telegram_id = ?').get(String(telegramId));
+    if (byId) return true;
+  }
+  if (username) {
+    var clean = username.replace(/^@/, '').toLowerCase();
+    var byName = await db.prepare('SELECT id FROM admin_users WHERE LOWER(telegram_username) = ?').get(clean);
+    if (byName) return true;
+  }
+  return false;
+}
+
+function isSuperAdmin(telegramId) {
+  return ADMIN_TELEGRAM_IDS.includes(String(telegramId));
+}
+
+function superAdminAuth(req, res, next) {
+  var token = req.headers['x-admin-token'];
+  if (!token || !adminTokens.has(token)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  var telegramId = req.headers['x-telegram-id'] || '';
+  if (!isSuperAdmin(telegramId)) {
+    return res.status(403).json({ error: 'Super admin only' });
+  }
+  next();
+}
+
+// ============================================================
+// IMAGE SERVING FROM DATABASE
+// ============================================================
+
+app.get('/api/images/:id', async function (req, res) {
+  try {
+    var img = await db.prepare('SELECT image_data FROM product_images WHERE id = ?').get(req.params.id);
+    if (!img || !img.image_data) return res.status(404).send('Not found');
+    var match = img.image_data.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) return res.status(404).send('Invalid');
+    res.set('Content-Type', match[1]);
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    res.send(Buffer.from(match[2], 'base64'));
+  } catch (err) {
+    res.status(500).send('Error');
+  }
+});
+
 // ============================================================
 // PUBLIC API: Categories & Products
 // ============================================================
 
-app.get('/api/cities', function (req, res) {
-  res.json(db.prepare('SELECT * FROM cities WHERE is_active = 1').all());
+app.get('/api/cities', async function (req, res) {
+  res.json(await db.prepare('SELECT * FROM cities WHERE is_active = 1').all());
 });
 
-app.get('/api/categories', function (req, res) {
-  res.json(db.prepare('SELECT * FROM categories').all());
+app.get('/api/categories', async function (req, res) {
+  res.json(await db.prepare('SELECT * FROM categories').all());
 });
 
-function attachImages(products) {
+async function attachImages(products) {
   if (!products || !products.length) return products;
   var ids = products.map(function (p) { return p.id; });
   var placeholders = ids.map(function () { return '?'; }).join(',');
-  var stmt = db.prepare('SELECT * FROM product_images WHERE product_id IN (' + placeholders + ') ORDER BY sort_order, id');
-  var imgs = stmt.all(...ids);
+  var imgs = await db.prepare('SELECT id, product_id, image_url, sort_order FROM product_images WHERE product_id IN (' + placeholders + ') ORDER BY sort_order, id').all.apply(null, ids);
   var map = {};
   imgs.forEach(function (img) {
     if (!map[img.product_id]) map[img.product_id] = [];
@@ -116,45 +156,45 @@ function attachImages(products) {
   return products;
 }
 
-function attachImagesOne(p) {
+async function attachImagesOne(p) {
   if (!p) return p;
-  p.images = db.prepare('SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order, id').all(p.id);
+  p.images = await db.prepare('SELECT id, product_id, image_url, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order, id').all(p.id);
   if (!p.images.length && p.image_url) {
     p.images = [{ id: 0, product_id: p.id, image_url: p.image_url, sort_order: 0 }];
   }
   return p;
 }
 
-app.get('/api/products', function (req, res) {
+app.get('/api/products', async function (req, res) {
   var cid = req.query.category_id;
   var products;
   if (!cid) {
-    products = db.prepare('SELECT * FROM products').all();
+    products = await db.prepare('SELECT * FROM products').all();
   } else {
-    products = db.prepare('SELECT * FROM products WHERE category_id = ?').all(cid);
+    products = await db.prepare('SELECT * FROM products WHERE category_id = ?').all(cid);
   }
-  res.json(attachImages(products));
+  res.json(await attachImages(products));
 });
 
-app.get('/api/products/:id', function (req, res) {
-  var p = db.prepare('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.id = ?').get(req.params.id);
+app.get('/api/products/:id', async function (req, res) {
+  var p = await db.prepare('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.id = ?').get(req.params.id);
   if (!p) return res.status(404).json({ error: 'Not found' });
-  res.json(attachImagesOne(p));
+  res.json(await attachImagesOne(p));
 });
 
 // ============================================================
-// PUBLIC API: Settings (delivery info for client)
+// PUBLIC API: Settings
 // ============================================================
 
-app.get('/api/settings', function (req, res) {
-  res.json(getAllSettings());
+app.get('/api/settings', async function (req, res) {
+  res.json(await getAllSettings());
 });
 
 // ============================================================
 // AUTH: Telegram
 // ============================================================
 
-app.post('/api/auth/telegram', function (req, res) {
+app.post('/api/auth/telegram', async function (req, res) {
   var telegramId = req.body.telegram_id;
   var firstName = req.body.first_name || '';
   var initData = req.body.init_data || '';
@@ -170,19 +210,17 @@ app.post('/api/auth/telegram', function (req, res) {
     }
   }
 
-  var existing = db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
+  var existing = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
   if (existing) {
     if (firstName && firstName !== existing.first_name) {
-      db.prepare('UPDATE users SET first_name = ? WHERE id = ?').run(firstName, existing.id);
+      await db.prepare('UPDATE users SET first_name = ? WHERE id = ?').run(firstName, existing.id);
       existing.first_name = firstName;
     }
     return res.json({ user: existing });
   }
 
-  var info = db.prepare('INSERT INTO users (telegram_id, first_name) VALUES (?, ?)').run(
-    String(telegramId), firstName
-  );
-  var user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+  var info = await db.prepare('INSERT INTO users (telegram_id, first_name) VALUES (?, ?)').run(String(telegramId), firstName);
+  var user = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
   res.json({ user: user });
 });
 
@@ -190,18 +228,18 @@ app.post('/api/auth/telegram', function (req, res) {
 // USER: Update profile
 // ============================================================
 
-app.post('/api/user/update', function (req, res) {
+app.post('/api/user/update', async function (req, res) {
   var telegramId = req.body.telegram_id;
   if (!telegramId) return res.status(400).json({ error: 'telegram_id required' });
-  var user = db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
+  var user = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
   if (!user) return res.status(404).json({ error: 'User not found' });
 
   var phone = req.body.phone;
   var address = req.body.default_address;
-  if (phone !== undefined) db.prepare('UPDATE users SET phone = ? WHERE id = ?').run(phone, user.id);
-  if (address !== undefined) db.prepare('UPDATE users SET default_address = ? WHERE id = ?').run(address, user.id);
+  if (phone !== undefined) await db.prepare('UPDATE users SET phone = ? WHERE id = ?').run(phone, user.id);
+  if (address !== undefined) await db.prepare('UPDATE users SET default_address = ? WHERE id = ?').run(address, user.id);
 
-  var updated = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
+  var updated = await db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
   res.json({ user: updated });
 });
 
@@ -209,30 +247,30 @@ app.post('/api/user/update', function (req, res) {
 // USER: Saved addresses
 // ============================================================
 
-app.get('/api/user/addresses', function (req, res) {
+app.get('/api/user/addresses', async function (req, res) {
   var telegramId = req.query.telegram_id;
   if (!telegramId) return res.json([]);
-  var user = db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
+  var user = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
   if (!user) return res.json([]);
-  var addresses = db.prepare('SELECT * FROM user_addresses WHERE user_id = ? ORDER BY created_at DESC').all(user.id);
+  var addresses = await db.prepare('SELECT * FROM user_addresses WHERE user_id = ? ORDER BY created_at DESC').all(user.id);
   res.json(addresses);
 });
 
-app.post('/api/user/addresses', function (req, res) {
+app.post('/api/user/addresses', async function (req, res) {
   var telegramId = req.body.telegram_id;
   if (!telegramId) return res.status(400).json({ error: 'telegram_id required' });
-  var user = db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
+  var user = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
   if (!user) return res.status(404).json({ error: 'User not found' });
   var b = req.body;
   var fullAddr = (b.city || '') + ', ' + (b.district || '') + ', ' + (b.street || '') + ', кв./оф. ' + (b.apartment || '') + (b.note ? ', ' + b.note : '');
-  var r = db.prepare('INSERT INTO user_addresses (user_id, label, city, district, street, apartment, note, full_address) VALUES (?,?,?,?,?,?,?,?)').run(
+  var r = await db.prepare('INSERT INTO user_addresses (user_id, label, city, district, street, apartment, note, full_address) VALUES (?,?,?,?,?,?,?,?)').run(
     user.id, b.label || '', b.city || '', b.district || '', b.street || '', b.apartment || '', b.note || '', fullAddr
   );
   res.json({ id: Number(r.lastInsertRowid), full_address: fullAddr });
 });
 
-app.delete('/api/user/addresses/:id', function (req, res) {
-  db.prepare('DELETE FROM user_addresses WHERE id = ?').run(req.params.id);
+app.delete('/api/user/addresses/:id', async function (req, res) {
+  await db.prepare('DELETE FROM user_addresses WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 
@@ -240,21 +278,19 @@ app.delete('/api/user/addresses/:id', function (req, res) {
 // USER: Order history
 // ============================================================
 
-app.get('/api/user/orders', function (req, res) {
+app.get('/api/user/orders', async function (req, res) {
   var telegramId = req.query.telegram_id;
   if (!telegramId) return res.status(400).json({ error: 'telegram_id required' });
-  var user = db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
+  var user = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
   if (!user) return res.json([]);
 
-  var orders = db.prepare(
-    'SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC'
-  ).all(user.id);
+  var orders = await db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC').all(user.id);
 
-  orders.forEach(function (o) {
-    o.items = db.prepare(
+  for (var i = 0; i < orders.length; i++) {
+    orders[i].items = await db.prepare(
       'SELECT oi.*, p.name as product_name FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?'
-    ).all(o.id);
-  });
+    ).all(orders[i].id);
+  }
 
   res.json(orders);
 });
@@ -263,7 +299,7 @@ app.get('/api/user/orders', function (req, res) {
 // PUBLIC API: Create order
 // ============================================================
 
-app.post('/api/orders', function (req, res) {
+app.post('/api/orders', async function (req, res) {
   var body = req.body;
   var userName = body.user_name;
   var userPhone = body.user_phone;
@@ -279,19 +315,14 @@ app.post('/api/orders', function (req, res) {
 
   var userId = null;
   if (body.telegram_id) {
-    var user = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(String(body.telegram_id));
+    var user = await db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(String(body.telegram_id));
     if (user) userId = user.id;
   }
 
-  var insertOrder = db.prepare(
-    'INSERT INTO orders (user_id, city_id, user_name, user_phone, user_email, user_telegram, receiver_name, receiver_phone, delivery_address, delivery_type, delivery_zone, delivery_cost, delivery_interval, delivery_date, exact_time, comment, total_amount, status_updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)'
-  );
-  var insertItem = db.prepare(
-    'INSERT INTO order_items (order_id, product_id, quantity, price, flower_count) VALUES (?,?,?,?,?)'
-  );
-
-  var createOrder = db.transaction(function () {
-    var r = insertOrder.run(
+  try {
+    var r = await db.prepare(
+      'INSERT INTO orders (user_id, city_id, user_name, user_phone, user_email, user_telegram, receiver_name, receiver_phone, delivery_address, delivery_type, delivery_zone, delivery_cost, delivery_interval, delivery_date, exact_time, comment, total_amount, status_updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)'
+    ).run(
       userId,
       body.city_id || null,
       userName,
@@ -310,15 +341,15 @@ app.post('/api/orders', function (req, res) {
       body.comment || '',
       totalAmount
     );
-    var orderId = r.lastInsertRowid;
-    items.forEach(function (item) {
-      insertItem.run(orderId, item.product_id, item.quantity, item.price, item.flower_count || 0);
-    });
-    return orderId;
-  });
+    var orderId = Number(r.lastInsertRowid);
 
-  try {
-    var orderId = createOrder();
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      await db.prepare(
+        'INSERT INTO order_items (order_id, product_id, quantity, price, flower_count) VALUES (?,?,?,?,?)'
+      ).run(orderId, item.product_id, item.quantity, item.price, item.flower_count || 0);
+    }
+
     res.json({ success: true, order_id: orderId, total_amount: totalAmount });
   } catch (err) {
     console.error('Order creation error:', err);
@@ -330,28 +361,24 @@ app.post('/api/orders', function (req, res) {
 // PAYMENT
 // ============================================================
 
-app.post('/api/payments/create', function (req, res) {
+app.post('/api/payments/create', async function (req, res) {
   var orderId = req.body.order_id;
   if (!orderId) return res.status(400).json({ error: 'order_id required' });
 
-  var order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+  var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
   if (!order) return res.status(404).json({ error: 'Order not found' });
 
   var paymentId = 'pay_' + Date.now() + '_' + orderId;
 
   if (PAYMENT_PROVIDER === 'test') {
-    db.prepare('UPDATE orders SET payment_id = ? WHERE id = ?').run(paymentId, orderId);
+    await db.prepare('UPDATE orders SET payment_id = ? WHERE id = ?').run(paymentId, orderId);
     var baseUrl = PUBLIC_URL !== 'http://localhost:3000' ? PUBLIC_URL : (req.protocol + '://' + req.get('host'));
     var confirmUrl = baseUrl + '/api/payments/test-complete/' + orderId + '?payment_id=' + paymentId;
-    return res.json({
-      payment_id: paymentId,
-      payment_url: confirmUrl,
-      provider: 'test'
-    });
+    return res.json({ payment_id: paymentId, payment_url: confirmUrl, provider: 'test' });
   }
 
   if (PAYMENT_PROVIDER === 'yookassa') {
-    db.prepare('UPDATE orders SET payment_id = ? WHERE id = ?').run(paymentId, orderId);
+    await db.prepare('UPDATE orders SET payment_id = ? WHERE id = ?').run(paymentId, orderId);
     return res.json({
       payment_id: paymentId,
       payment_url: PUBLIC_URL + '/api/payments/test-complete/' + orderId + '?payment_id=' + paymentId,
@@ -361,7 +388,7 @@ app.post('/api/payments/create', function (req, res) {
   }
 
   if (PAYMENT_PROVIDER === 'tinkoff') {
-    db.prepare('UPDATE orders SET payment_id = ? WHERE id = ?').run(paymentId, orderId);
+    await db.prepare('UPDATE orders SET payment_id = ? WHERE id = ?').run(paymentId, orderId);
     return res.json({
       payment_id: paymentId,
       payment_url: PUBLIC_URL + '/api/payments/test-complete/' + orderId + '?payment_id=' + paymentId,
@@ -373,26 +400,25 @@ app.post('/api/payments/create', function (req, res) {
   res.status(400).json({ error: 'Unknown payment provider' });
 });
 
-app.get('/api/payments/test-complete/:orderId', function (req, res) {
+app.get('/api/payments/test-complete/:orderId', async function (req, res) {
   var orderId = req.params.orderId;
-  var paymentId = req.query.payment_id;
-  var order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+  var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
   if (!order) return res.status(404).send('Order not found');
 
-  db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+  await db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run('Оплачен', orderId);
 
   res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Оплата</title><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff;color:#000}div{text-align:center;border:1px solid #000;padding:40px}a{display:inline-block;margin-top:20px;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:8px}</style></head><body><div><p>Оплата прошла успешно</p><p>Заказ N ' + orderId + '</p><p>Статус заказа обновлен на "Оплачен"</p><a href="/">Вернуться в магазин</a></div></body></html>');
 });
 
-app.post('/api/payments/webhook', function (req, res) {
+app.post('/api/payments/webhook', async function (req, res) {
   var body = req.body;
   var paymentId = body.payment_id || body.PaymentId || '';
 
   if (paymentId) {
-    var order = db.prepare('SELECT * FROM orders WHERE payment_id = ?').get(String(paymentId));
+    var order = await db.prepare('SELECT * FROM orders WHERE payment_id = ?').get(String(paymentId));
     if (order && !order.is_paid) {
-      db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      await db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
         .run('Оплачен', order.id);
     }
   }
@@ -421,20 +447,21 @@ app.post('/api/admin/logout', adminAuth, function (req, res) {
   res.json({ ok: true });
 });
 
-app.post('/api/admin/telegram-login', function (req, res) {
+app.post('/api/admin/telegram-login', async function (req, res) {
   var telegramId = String(req.body.telegram_id || '');
   var username = String(req.body.username || '');
   if (!telegramId) {
     return res.status(400).json({ error: 'telegram_id required' });
   }
-  if (!isAdminUser(telegramId, username)) {
+  var isAdmin = await isAdminUser(telegramId, username);
+  if (!isAdmin) {
     return res.status(403).json({ error: 'Not an admin' });
   }
   if (username) {
     var clean = username.replace(/^@/, '').toLowerCase();
-    var row = db.prepare('SELECT id FROM admin_users WHERE LOWER(telegram_username) = ?').get(clean);
+    var row = await db.prepare('SELECT id FROM admin_users WHERE LOWER(telegram_username) = ?').get(clean);
     if (row) {
-      db.prepare('UPDATE admin_users SET telegram_id = ? WHERE id = ?').run(String(telegramId), row.id);
+      await db.prepare('UPDATE admin_users SET telegram_id = ? WHERE id = ?').run(String(telegramId), row.id);
     }
   }
   var token = crypto.randomBytes(32).toString('hex');
@@ -442,40 +469,10 @@ app.post('/api/admin/telegram-login', function (req, res) {
   res.json({ token: token, is_super_admin: isSuperAdmin(telegramId) });
 });
 
-function isAdminUser(telegramId, username) {
-  if (ADMIN_TELEGRAM_IDS.includes(String(telegramId))) return true;
-  if (telegramId) {
-    var byId = db.prepare('SELECT id FROM admin_users WHERE telegram_id = ?').get(String(telegramId));
-    if (byId) return true;
-  }
-  if (username) {
-    var clean = username.replace(/^@/, '').toLowerCase();
-    var byName = db.prepare('SELECT id FROM admin_users WHERE LOWER(telegram_username) = ?').get(clean);
-    if (byName) return true;
-  }
-  return false;
-}
-
-function isSuperAdmin(telegramId) {
-  return ADMIN_TELEGRAM_IDS.includes(String(telegramId));
-}
-
-function superAdminAuth(req, res, next) {
-  var token = req.headers['x-admin-token'];
-  if (!token || !adminTokens.has(token)) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  var telegramId = req.headers['x-telegram-id'] || '';
-  if (!isSuperAdmin(telegramId)) {
-    return res.status(403).json({ error: 'Super admin only' });
-  }
-  next();
-}
-
-app.get('/api/user/is-admin', function (req, res) {
+app.get('/api/user/is-admin', async function (req, res) {
   var telegramId = String(req.query.telegram_id || '');
   var username = String(req.query.username || '');
-  var admin = isAdminUser(telegramId, username);
+  var admin = await isAdminUser(telegramId, username);
   var superAdmin = isSuperAdmin(telegramId);
   res.json({ is_admin: admin, is_super_admin: superAdmin });
 });
@@ -484,7 +481,7 @@ app.get('/api/user/is-admin', function (req, res) {
 // ADMIN: Orders
 // ============================================================
 
-app.get('/api/admin/orders', adminAuth, function (req, res) {
+app.get('/api/admin/orders', adminAuth, async function (req, res) {
   var status = req.query.status;
   var sql = 'SELECT * FROM orders';
   var params = [];
@@ -493,24 +490,26 @@ app.get('/api/admin/orders', adminAuth, function (req, res) {
     params.push(status);
   }
   sql += ' ORDER BY created_at DESC';
-  var orders = params.length ? db.prepare(sql).all(params[0]) : db.prepare(sql).all();
+  var orders = params.length
+    ? await db.prepare(sql).all(params[0])
+    : await db.prepare(sql).all();
 
-  orders.forEach(function (o) {
-    o.items = db.prepare(
+  for (var i = 0; i < orders.length; i++) {
+    orders[i].items = await db.prepare(
       'SELECT oi.*, p.name as product_name, p.image_url FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?'
-    ).all(o.id);
-  });
+    ).all(orders[i].id);
+  }
 
   res.json(orders);
 });
 
-app.post('/api/admin/orders/:id/status', adminAuth, function (req, res) {
+app.post('/api/admin/orders/:id/status', adminAuth, async function (req, res) {
   var validStatuses = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен', 'Готов к выдаче'];
   var newStatus = req.body.status;
   if (!validStatuses.includes(newStatus)) {
     return res.status(400).json({ error: 'Invalid status' });
   }
-  db.prepare('UPDATE orders SET status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newStatus, req.params.id);
+  await db.prepare('UPDATE orders SET status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newStatus, req.params.id);
   res.json({ ok: true });
 });
 
@@ -518,30 +517,30 @@ app.post('/api/admin/orders/:id/status', adminAuth, function (req, res) {
 // ADMIN: Categories CRUD
 // ============================================================
 
-app.get('/api/admin/categories', adminAuth, function (req, res) {
-  res.json(db.prepare('SELECT * FROM categories').all());
+app.get('/api/admin/categories', adminAuth, async function (req, res) {
+  res.json(await db.prepare('SELECT * FROM categories').all());
 });
 
-app.post('/api/admin/categories', adminAuth, function (req, res) {
+app.post('/api/admin/categories', adminAuth, async function (req, res) {
   var name = req.body.name;
   if (!name) return res.status(400).json({ error: 'Name required' });
-  var info = db.prepare('INSERT INTO categories (name) VALUES (?)').run(name);
+  var info = await db.prepare('INSERT INTO categories (name) VALUES (?)').run(name);
   res.json({ id: info.lastInsertRowid, name: name });
 });
 
-app.put('/api/admin/categories/:id', adminAuth, function (req, res) {
+app.put('/api/admin/categories/:id', adminAuth, async function (req, res) {
   var name = req.body.name;
   if (!name) return res.status(400).json({ error: 'Name required' });
-  db.prepare('UPDATE categories SET name = ? WHERE id = ?').run(name, req.params.id);
+  await db.prepare('UPDATE categories SET name = ? WHERE id = ?').run(name, req.params.id);
   res.json({ ok: true });
 });
 
-app.delete('/api/admin/categories/:id', adminAuth, function (req, res) {
-  var products = db.prepare('SELECT COUNT(*) as c FROM products WHERE category_id = ?').get(req.params.id);
+app.delete('/api/admin/categories/:id', adminAuth, async function (req, res) {
+  var products = await db.prepare('SELECT COUNT(*) as c FROM products WHERE category_id = ?').get(req.params.id);
   if (products.c > 0) {
     return res.status(400).json({ error: 'Category has products. Remove them first.' });
   }
-  db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
+  await db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 
@@ -549,45 +548,47 @@ app.delete('/api/admin/categories/:id', adminAuth, function (req, res) {
 // ADMIN: Products CRUD
 // ============================================================
 
-app.get('/api/admin/products', adminAuth, function (req, res) {
-  var products = db.prepare('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id ORDER BY p.id DESC').all();
-  res.json(attachImages(products));
+app.get('/api/admin/products', adminAuth, async function (req, res) {
+  var products = await db.prepare('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id ORDER BY p.id DESC').all();
+  res.json(await attachImages(products));
 });
 
-app.post('/api/admin/products', adminAuth, upload.array('images', 10), function (req, res) {
+app.post('/api/admin/products', adminAuth, upload.array('images', 10), async function (req, res) {
   var b = req.body;
   if (!b.name || !b.price || !b.category_id) {
     return res.status(400).json({ error: 'name, price, category_id required' });
   }
-  var mainImage = '';
-  if (req.files && req.files.length) {
-    mainImage = '/images/' + req.files[0].filename;
-  } else if (b.image_url) {
-    mainImage = b.image_url;
-  }
-  var info = db.prepare(
+  var mainImage = b.image_url || '';
+  var info = await db.prepare(
     'INSERT INTO products (category_id, name, description, price, image_url, is_bouquet, flower_min, flower_max, flower_step, price_per_flower) VALUES (?,?,?,?,?,?,?,?,?,?)'
   ).run(parseInt(b.category_id), b.name, b.description || '', parseInt(b.price), mainImage,
     parseInt(b.is_bouquet) || 0, parseInt(b.flower_min) || 0, parseInt(b.flower_max) || 0,
     parseInt(b.flower_step) || 1, parseInt(b.price_per_flower) || 0);
 
-  var productId = info.lastInsertRowid;
+  var productId = Number(info.lastInsertRowid);
+
   if (req.files && req.files.length) {
-    var insertImg = db.prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?,?,?)');
-    req.files.forEach(function (f, idx) {
-      insertImg.run(productId, '/images/' + f.filename, idx);
-    });
-    db.prepare('UPDATE products SET image_url = ? WHERE id = ?').run('/images/' + req.files[0].filename, productId);
+    for (var i = 0; i < req.files.length; i++) {
+      var f = req.files[i];
+      var base64 = 'data:' + f.mimetype + ';base64,' + f.buffer.toString('base64');
+      var imgInfo = await db.prepare('INSERT INTO product_images (product_id, image_url, image_data, sort_order) VALUES (?,?,?,?)').run(productId, '', base64, i);
+      var imgId = Number(imgInfo.lastInsertRowid);
+      await db.prepare('UPDATE product_images SET image_url = ? WHERE id = ?').run('/api/images/' + imgId, imgId);
+    }
+    var firstImg = await db.prepare('SELECT id FROM product_images WHERE product_id = ? ORDER BY sort_order, id LIMIT 1').get(productId);
+    if (firstImg) {
+      await db.prepare('UPDATE products SET image_url = ? WHERE id = ?').run('/api/images/' + firstImg.id, productId);
+    }
   }
   res.json({ id: productId });
 });
 
-app.put('/api/admin/products/:id', adminAuth, upload.array('images', 10), function (req, res) {
+app.put('/api/admin/products/:id', adminAuth, upload.array('images', 10), async function (req, res) {
   var b = req.body;
-  var product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+  var product = await db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!product) return res.status(404).json({ error: 'Not found' });
 
-  db.prepare(
+  await db.prepare(
     'UPDATE products SET category_id=?, name=?, description=?, price=?, is_bouquet=?, flower_min=?, flower_max=?, flower_step=?, price_per_flower=? WHERE id=?'
   ).run(
     parseInt(b.category_id || product.category_id),
@@ -603,32 +604,35 @@ app.put('/api/admin/products/:id', adminAuth, upload.array('images', 10), functi
   );
 
   if (req.files && req.files.length) {
-    var insertImg = db.prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?,?,?)');
-    var maxSort = db.prepare('SELECT COALESCE(MAX(sort_order),0) as ms FROM product_images WHERE product_id = ?').get(req.params.id);
+    var maxSort = await db.prepare('SELECT COALESCE(MAX(sort_order),0) as ms FROM product_images WHERE product_id = ?').get(req.params.id);
     var startSort = (maxSort ? maxSort.ms : 0) + 1;
-    req.files.forEach(function (f, idx) {
-      insertImg.run(req.params.id, '/images/' + f.filename, startSort + idx);
-    });
-    var first = db.prepare('SELECT image_url FROM product_images WHERE product_id = ? ORDER BY sort_order, id LIMIT 1').get(req.params.id);
+    for (var i = 0; i < req.files.length; i++) {
+      var f = req.files[i];
+      var base64 = 'data:' + f.mimetype + ';base64,' + f.buffer.toString('base64');
+      var imgInfo = await db.prepare('INSERT INTO product_images (product_id, image_url, image_data, sort_order) VALUES (?,?,?,?)').run(req.params.id, '', base64, startSort + i);
+      var imgId = Number(imgInfo.lastInsertRowid);
+      await db.prepare('UPDATE product_images SET image_url = ? WHERE id = ?').run('/api/images/' + imgId, imgId);
+    }
+    var first = await db.prepare('SELECT id, image_url FROM product_images WHERE product_id = ? ORDER BY sort_order, id LIMIT 1').get(req.params.id);
     if (first) {
-      db.prepare('UPDATE products SET image_url = ? WHERE id = ?').run(first.image_url, req.params.id);
+      await db.prepare('UPDATE products SET image_url = ? WHERE id = ?').run(first.image_url, req.params.id);
     }
   }
   res.json({ ok: true });
 });
 
-app.delete('/api/admin/products/:id', adminAuth, function (req, res) {
-  db.prepare('DELETE FROM product_images WHERE product_id = ?').run(req.params.id);
-  db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
+app.delete('/api/admin/products/:id', adminAuth, async function (req, res) {
+  await db.prepare('DELETE FROM product_images WHERE product_id = ?').run(req.params.id);
+  await db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 
-app.delete('/api/admin/product-images/:imgId', adminAuth, function (req, res) {
-  var img = db.prepare('SELECT * FROM product_images WHERE id = ?').get(req.params.imgId);
+app.delete('/api/admin/product-images/:imgId', adminAuth, async function (req, res) {
+  var img = await db.prepare('SELECT * FROM product_images WHERE id = ?').get(req.params.imgId);
   if (!img) return res.status(404).json({ error: 'Image not found' });
-  db.prepare('DELETE FROM product_images WHERE id = ?').run(req.params.imgId);
-  var first = db.prepare('SELECT image_url FROM product_images WHERE product_id = ? ORDER BY sort_order, id LIMIT 1').get(img.product_id);
-  db.prepare('UPDATE products SET image_url = ? WHERE id = ?').run(first ? first.image_url : '', img.product_id);
+  await db.prepare('DELETE FROM product_images WHERE id = ?').run(req.params.imgId);
+  var first = await db.prepare('SELECT id, image_url FROM product_images WHERE product_id = ? ORDER BY sort_order, id LIMIT 1').get(img.product_id);
+  await db.prepare('UPDATE products SET image_url = ? WHERE id = ?').run(first ? first.image_url : '', img.product_id);
   res.json({ ok: true });
 });
 
@@ -636,19 +640,16 @@ app.delete('/api/admin/product-images/:imgId', adminAuth, function (req, res) {
 // ADMIN: Settings
 // ============================================================
 
-app.get('/api/admin/settings', adminAuth, function (req, res) {
-  res.json(getAllSettings());
+app.get('/api/admin/settings', adminAuth, async function (req, res) {
+  res.json(await getAllSettings());
 });
 
-app.post('/api/admin/settings', adminAuth, function (req, res) {
+app.post('/api/admin/settings', adminAuth, async function (req, res) {
   var entries = req.body;
-  var upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
-  var run = db.transaction(function () {
-    Object.entries(entries).forEach(function (pair) {
-      upsert.run(pair[0], String(pair[1]));
-    });
-  });
-  run();
+  var keys = Object.keys(entries);
+  for (var i = 0; i < keys.length; i++) {
+    await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(keys[i], String(entries[keys[i]]));
+  }
   res.json({ ok: true });
 });
 
@@ -656,16 +657,16 @@ app.post('/api/admin/settings', adminAuth, function (req, res) {
 // ADMIN: Manage admin users (super admin only)
 // ============================================================
 
-app.get('/api/admin/admins', adminAuth, function (req, res) {
+app.get('/api/admin/admins', adminAuth, async function (req, res) {
   var telegramId = req.headers['x-telegram-id'] || '';
   if (!isSuperAdmin(telegramId)) {
     return res.status(403).json({ error: 'Super admin only' });
   }
-  var admins = db.prepare('SELECT * FROM admin_users ORDER BY created_at DESC').all();
+  var admins = await db.prepare('SELECT * FROM admin_users ORDER BY created_at DESC').all();
   res.json(admins);
 });
 
-app.post('/api/admin/admins', adminAuth, function (req, res) {
+app.post('/api/admin/admins', adminAuth, async function (req, res) {
   var telegramId = req.headers['x-telegram-id'] || '';
   if (!isSuperAdmin(telegramId)) {
     return res.status(403).json({ error: 'Super admin only' });
@@ -674,20 +675,20 @@ app.post('/api/admin/admins', adminAuth, function (req, res) {
   if (!username) {
     return res.status(400).json({ error: 'Username required' });
   }
-  var existing = db.prepare('SELECT id FROM admin_users WHERE LOWER(telegram_username) = ?').get(username.toLowerCase());
+  var existing = await db.prepare('SELECT id FROM admin_users WHERE LOWER(telegram_username) = ?').get(username.toLowerCase());
   if (existing) {
     return res.status(400).json({ error: 'This user is already an admin' });
   }
-  var info = db.prepare('INSERT INTO admin_users (telegram_username, added_by) VALUES (?, ?)').run(username.toLowerCase(), telegramId);
+  var info = await db.prepare('INSERT INTO admin_users (telegram_username, added_by) VALUES (?, ?)').run(username.toLowerCase(), telegramId);
   res.json({ id: info.lastInsertRowid, username: username });
 });
 
-app.delete('/api/admin/admins/:id', adminAuth, function (req, res) {
+app.delete('/api/admin/admins/:id', adminAuth, async function (req, res) {
   var telegramId = req.headers['x-telegram-id'] || '';
   if (!isSuperAdmin(telegramId)) {
     return res.status(403).json({ error: 'Super admin only' });
   }
-  db.prepare('DELETE FROM admin_users WHERE id = ?').run(req.params.id);
+  await db.prepare('DELETE FROM admin_users WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 
@@ -704,6 +705,19 @@ app.get('/admin/*', function (req, res) {
 });
 
 // ============================================================
+// HEALTH CHECK
+// ============================================================
+
+app.get('/api/health', async function (req, res) {
+  try {
+    var count = await db.prepare('SELECT COUNT(*) as c FROM products').get();
+    res.json({ status: 'ok', products: count.c, time: new Date().toISOString() });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// ============================================================
 // SPA FALLBACK
 // ============================================================
 
@@ -711,15 +725,20 @@ app.get('*', function (req, res) {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.get('/api/health', function (req, res) {
-  try {
-    var count = db.prepare('SELECT COUNT(*) as c FROM products').get();
-    res.json({ status: 'ok', products: count.c, time: new Date().toISOString() });
-  } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
-  }
-});
+// ============================================================
+// START SERVER (init DB first)
+// ============================================================
 
-app.listen(PORT, function () {
-  console.log('Server running on http://localhost:' + PORT);
+async function start() {
+  await backup.restore();
+  await db.init();
+  app.listen(PORT, function () {
+    console.log('Server running on http://localhost:' + PORT);
+    backup.startPeriodicBackup();
+  });
+}
+
+start().catch(function (err) {
+  console.error('Failed to start server:', err);
+  process.exit(1);
 });

@@ -7,7 +7,7 @@ echo.
 git add -A
 git status
 echo.
-git commit -m "Super admin: separate crown icon + ADMIN badge, admin management by username"
+git commit -m "Persistent storage: GitHub Gist backup + images in DB, no data loss on deploy"
 echo.
 git push
 echo.

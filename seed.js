@@ -1,25 +1,15 @@
-const db = require('./database');
+var db = require('./database');
 
-const existingCategories = db.prepare('SELECT COUNT(*) as count FROM categories').get();
-if (existingCategories.count > 0) {
-  console.log('Database already seeded. Skipping.');
-  process.exit(0);
-}
+async function seed() {
+  await db.init();
 
-const insertCategory = db.prepare('INSERT INTO categories (name) VALUES (?)');
-const insertProduct = db.prepare(
-  'INSERT INTO products (category_id, name, description, price, image_url, is_bouquet, flower_min, flower_max, flower_step, price_per_flower) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-);
-const insertProductImage = db.prepare(
-  'INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)'
-);
-const insertSetting = db.prepare(
-  'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)'
-);
-const insertCity = db.prepare('INSERT INTO cities (name, is_active) VALUES (?, 1)');
+  var existingCategories = await db.prepare('SELECT COUNT(*) as count FROM categories').get();
+  if (existingCategories.count > 0) {
+    console.log('Database already seeded. Skipping.');
+    process.exit(0);
+  }
 
-const seed = db.transaction(() => {
-  const categories = [
+  var categories = [
     'До 3000',
     '3000 - 5000',
     '5000 - 7000',
@@ -29,13 +19,13 @@ const seed = db.transaction(() => {
     'Вазы, свечки, подарки, шары, открытки'
   ];
 
-  const categoryIds = {};
-  categories.forEach((name) => {
-    const info = insertCategory.run(name);
-    categoryIds[name] = info.lastInsertRowid;
-  });
+  var categoryIds = {};
+  for (var c = 0; c < categories.length; c++) {
+    var info = await db.prepare('INSERT INTO categories (name) VALUES (?)').run(categories[c]);
+    categoryIds[categories[c]] = Number(info.lastInsertRowid);
+  }
 
-  const products = [
+  var products = [
     {
       category: 'До 3000',
       items: [
@@ -86,21 +76,25 @@ const seed = db.transaction(() => {
     }
   ];
 
-  products.forEach(({ category, items }) => {
-    const catId = categoryIds[category];
-    items.forEach(({ name, description, price, image, bouquet, fmin, fmax, fstep, ppf }) => {
-      const info = insertProduct.run(catId, name, description, price, image, bouquet || 0, fmin || 0, fmax || 0, fstep || 1, ppf || 0);
-      const productId = info.lastInsertRowid;
-      if (image) {
-        insertProductImage.run(productId, image, 0);
+  for (var g = 0; g < products.length; g++) {
+    var group = products[g];
+    var catId = categoryIds[group.category];
+    for (var p = 0; p < group.items.length; p++) {
+      var item = group.items[p];
+      var pInfo = await db.prepare(
+        'INSERT INTO products (category_id, name, description, price, image_url, is_bouquet, flower_min, flower_max, flower_step, price_per_flower) VALUES (?,?,?,?,?,?,?,?,?,?)'
+      ).run(catId, item.name, item.description, item.price, item.image, item.bouquet || 0, item.fmin || 0, item.fmax || 0, item.fstep || 1, item.ppf || 0);
+      var productId = Number(pInfo.lastInsertRowid);
+      if (item.image) {
+        await db.prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?,?,?)').run(productId, item.image, 0);
       }
-    });
-  });
+    }
+  }
 
-  insertCity.run('Саратов');
-  insertCity.run('Энгельс');
+  await db.prepare('INSERT INTO cities (name, is_active) VALUES (?, 1)').run('Саратов');
+  await db.prepare('INSERT INTO cities (name, is_active) VALUES (?, 1)').run('Энгельс');
 
-  const deliverySettings = {
+  var deliverySettings = {
     delivery_saratov_base: '350',
     delivery_engels_base: '450',
     delivery_remote: '1000',
@@ -129,10 +123,16 @@ const seed = db.transaction(() => {
     social_vk: 'https://vk.com/arka_studio'
   };
 
-  Object.entries(deliverySettings).forEach(([key, value]) => {
-    insertSetting.run(key, value);
-  });
-});
+  var settingKeys = Object.keys(deliverySettings);
+  for (var s = 0; s < settingKeys.length; s++) {
+    await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(settingKeys[s], deliverySettings[settingKeys[s]]);
+  }
 
-seed();
-console.log('Database seeded successfully.');
+  console.log('Database seeded successfully.');
+  process.exit(0);
+}
+
+seed().catch(function (err) {
+  console.error('Seed failed:', err);
+  process.exit(1);
+});
