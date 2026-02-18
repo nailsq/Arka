@@ -341,7 +341,8 @@ app.post('/api/payments/create', function (req, res) {
 
   if (PAYMENT_PROVIDER === 'test') {
     db.prepare('UPDATE orders SET payment_id = ? WHERE id = ?').run(paymentId, orderId);
-    var confirmUrl = PUBLIC_URL + '/api/payments/test-complete/' + orderId + '?payment_id=' + paymentId;
+    var baseUrl = PUBLIC_URL !== 'http://localhost:3000' ? PUBLIC_URL : (req.protocol + '://' + req.get('host'));
+    var confirmUrl = baseUrl + '/api/payments/test-complete/' + orderId + '?payment_id=' + paymentId;
     return res.json({
       payment_id: paymentId,
       payment_url: confirmUrl,
@@ -381,7 +382,7 @@ app.get('/api/payments/test-complete/:orderId', function (req, res) {
   db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ? WHERE id = ?')
     .run('Оплачен', orderId);
 
-  res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Оплата</title><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff;color:#000}div{text-align:center;border:1px solid #000;padding:40px}</style></head><body><div><p>Оплата прошла успешно</p><p>Заказ N ' + orderId + '</p><p>Можно закрыть эту страницу</p></div></body></html>');
+  res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Оплата</title><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff;color:#000}div{text-align:center;border:1px solid #000;padding:40px}a{display:inline-block;margin-top:20px;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:8px}</style></head><body><div><p>Оплата прошла успешно</p><p>Заказ N ' + orderId + '</p><p>Статус заказа обновлен на "Оплачен"</p><a href="/">Вернуться в магазин</a></div></body></html>');
 });
 
 app.post('/api/payments/webhook', function (req, res) {

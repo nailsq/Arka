@@ -101,7 +101,16 @@
   // ============================================================
 
   window.toggleSidebar = function () {
-    document.getElementById('sidebar').classList.toggle('open');
+    var sb = document.getElementById('sidebar');
+    var ov = document.getElementById('sidebar-overlay');
+    sb.classList.toggle('open');
+    if (ov) ov.classList.toggle('active', sb.classList.contains('open'));
+  };
+
+  window.closeSidebar = function () {
+    document.getElementById('sidebar').classList.remove('open');
+    var ov = document.getElementById('sidebar-overlay');
+    if (ov) ov.classList.remove('active');
   };
 
   // ============================================================
@@ -165,12 +174,48 @@
   // Dashboard
   // ============================================================
 
+  var lastKnownOrderCount = -1;
+  var notifyInterval = null;
+
   function showDashboard() {
     document.getElementById('logout-btn').style.display = 'block';
     document.getElementById('sidebar-nav').style.display = 'flex';
     updateActiveTab();
     render('<div id="tab-content"><div class="empty-state">Загрузка...</div></div>');
     loadTab();
+    startOrderPolling();
+  }
+
+  function startOrderPolling() {
+    if (notifyInterval) clearInterval(notifyInterval);
+    checkNewOrders();
+    notifyInterval = setInterval(checkNewOrders, 15000);
+  }
+
+  function checkNewOrders() {
+    if (!token) return;
+    api('GET', '/api/admin/orders?status=Новый').then(function (orders) {
+      var count = orders ? orders.length : 0;
+      var ordersLink = document.querySelector('.sidebar-link[data-tab="orders"]');
+      if (ordersLink) {
+        var badge = ordersLink.querySelector('.order-notify-badge');
+        if (count > 0) {
+          if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'order-notify-badge';
+            ordersLink.appendChild(badge);
+          }
+          badge.textContent = count;
+        } else if (badge) {
+          badge.remove();
+        }
+      }
+      if (lastKnownOrderCount >= 0 && count > lastKnownOrderCount) {
+        adminToast('Новый заказ!', 'success');
+        if (currentTab === 'orders') loadOrders();
+      }
+      lastKnownOrderCount = count;
+    }).catch(function () {});
   }
 
   function updateActiveTab() {
@@ -229,7 +274,7 @@
         return;
       }
 
-      h += '<table class="data-table"><thead><tr>' +
+      h += '<div class="table-scroll"><table class="data-table"><thead><tr>' +
         '<th>N</th><th>Дата</th><th>Клиент</th><th>Сумма</th><th>Статус</th><th></th>' +
         '</tr></thead><tbody>';
 
@@ -244,7 +289,7 @@
         '</tr>';
       });
 
-      h += '</tbody></table></div>';
+      h += '</tbody></table></div></div>';
       el.innerHTML = h;
     });
   }
@@ -346,7 +391,7 @@
       if (!products.length) {
         h += '<div class="empty-state">Товаров нет. Добавьте первый товар.</div>';
       } else {
-        h += '<table class="data-table"><thead><tr>' +
+        h += '<div class="table-scroll"><table class="data-table"><thead><tr>' +
           '<th></th><th>Название</th><th>Категория</th><th>Цена</th><th></th>' +
           '</tr></thead><tbody>';
 
@@ -364,7 +409,7 @@
           '</tr>';
         });
 
-        h += '</tbody></table>';
+        h += '</tbody></table></div>';
       }
       h += '</div>';
       el.innerHTML = h;
@@ -579,7 +624,7 @@
       if (!cats.length) {
         h += '<div class="empty-state">Категорий нет</div>';
       } else {
-        h += '<table class="data-table"><thead><tr>' +
+        h += '<div class="table-scroll"><table class="data-table"><thead><tr>' +
           '<th>ID</th><th>Название</th><th></th>' +
         '</tr></thead><tbody>';
 
@@ -594,7 +639,7 @@
           '</tr>';
         });
 
-        h += '</tbody></table>';
+        h += '</tbody></table></div>';
       }
 
       h += '</div>';

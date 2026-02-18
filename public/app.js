@@ -412,6 +412,14 @@
   });
 
   var activeTab = 'home';
+  var trackingPollInterval = null;
+
+  function stopTrackingPoll() {
+    if (trackingPollInterval) {
+      clearInterval(trackingPollInterval);
+      trackingPollInterval = null;
+    }
+  }
 
   function render(html) {
     appEl.innerHTML = html;
@@ -1470,6 +1478,14 @@
     }
 
     loadProfileTracking();
+    stopTrackingPoll();
+    trackingPollInterval = setInterval(function () {
+      if (activeTab === 'account' && document.getElementById('profile-tracking')) {
+        loadProfileTracking();
+      } else {
+        stopTrackingPoll();
+      }
+    }, 10000);
   }
 
   window.openAdminPanel = function () {
@@ -1862,6 +1878,7 @@
   // ============================================================
 
   window.navigateTo = function (page, param) {
+    if (page !== 'account') stopTrackingPoll();
     updateCartBadge();
     updateFavBadge();
     switch (page) {

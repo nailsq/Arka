@@ -104,6 +104,27 @@ button { cursor: pointer; }
   font-weight: 600;
 }
 
+.sidebar-link {
+  position: relative;
+}
+
+.order-notify-badge {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 9px;
+  padding: 0 5px;
+}
+
 .sidebar-back-btn {
   margin: auto 16px 0;
   padding: 10px 16px;
@@ -786,6 +807,28 @@ button { cursor: pointer; }
   margin-bottom: 20px;
 }
 
+/* ==================== SIDEBAR OVERLAY ==================== */
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 199;
+}
+
+.sidebar-overlay.active {
+  display: block;
+}
+
+/* ==================== TABLE SCROLL ==================== */
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* ==================== RESPONSIVE ==================== */
 
 @media (max-width: 768px) {
@@ -812,7 +855,11 @@ button { cursor: pointer; }
   #topbar {
     flex-wrap: wrap;
     padding: 12px 16px;
-    gap: 10px;
+    gap: 8px;
+  }
+
+  #topbar-title {
+    font-size: 14px;
   }
 
   #admin-search-wrap {
@@ -831,17 +878,136 @@ button { cursor: pointer; }
 
   .data-table {
     font-size: 12px;
+    min-width: 500px;
   }
 
   .data-table thead th,
   .data-table tbody td {
     padding: 8px 10px;
+    white-space: nowrap;
+  }
+
+  .filter-bar {
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+  }
+
+  .filter-chip {
+    padding: 6px 12px;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  .card {
+    padding: 16px;
+    border-radius: 8px;
+  }
+
+  .card-header {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .btn-group {
+    width: 100%;
+  }
+
+  .btn-group .btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  .modal-overlay {
+    padding: 10px;
+    align-items: flex-end;
+  }
+
+  .modal-card {
+    max-height: 85vh;
+    padding: 20px 16px;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .modal-title {
+    font-size: 16px;
+  }
+
+  .settings-section-title {
+    font-size: 14px;
+  }
+
+  .sidebar-back-btn {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  #logout-btn {
+    font-size: 12px;
+    padding: 8px 12px;
+    margin-bottom: 16px;
   }
 }
 
 @media (max-width: 480px) {
-  .card { padding: 16px; }
-  .login-card { padding: 28px 20px; }
+  .card { padding: 14px; }
+  .login-card { padding: 24px 16px; }
+
+  #admin-app {
+    padding: 12px;
+  }
+
+  .form-input,
+  .form-select,
+  .form-textarea {
+    padding: 10px 12px;
+    font-size: 16px;
+  }
+
+  .btn {
+    padding: 10px 14px;
+    font-size: 14px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-sm {
+    padding: 8px 12px;
+    font-size: 13px;
+    width: auto;
+  }
+
+  .badge {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+
+  #admin-search-input {
+    font-size: 16px;
+    padding: 10px 14px 10px 36px;
+  }
+
+  .search-cat {
+    font-size: 10px;
+    padding: 4px 10px;
+  }
+
+  .detail-label {
+    font-size: 10px;
+  }
+
+  .detail-value {
+    font-size: 13px;
+  }
+
+  .order-item-row {
+    font-size: 12px;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
 }
 
 /* Product images in form */
