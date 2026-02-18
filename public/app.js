@@ -871,10 +871,72 @@
         '</div></div>';
     });
     h += '</div>';
+    h += '<div id="cart-recommend"></div>';
     h += '<div class="cart-total">Итого: <span id="cart-total-val">' + formatPrice(getCartTotal()) + '</span></div>';
     h += '<button class="nav-btn" onclick="navigateTo(\'checkout\')">Оформить заказ</button>';
     render(h);
+    loadCartRecommendations(cart);
   }
+
+  function loadCartRecommendations(cart) {
+    var cartIds = {};
+    cart.forEach(function (item) { cartIds[item.product_id] = true; });
+
+    fetchJSON('/api/products').then(function (products) {
+      if (!products || !products.length) return;
+      var recs = products.filter(function (p) {
+        return !cartIds[p.id] && p.in_stock !== 0;
+      });
+      if (!recs.length) return;
+
+      var bouquets = [];
+      var extras = [];
+      recs.forEach(function (p) {
+        if (p.is_bouquet || (p.sizes && p.sizes.length)) {
+          bouquets.push(p);
+        } else {
+          extras.push(p);
+        }
+      });
+      var sorted = extras.concat(bouquets);
+
+      var el = document.getElementById('cart-recommend');
+      if (!el) return;
+
+      var h = '<div class="cart-rec-section">';
+      h += '<div class="cart-rec-title">Добавьте к заказу</div>';
+      h += '<div class="cart-rec-scroll">';
+      sorted.forEach(function (p) {
+        var img = p.image_url
+          ? '<img src="' + escapeHtml(p.image_url) + '" alt="' + escapeHtml(p.name) + '" class="cart-rec-img">'
+          : '<div class="cart-rec-img cart-rec-noimg">Фото</div>';
+        var price = (p.sizes && p.sizes.length) ? p.sizes[0].price : p.price;
+        var priceLabel = (p.sizes && p.sizes.length) ? 'от ' + formatPrice(price) : formatPrice(price);
+        h += '<div class="cart-rec-card" onclick="navigateTo(\'product\',' + p.id + ')">' +
+          img +
+          '<div class="cart-rec-name">' + escapeHtml(p.name) + '</div>' +
+          '<div class="cart-rec-price">' + priceLabel + '</div>' +
+          '<button class="cart-rec-add" onclick="addRecToCart(' + p.id + ',event)">+</button>' +
+        '</div>';
+      });
+      h += '</div></div>';
+      el.innerHTML = h;
+    }).catch(function () {});
+  }
+
+  window.addRecToCart = function (productId, event) {
+    if (event) event.stopPropagation();
+    fetchJSON('/api/products/' + productId).then(function (p) {
+      if (p && !p.error) {
+        var sizeObj = null;
+        if (p.sizes && p.sizes.length) {
+          sizeObj = p.sizes[0];
+        }
+        addToCart(p, sizeObj);
+        showCart();
+      }
+    });
+  };
 
   // ============================================================
   // Checkout with delivery logic
