@@ -7,7 +7,7 @@ echo.
 git add -A
 git status
 echo.
-git commit -m "Cart: bigger cards, no size jump. Profile: prominent tracking widget"
+git commit -m "Admin: full mobile optimization with bottom nav, card layouts, bottom-sheet modals"
 echo.
 git push
 echo.

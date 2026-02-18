@@ -940,7 +940,86 @@ button { cursor: pointer; }
   -webkit-overflow-scrolling: touch;
 }
 
-/* ==================== RESPONSIVE ==================== */
+/* ==================== MOBILE BOTTOM NAV ==================== */
+
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 200;
+  padding: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.mobile-bottom-nav-inner {
+  display: flex;
+  justify-content: space-around;
+  align-items: stretch;
+}
+
+.mobile-nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 10px 4px 8px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: color 0.15s;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-nav-btn.active {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.mobile-nav-btn:active {
+  background: var(--bg);
+}
+
+.mobile-nav-icon {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-nav-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+.mobile-nav-badge {
+  position: absolute;
+  top: 4px;
+  right: calc(50% - 18px);
+  background: #dc2626;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  border-radius: 8px;
+  padding: 0 4px;
+}
+
+/* ==================== RESPONSIVE: TABLET (max-width: 768px) ==================== */
 
 @media (max-width: 768px) {
   #sidebar {
@@ -1046,14 +1125,15 @@ button { cursor: pointer; }
   }
 
   .modal-overlay {
-    padding: 10px;
+    padding: 0;
     align-items: flex-end;
   }
 
   .modal-card {
-    max-height: 85vh;
+    max-height: 92vh;
     padding: 20px 16px;
     border-radius: 16px 16px 0 0;
+    max-width: 100%;
   }
 
   .modal-title {
@@ -1076,88 +1156,74 @@ button { cursor: pointer; }
   }
 }
 
-@media (max-width: 480px) {
-  .card { padding: 14px; }
-  .login-card { padding: 24px 16px; }
+/* ==================== RESPONSIVE: PHONE (max-width: 600px) ==================== */
 
-  #admin-app {
-    padding: 12px;
+@media (max-width: 600px) {
+  .mobile-bottom-nav {
+    display: block;
   }
 
-  .form-input,
-  .form-select,
-  .form-textarea {
-    padding: 10px 12px;
-    font-size: 16px;
+  #sidebar {
+    display: none !important;
   }
 
-  .btn {
+  .sidebar-overlay {
+    display: none !important;
+  }
+
+  #menu-toggle {
+    display: none !important;
+  }
+
+  #main-wrap {
+    margin-left: 0;
+    padding-bottom: 70px;
+  }
+
+  #topbar {
     padding: 10px 14px;
-    font-size: 14px;
-    width: 100%;
-    justify-content: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+    position: sticky;
+    top: 0;
   }
 
-  .btn-sm {
-    padding: 8px 12px;
-    font-size: 13px;
-    width: auto;
+  #topbar-title {
+    font-size: 15px;
+    font-weight: 700;
+    flex-shrink: 0;
   }
 
-  .badge {
-    font-size: 10px;
-    padding: 3px 8px;
+  #admin-search-wrap {
+    order: 0;
+    flex: 1;
+    max-width: none;
+    margin-left: 0;
   }
 
   #admin-search-input {
-    font-size: 16px;
+    font-size: 14px;
     padding: 10px 14px 10px 36px;
+    border-radius: 12px;
+  }
+
+  #admin-search-cats {
+    gap: 4px;
+    padding: 6px 0 2px;
   }
 
   .search-cat {
-    font-size: 10px;
-    padding: 4px 10px;
+    font-size: 11px;
+    padding: 5px 12px;
   }
 
-  .detail-label {
-    font-size: 10px;
+  #admin-search-results {
+    border-radius: 12px;
+    max-height: 60vh;
   }
 
-  .detail-value {
-    font-size: 13px;
-  }
-
-  .order-item-row {
-    font-size: 12px;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-
-  .orders-col {
-    padding: 10px;
-  }
-
-  .orders-col-title {
-    font-size: 14px;
-    margin-bottom: 10px;
-    padding-bottom: 8px;
-  }
-
-  .order-card {
-    padding: 10px;
-    margin-bottom: 8px;
-  }
-
-  .order-card-id {
-    font-size: 13px;
-  }
-
-  .order-card-client {
-    font-size: 13px;
-  }
-
-  .order-card-price {
-    font-size: 13px;
+  #admin-app {
+    padding: 14px;
   }
 
   .topbar-new-badge {
@@ -1165,18 +1231,491 @@ button { cursor: pointer; }
     padding: 2px 8px;
   }
 
+  /* ---- Login ---- */
+  .login-wrap {
+    min-height: 70vh;
+    padding: 0 8px;
+  }
+
+  .login-card {
+    padding: 28px 20px;
+    border-radius: 16px;
+  }
+
+  /* ---- Filter bar (horizontal scroll) ---- */
+  .filter-bar {
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 6px;
+    margin-bottom: 16px;
+    scrollbar-width: none;
+  }
+
+  .filter-bar::-webkit-scrollbar {
+    display: none;
+  }
+
   .filter-chip {
-    padding: 5px 10px;
+    padding: 8px 16px;
+    font-size: 13px;
+    flex-shrink: 0;
+    border-radius: 20px;
+    min-height: 38px;
+  }
+
+  /* ---- Orders ---- */
+  .orders-columns {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .orders-col {
+    padding: 14px;
+    border-radius: 14px;
+    box-shadow: none;
+    border: 1px solid var(--border);
+  }
+
+  .orders-col-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+  }
+
+  .order-card {
+    padding: 14px;
+    margin-bottom: 10px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    min-height: 44px;
+  }
+
+  .order-card:active {
+    background: var(--bg);
+    transform: scale(0.98);
+  }
+
+  .order-card-top {
+    margin-bottom: 10px;
+  }
+
+  .order-card-id {
+    font-size: 15px;
+  }
+
+  .order-card-client {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .order-card-phone {
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  .order-card-price {
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .order-card-date {
+    font-size: 12px;
+  }
+
+  /* ---- Order detail ---- */
+  .order-detail-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .detail-label {
+    font-size: 10px;
+  }
+
+  .detail-value {
+    font-size: 14px;
+    word-break: break-word;
+  }
+
+  .order-items-list {
+    padding-top: 14px;
+    margin-top: 14px;
+  }
+
+  .order-item-row {
+    font-size: 13px;
+    padding: 10px 0;
+  }
+
+  /* Status change buttons - grid for mobile */
+  .order-detail-grid + .order-items-list + div .btn-group,
+  .card > div:last-child .btn-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .card > div:last-child .btn-group .btn {
+    min-height: 44px;
+    font-size: 12px;
+    padding: 8px 6px;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .card > div:last-child .btn-group .btn-primary {
+    font-weight: 700;
+  }
+
+  /* ---- Products: card layout instead of table ---- */
+  .table-scroll {
+    overflow-x: visible;
+  }
+
+  .data-table {
+    display: block;
+    min-width: 0;
+  }
+
+  .data-table thead {
+    display: none;
+  }
+
+  .data-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .data-table tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    background: var(--bg);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+
+  .data-table tbody tr:hover {
+    background: var(--bg);
+  }
+
+  .data-table tbody td {
+    padding: 0;
+    border-bottom: none;
+  }
+
+  .data-table tbody td:nth-child(1) {
+    flex-shrink: 0;
+  }
+
+  .data-table tbody td:nth-child(1) .product-row-img,
+  .data-table tbody td:nth-child(1) .product-row-noimg {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+  }
+
+  .data-table tbody td:nth-child(2) {
+    flex: 1;
+    min-width: 0;
+    font-size: 14px;
+  }
+
+  .data-table tbody td:nth-child(2) strong {
+    display: block;
+    font-size: 15px;
+    margin-bottom: 2px;
+    word-break: break-word;
+  }
+
+  .data-table tbody td:nth-child(3) {
+    display: none;
+  }
+
+  .data-table tbody td:nth-child(4) {
+    font-size: 15px;
+    font-weight: 700;
+    margin-left: auto;
+  }
+
+  .data-table tbody td:nth-child(5) {
+    width: 100%;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+
+  .data-table tbody td:nth-child(5) .btn-group {
+    display: flex;
+    gap: 8px;
+  }
+
+  .data-table tbody td:nth-child(5) .btn-group .btn {
+    flex: 1;
+    min-height: 40px;
+    justify-content: center;
+    font-size: 13px;
+  }
+
+  /* ---- Cards ---- */
+  .card {
+    padding: 16px;
+    border-radius: 14px;
+    margin-bottom: 14px;
+    box-shadow: none;
+    border: 1px solid var(--border);
+  }
+
+  .card-header {
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 15px;
+  }
+
+  .card-header .btn {
+    width: auto;
+    flex-shrink: 0;
+  }
+
+  /* ---- Forms ---- */
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .form-group {
+    margin-bottom: 14px;
+  }
+
+  .form-label {
     font-size: 11px;
+    margin-bottom: 2px;
+  }
+
+  .form-input,
+  .form-select,
+  .form-textarea {
+    padding: 12px 14px;
+    font-size: 16px;
+    border-radius: 10px;
+    min-height: 46px;
+  }
+
+  .form-textarea {
+    min-height: 80px;
+  }
+
+  /* ---- Buttons ---- */
+  .btn {
+    padding: 12px 16px;
+    font-size: 14px;
+    border-radius: 10px;
+    min-height: 44px;
+  }
+
+  .btn-sm {
+    padding: 9px 14px;
+    font-size: 13px;
+    min-height: 38px;
+    width: auto;
+  }
+
+  .btn-group {
+    gap: 8px;
+    width: 100%;
+  }
+
+  .btn-group .btn {
+    flex: 1;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* ---- Modal (bottom sheet) ---- */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
   }
 
   .modal-card {
-    padding: 16px 12px;
-    max-height: 90vh;
+    max-width: 100%;
+    max-height: 93vh;
+    padding: 20px 16px 28px;
+    border-radius: 20px 20px 0 0;
+    animation: mobileSheetUp 0.3s ease;
+  }
+
+  @keyframes mobileSheetUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
   }
 
   .modal-title {
+    font-size: 17px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  .modal-card::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    margin: 0 auto 16px;
+  }
+
+  /* ---- Settings ---- */
+  .settings-section {
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+  }
+
+  .settings-section-title {
     font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+
+  /* ---- Badges ---- */
+  .badge {
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+
+  /* ---- Toast ---- */
+  #admin-toast-container {
+    top: auto;
+    bottom: 80px;
+    right: 14px;
+    left: 14px;
+  }
+
+  .admin-toast {
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    text-align: center;
+  }
+
+  /* ---- Empty state ---- */
+  .empty-state {
+    padding: 30px 16px;
+    font-size: 14px;
+  }
+
+  /* ---- Category page: add form ---- */
+  .card > form[onsubmit*="addCategory"] {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .card > form[onsubmit*="addCategory"] .form-input {
+    min-height: 46px;
+  }
+
+  .card > form[onsubmit*="addCategory"] .btn {
+    width: 100%;
+  }
+
+  /* ---- Product images in form ---- */
+  .pf-images-list {
+    gap: 10px;
+  }
+
+  .pf-img-item {
+    width: 80px;
+    height: 80px;
+    border-radius: 10px;
+  }
+
+  .pf-img-del {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+    top: 4px;
+    right: 4px;
+  }
+}
+
+/* ==================== RESPONSIVE: SMALL PHONE (max-width: 390px) ==================== */
+
+@media (max-width: 390px) {
+  #admin-app {
+    padding: 10px;
+  }
+
+  #topbar {
+    padding: 8px 10px;
+  }
+
+  #topbar-title {
+    font-size: 14px;
+  }
+
+  .card {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .filter-chip {
+    padding: 7px 12px;
+    font-size: 12px;
+    min-height: 34px;
+  }
+
+  .order-card {
+    padding: 12px;
+  }
+
+  .orders-col {
+    padding: 10px;
+  }
+
+  .modal-card {
+    padding: 16px 12px 24px;
+  }
+
+  .form-input,
+  .form-select,
+  .form-textarea {
+    padding: 10px 12px;
+  }
+
+  .btn {
+    padding: 10px 14px;
+    font-size: 13px;
+    min-height: 42px;
+  }
+
+  .btn-sm {
+    padding: 8px 12px;
+    font-size: 12px;
+    min-height: 36px;
+  }
+
+  .mobile-nav-btn {
+    padding: 8px 2px 6px;
+    font-size: 9px;
+  }
+
+  .mobile-nav-icon svg {
+    width: 20px;
+    height: 20px;
   }
 }
 

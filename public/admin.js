@@ -221,6 +221,20 @@
           badge.remove();
         }
       }
+      var mobileOrderBtn = document.querySelector('.mobile-nav-btn[data-tab="orders"]');
+      if (mobileOrderBtn) {
+        var mBadge = mobileOrderBtn.querySelector('.mobile-nav-badge');
+        if (count > 0) {
+          if (!mBadge) {
+            mBadge = document.createElement('span');
+            mBadge.className = 'mobile-nav-badge';
+            mobileOrderBtn.appendChild(mBadge);
+          }
+          mBadge.textContent = count;
+        } else if (mBadge) {
+          mBadge.remove();
+        }
+      }
       if (lastKnownOrderCount >= 0 && count > lastKnownOrderCount) {
         adminToast('Новый заказ!', 'success');
         if (currentTab === 'orders') loadOrders();
@@ -234,6 +248,10 @@
     var links = document.querySelectorAll('.sidebar-link');
     links.forEach(function (l) {
       l.classList.toggle('active', l.getAttribute('data-tab') === currentTab);
+    });
+    var mobileLinks = document.querySelectorAll('.mobile-nav-btn[data-tab]');
+    mobileLinks.forEach(function (b) {
+      b.classList.toggle('active', b.getAttribute('data-tab') === currentTab);
     });
     var titles = {
       orders: 'Заказы',
