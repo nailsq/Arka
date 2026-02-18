@@ -352,18 +352,25 @@
       cardPrice = p.sizes[0].price;
     }
     var priceLabel = hasMultipleSizes ? 'от ' + formatPrice(cardPrice) : formatPrice(p.price);
+    var outOfStock = p.in_stock === 0;
+    var cardClass = 'product-card' + (outOfStock ? ' product-card--soon' : '');
+    var stockBadge = outOfStock
+      ? '<div class="stock-badge stock-badge--soon">Скоро будет</div>'
+      : '<div class="stock-badge stock-badge--in">В наличии</div>';
 
-    return '<div class="product-card">' +
+    return '<div class="' + cardClass + '">' +
       '<div class="product-card-img-wrap" onclick="navigateTo(\'product\',' + p.id + ')"' +
         (images.length > 1 ? ' data-slide-count="' + images.length + '"' : '') + '>' +
         imgHtml +
         dotsHtml +
+        (outOfStock ? stockBadge : '') +
         '<button class="fav-btn' + favClass + '" onclick="toggleFav(' + p.id + ',event)">' + heartSvg + '</button>' +
-        '<button class="cart-icon-btn" onclick="addToCartById(' + p.id + ',event)">' + cartSvg + '</button>' +
+        (!outOfStock ? '<button class="cart-icon-btn" onclick="addToCartById(' + p.id + ',event)">' + cartSvg + '</button>' : '') +
       '</div>' +
       '<div class="product-card-body" onclick="navigateTo(\'product\',' + p.id + ')">' +
         '<div class="product-card-name">' + escapeHtml(p.name) + '</div>' +
         '<div class="product-card-price">' + priceLabel + '</div>' +
+        (!outOfStock ? stockBadge : '') +
         desc +
       '</div>' +
     '</div>';
@@ -603,6 +610,7 @@
       var el = document.getElementById('home-product-list');
       if (!el) return;
       if (!prods || !prods.length) { el.innerHTML = '<div class="empty-state">Товаров пока нет</div>'; return; }
+      prods.sort(function (a, b) { return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0); });
       el.innerHTML = prods.map(buildProductCard).join('');
     });
   }
@@ -637,6 +645,7 @@
       var el = document.getElementById('home-product-list');
       if (!el) return;
       if (!prods || !prods.length) { el.innerHTML = '<div class="empty-state">В этой категории пока нет товаров</div>'; return; }
+      prods.sort(function (a, b) { return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0); });
       el.innerHTML = prods.map(buildProductCard).join('');
     });
   };
@@ -704,18 +713,20 @@
       }
 
       var detailPrice = (p.sizes && p.sizes.length) ? p.sizes[0].price : p.price;
+      var detailOutOfStock = p.in_stock === 0;
+      var detailActions = detailOutOfStock
+        ? '<div class="product-detail-actions"><div class="detail-soon-badge">Скоро будет в наличии</div></div>'
+        : '<div class="product-detail-actions"><button class="card-cart-btn card-cart-btn--large" onclick="addToCartWithSize(' + p.id + ',event)">В корзину</button></div>';
 
       document.getElementById('product-detail').innerHTML =
-        '<div class="product-detail">' +
+        '<div class="product-detail' + (detailOutOfStock ? ' product-detail--soon' : '') + '">' +
           galleryHtml +
           '<div class="product-detail-name">' + escapeHtml(p.name) + '</div>' +
           '<div class="product-detail-price" id="detail-price">' + formatPrice(detailPrice) + '</div>' +
           '<div class="product-detail-desc">' + escapeHtml(p.description) + '</div>' +
           (isBouquetCategory(p.category_name) ? '<div class="product-detail-warning">Каждый букет собирается вручную, возможны отличия от фото.</div>' : '') +
           sizeHtml +
-          '<div class="product-detail-actions">' +
-            '<button class="card-cart-btn card-cart-btn--large" onclick="addToCartWithSize(' + p.id + ',event)">В корзину</button>' +
-          '</div>' +
+          detailActions +
         '</div>';
 
       window._currentProduct = p;

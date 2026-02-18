@@ -475,9 +475,12 @@
             sizesInfo = '<div style="font-size:10px;color:var(--text-secondary)">' +
               p.sizes.map(function (s) { return s.label + ' (' + s.flower_count + ' цв.)'; }).join(', ') + '</div>';
           }
+          var stockBadge = p.in_stock === 0
+            ? '<span style="display:inline-block;margin-top:4px;font-size:10px;padding:2px 6px;border-radius:4px;background:#fff3cd;color:#856404">Скоро</span>'
+            : '';
           h += '<tr>' +
             '<td>' + productThumb(p.image_url) + (imgCount > 1 ? '<span style="font-size:10px;color:var(--text-secondary);display:block;text-align:center">+' + (imgCount - 1) + '</span>' : '') + '</td>' +
-            '<td><strong>' + esc(p.name) + '</strong>' + sizesInfo + '</td>' +
+            '<td><strong>' + esc(p.name) + '</strong>' + sizesInfo + stockBadge + '</td>' +
             '<td><span style="color:var(--text-secondary)">' + esc(p.category_name) + '</span></td>' +
             '<td>' + fmtPrice(p.price) + (p.sizes && p.sizes.length ? '<div style="font-size:10px;color:var(--text-secondary)">' + p.sizes.length + ' размер(ов)</div>' : '') + '</td>' +
             '<td><div class="btn-group">' +
@@ -559,6 +562,13 @@
                 '<label class="form-label">Цена (базовая, руб.)</label>' +
                 '<input type="number" class="form-input" id="pf-price" value="' + (p.price || '') + '" required>' +
               '</div>' +
+            '</div>' +
+            '<div class="form-group">' +
+              '<label class="form-label">Наличие</label>' +
+              '<select class="form-select" id="pf-in-stock">' +
+                '<option value="1"' + (p.in_stock !== 0 ? ' selected' : '') + '>В наличии</option>' +
+                '<option value="0"' + (p.in_stock === 0 ? ' selected' : '') + '>Скоро будет</option>' +
+              '</select>' +
             '</div>' +
             '<div class="form-group">' +
               '<label class="form-label">Описание</label>' +
@@ -644,6 +654,7 @@
     fd.append('category_id', document.getElementById('pf-category').value);
     fd.append('price', document.getElementById('pf-price').value);
     fd.append('description', document.getElementById('pf-desc').value);
+    fd.append('in_stock', document.getElementById('pf-in-stock').value);
     fd.append('is_bouquet', hasSizes ? '1' : '0');
     fd.append('flower_min', '0');
     fd.append('flower_max', '0');

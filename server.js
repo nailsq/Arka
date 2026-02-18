@@ -588,10 +588,11 @@ app.post('/api/admin/products', adminAuth, upload.array('images', 10), async fun
   }
   var mainImage = b.image_url || '';
   var info = await db.prepare(
-    'INSERT INTO products (category_id, name, description, price, image_url, is_bouquet, flower_min, flower_max, flower_step, price_per_flower) VALUES (?,?,?,?,?,?,?,?,?,?)'
+    'INSERT INTO products (category_id, name, description, price, image_url, is_bouquet, flower_min, flower_max, flower_step, price_per_flower, in_stock) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
   ).run(parseInt(b.category_id), b.name, b.description || '', parseInt(b.price), mainImage,
     parseInt(b.is_bouquet) || 0, parseInt(b.flower_min) || 0, parseInt(b.flower_max) || 0,
-    parseInt(b.flower_step) || 1, parseInt(b.price_per_flower) || 0);
+    parseInt(b.flower_step) || 1, parseInt(b.price_per_flower) || 0,
+    b.in_stock !== undefined ? parseInt(b.in_stock) : 1);
 
   var productId = Number(info.lastInsertRowid);
 
@@ -617,7 +618,7 @@ app.put('/api/admin/products/:id', adminAuth, upload.array('images', 10), async 
   if (!product) return res.status(404).json({ error: 'Not found' });
 
   await db.prepare(
-    'UPDATE products SET category_id=?, name=?, description=?, price=?, is_bouquet=?, flower_min=?, flower_max=?, flower_step=?, price_per_flower=? WHERE id=?'
+    'UPDATE products SET category_id=?, name=?, description=?, price=?, is_bouquet=?, flower_min=?, flower_max=?, flower_step=?, price_per_flower=?, in_stock=? WHERE id=?'
   ).run(
     parseInt(b.category_id || product.category_id),
     b.name || product.name,
@@ -628,6 +629,7 @@ app.put('/api/admin/products/:id', adminAuth, upload.array('images', 10), async 
     b.flower_max !== undefined ? parseInt(b.flower_max) : product.flower_max,
     b.flower_step !== undefined ? parseInt(b.flower_step) : product.flower_step,
     b.price_per_flower !== undefined ? parseInt(b.price_per_flower) : product.price_per_flower,
+    b.in_stock !== undefined ? parseInt(b.in_stock) : product.in_stock,
     req.params.id
   );
 
