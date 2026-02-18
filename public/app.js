@@ -982,7 +982,7 @@
             '<div class="cart-item-price">0 ₽</div>' +
           '</div>' +
           '<div class="cart-item-controls">' +
-            '<span class="qty-value">' + item.quantity + '</span>' +
+            '<span class="qty-value" id="qty-val-' + idx + '">' + item.quantity + '</span> шт.' +
           '</div>' +
         '</div></div>';
     }
