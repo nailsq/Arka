@@ -215,6 +215,7 @@
         if (currentTab === 'orders') loadOrders();
       }
       lastKnownOrderCount = count;
+      updateActiveTab();
     }).catch(function () {});
   }
 
@@ -229,7 +230,13 @@
       categories: 'Категории',
       settings: 'Настройки'
     };
-    document.getElementById('topbar-title').textContent = titles[currentTab] || 'Панель управления';
+    var titleEl = document.getElementById('topbar-title');
+    var titleText = titles[currentTab] || 'Панель управления';
+    if (currentTab === 'orders' && lastKnownOrderCount > 0) {
+      titleEl.innerHTML = titleText + ' <span class="topbar-new-badge">' + lastKnownOrderCount + ' новых</span>';
+    } else {
+      titleEl.textContent = titleText;
+    }
   }
 
   window.switchTab = function (tab) {
@@ -255,13 +262,27 @@
 
   var orderFilter = '';
 
+  function renderOrderCard(o) {
+    return '<div class="order-card" onclick="viewOrder(' + o.id + ')">' +
+      '<div class="order-card-top">' +
+        '<span class="order-card-id">#' + o.id + '</span>' +
+        statusBadge(o.status) +
+      '</div>' +
+      '<div class="order-card-client">' + esc(o.user_name) + '</div>' +
+      '<div class="order-card-phone">' + esc(o.user_phone) + '</div>' +
+      '<div class="order-card-bottom">' +
+        '<span class="order-card-price">' + fmtPrice(o.total_amount) + '</span>' +
+        '<span class="order-card-date">' + fmtDate(o.created_at) + '</span>' +
+      '</div>' +
+    '</div>';
+  }
+
   function loadOrders() {
     var url = '/api/admin/orders' + (orderFilter ? '?status=' + encodeURIComponent(orderFilter) : '');
     api('GET', url).then(function (orders) {
       var el = document.getElementById('tab-content');
 
-      var h = '<div class="card">';
-      h += '<div class="filter-bar">';
+      var h = '<div class="filter-bar">';
       h += '<button class="filter-chip' + (!orderFilter ? ' active' : '') + '" onclick="filterOrders(\'\')">Все</button>';
       ORDER_STATUSES.forEach(function (s) {
         h += '<button class="filter-chip' + (orderFilter === s ? ' active' : '') + '" onclick="filterOrders(\'' + esc(s) + '\')">' + esc(s) + '</button>';
@@ -269,27 +290,35 @@
       h += '</div>';
 
       if (!orders.length) {
-        h += '<div class="empty-state">Заказов не найдено</div></div>';
+        h += '<div class="empty-state">Заказов не найдено</div>';
         el.innerHTML = h;
         return;
       }
 
-      h += '<div class="table-scroll"><table class="data-table"><thead><tr>' +
-        '<th>N</th><th>Дата</th><th>Клиент</th><th>Сумма</th><th>Статус</th><th></th>' +
-        '</tr></thead><tbody>';
+      var delivery = orders.filter(function (o) { return o.delivery_type !== 'pickup'; });
+      var pickup = orders.filter(function (o) { return o.delivery_type === 'pickup'; });
 
-      orders.forEach(function (o) {
-        h += '<tr>' +
-          '<td><strong>' + o.id + '</strong></td>' +
-          '<td>' + fmtDate(o.created_at) + '</td>' +
-          '<td>' + esc(o.user_name) + '<br><span style="color:var(--text-secondary);font-size:12px">' + esc(o.user_phone) + '</span></td>' +
-          '<td><strong>' + fmtPrice(o.total_amount) + '</strong></td>' +
-          '<td>' + statusBadge(o.status) + '</td>' +
-          '<td><button class="btn btn-sm" onclick="viewOrder(' + o.id + ')">Подробнее</button></td>' +
-        '</tr>';
-      });
+      h += '<div class="orders-columns">';
 
-      h += '</tbody></table></div></div>';
+      h += '<div class="orders-col">';
+      h += '<div class="orders-col-title">Доставка <span class="orders-col-count">' + delivery.length + '</span></div>';
+      if (delivery.length) {
+        delivery.forEach(function (o) { h += renderOrderCard(o); });
+      } else {
+        h += '<div class="empty-state" style="padding:20px">Нет заказов</div>';
+      }
+      h += '</div>';
+
+      h += '<div class="orders-col">';
+      h += '<div class="orders-col-title">Самовывоз <span class="orders-col-count">' + pickup.length + '</span></div>';
+      if (pickup.length) {
+        pickup.forEach(function (o) { h += renderOrderCard(o); });
+      } else {
+        h += '<div class="empty-state" style="padding:20px">Нет заказов</div>';
+      }
+      h += '</div>';
+
+      h += '</div>';
       el.innerHTML = h;
     });
   }
