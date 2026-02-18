@@ -972,7 +972,10 @@
         '<div class="cart-item-info">' +
           '<div>' +
             '<div class="cart-item-name">' + escapeHtml(item.name) + '</div>' +
-            '<div class="cart-item-price">0 ₽ — Бесплатно</div>' +
+            '<div class="cart-item-price">' + formatPrice(0) + ' — Бесплатно</div>' +
+          '</div>' +
+          '<div class="cart-item-controls">' +
+            '<span class="qty-value">1</span>' +
           '</div>' +
         '</div></div>';
     }
