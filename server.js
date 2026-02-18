@@ -632,6 +632,15 @@ app.get('*', function (req, res) {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+app.get('/api/health', function (req, res) {
+  try {
+    var count = db.prepare('SELECT COUNT(*) as c FROM products').get();
+    res.json({ status: 'ok', products: count.c, time: new Date().toISOString() });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 app.listen(PORT, function () {
   console.log('Server running on http://localhost:' + PORT);
 });

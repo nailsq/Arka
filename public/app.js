@@ -256,7 +256,14 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
-    }).then(function (r) { return r.json(); });
+    }).then(function (r) {
+      if (!r.ok) {
+        return r.text().then(function (t) {
+          try { return JSON.parse(t); } catch (e) { throw new Error('Server error: ' + r.status); }
+        });
+      }
+      return r.json();
+    });
   }
 
   // ============================================================
@@ -1346,12 +1353,13 @@
 
     postJSON('/api/orders', data).then(function (result) {
       if (!result.success) {
-        if (btn) { btn.disabled = false; btn.textContent = 'Перейти к оплате'; }
-        showToast('Ошибка при создании заказа');
+        if (btn) { btn.disabled = false; btn.textContent = 'Оформить заказ'; }
+        showToast(result.error || 'Ошибка при создании заказа');
         return;
       }
 
       saveCart([]);
+      updateCartBadge();
 
       postJSON('/api/payments/create', { order_id: result.order_id }).then(function (pay) {
         if (pay && pay.payment_url) {
@@ -1362,9 +1370,10 @@
       }).catch(function () {
         showOrderSuccess(result.order_id);
       });
-    }).catch(function () {
-      if (btn) { btn.disabled = false; btn.textContent = 'Перейти к оплате'; }
-      showToast('Ошибка сети');
+    }).catch(function (err) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Оформить заказ'; }
+      console.error('Order error:', err);
+      showToast('Ошибка: ' + (err.message || 'нет подключения к серверу'));
     });
   };
 
