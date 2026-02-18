@@ -564,7 +564,6 @@
 
   function showHome(filterCatId) {
     homeActiveCategory = filterCatId || null;
-    var pickup = appSettings.pickup_address || 'г. Саратов, 3-й Дегтярный проезд, 21к3';
     var cityName = selectedCity ? selectedCity.name : '';
     var cityLine = cityName
       ? '<span class="city-current" onclick="changeCityClick()">' + escapeHtml(cityName) + '</span>'
@@ -578,11 +577,7 @@
       '</div>' +
       '<div class="category-select-wrap" id="category-select-wrap">Загрузка...</div>' +
       '<div id="active-cat-title" class="category-title" style="font-size:16px;margin-bottom:14px;display:none"></div>' +
-      '<div class="product-list" id="home-product-list">Загрузка...</div>' +
-      '<div class="delivery-info">' +
-        '<p>Доставка за 60 минут' + (cityName ? ' в городе ' + escapeHtml(cityName) : ' в Саратове и Энгельсе') + '.</p>' +
-        '<p>Самовывоз: ' + escapeHtml(pickup) + '</p>' +
-      '</div>'
+      '<div class="product-list" id="home-product-list">Загрузка...</div>'
     );
 
     fetchJSON('/api/categories').then(function (cats) {
