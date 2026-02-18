@@ -2161,20 +2161,68 @@
     if (existingIdx >= 0) {
       cart[existingIdx].quantity += item.quantity;
       cart.splice(cartIdx, 1);
-    } else {
-      item.size_label = newLabel;
-      item.price = newPrice;
-      item.flower_count = newFlowerCount;
+      saveCart(cart);
+      updateCartBadge();
+      showCart();
+      return;
     }
+
+    item.size_label = newLabel;
+    item.price = newPrice;
+    item.flower_count = newFlowerCount;
     saveCart(cart);
+
+    var row = document.getElementById('cart-row-' + cartIdx);
+    if (row) {
+      var btns = row.querySelectorAll('.size-btn');
+      btns.forEach(function (b) {
+        b.classList.toggle('active', b.textContent.trim() === newLabel);
+      });
+      var priceEl = document.getElementById('price-val-' + cartIdx);
+      if (priceEl) priceEl.textContent = formatPrice(newPrice);
+      var fcEl = row.querySelector('.cart-size-fc');
+      if (fcEl) fcEl.textContent = newFlowerCount ? newFlowerCount + ' цветов' : '';
+      var totalEl = document.getElementById('cart-total-val');
+      if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
+
+      var escapedLabel = escapeHtml(newLabel).replace(/'/g, "\\'");
+      var qtyBtns = row.querySelectorAll('.qty-btn');
+      if (qtyBtns.length >= 2) {
+        qtyBtns[0].setAttribute('onclick', 'changeQty(' + item.product_id + ',\'' + escapedLabel + '\',-1)');
+        qtyBtns[1].setAttribute('onclick', 'changeQty(' + item.product_id + ',\'' + escapedLabel + '\',1)');
+      }
+      var removeBtn = row.querySelector('.remove-btn');
+      if (removeBtn) {
+        removeBtn.setAttribute('onclick', 'removeItem(' + item.product_id + ',\'' + escapedLabel + '\')');
+      }
+    }
     updateCartBadge();
-    showCart();
   };
 
   window.changeQty = function (productId, sizeLabel, delta) {
+    var cartBefore = getCart();
     updateCartQty(productId, sizeLabel, delta);
+    var cartAfter = getCart();
     updateCartBadge();
-    showCart();
+
+    if (cartAfter.length < cartBefore.length) {
+      showCart();
+      return;
+    }
+    if (!cartAfter.length) {
+      showCart();
+      return;
+    }
+
+    var key = productId + '_' + (sizeLabel || '');
+    cartAfter.forEach(function (item, idx) {
+      if (cartItemKey(item) === key) {
+        var qtyEl = document.getElementById('qty-val-' + idx);
+        if (qtyEl) qtyEl.textContent = item.quantity;
+      }
+    });
+    var totalEl = document.getElementById('cart-total-val');
+    if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
   };
 
   window.removeItem = function (productId, sizeLabel) {

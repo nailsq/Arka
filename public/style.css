@@ -1064,6 +1064,7 @@ button, select {
   padding: 16px;
   min-height: 220px;
   align-items: flex-start;
+  contain: layout style;
 }
 
 .cart-item-img,
