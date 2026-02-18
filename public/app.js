@@ -893,7 +893,7 @@
     var h = '<div class="section-title">Корзина</div>';
     h += '<div class="cart-items">';
     cart.forEach(function (item, idx) {
-      h += buildCartRow(item, idx).replace('cart-item--appear', '');
+      h += buildCartRow(item, idx);
     });
     h += '</div>';
     h += '<div id="cart-recommend"></div>';
@@ -951,13 +951,12 @@
 
   function buildCartRow(item, idx) {
     if (item.is_free_service) {
-      return '<div class="cart-item cart-free-service cart-item--appear" id="cart-row-' + idx + '">' +
+      return '<div class="cart-item cart-free-service" id="cart-row-' + idx + '">' +
         '<div class="free-service-img">🎁</div>' +
         '<div class="cart-item-info">' +
           '<div>' +
             '<div class="cart-item-name">' + escapeHtml(item.name) + '</div>' +
-            '<div class="free-service-sub">Бесплатно к вашему букету</div>' +
-            '<div class="cart-item-price free-service-price">0 ₽</div>' +
+            '<div class="cart-item-price">Бесплатно</div>' +
           '</div>' +
         '</div></div>';
     }
@@ -976,7 +975,7 @@
       '</div>';
     }
     var escapedLabel = escapeHtml(item.size_label || '').replace(/'/g, "\\'");
-    return '<div class="cart-item cart-item--appear" id="cart-row-' + idx + '">' +
+    return '<div class="cart-item" id="cart-row-' + idx + '">' +
       productImage(item.image_url, item.name, 'cart-item-img') +
       '<div class="cart-item-info">' +
         '<div>' +
@@ -2375,43 +2374,12 @@
   window.changeQty = function (productId, sizeLabel, delta) {
     var cartBefore = getCart();
     var key = productId + '_' + (sizeLabel || '');
-    var removedIdx = -1;
-    if (delta < 0) {
-      for (var i = 0; i < cartBefore.length; i++) {
-        if (cartItemKey(cartBefore[i]) === key && cartBefore[i].quantity <= 1) {
-          removedIdx = i;
-          break;
-        }
-      }
-    }
 
     updateCartQty(productId, sizeLabel, delta);
     var cartAfter = getCart();
     updateCartBadge();
 
-    if (!cartAfter.length) {
-      showCart();
-      return;
-    }
-
-    if (cartAfter.length < cartBefore.length && removedIdx >= 0) {
-      var row = document.getElementById('cart-row-' + removedIdx);
-      if (row) {
-        row.style.transition = 'opacity 0.3s, transform 0.3s, max-height 0.3s';
-        row.style.opacity = '0';
-        row.style.transform = 'translateX(-40px)';
-        row.style.overflow = 'hidden';
-        row.style.maxHeight = row.offsetHeight + 'px';
-        setTimeout(function () {
-          row.style.maxHeight = '0';
-          row.style.padding = '0';
-          row.style.margin = '0';
-        }, 50);
-        setTimeout(function () { showCart(); }, 350);
-        var totalEl = document.getElementById('cart-total-val');
-        if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
-        return;
-      }
+    if (cartAfter.length < cartBefore.length || !cartAfter.length) {
       showCart();
       return;
     }
@@ -2422,48 +2390,13 @@
         if (qtyEl) qtyEl.textContent = item.quantity;
       }
     });
-    var totalEl2 = document.getElementById('cart-total-val');
-    if (totalEl2) totalEl2.textContent = formatPrice(getCartTotal());
+    var totalEl = document.getElementById('cart-total-val');
+    if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
   };
 
   window.removeItem = function (productId, sizeLabel) {
-    var cartBefore = getCart();
-    var key = productId + '_' + (sizeLabel || '');
-    var removedIdx = -1;
-    for (var i = 0; i < cartBefore.length; i++) {
-      if (cartItemKey(cartBefore[i]) === key) { removedIdx = i; break; }
-    }
-
     removeFromCart(productId, sizeLabel);
     updateCartBadge();
-
-    var cartAfter = getCart();
-    if (!cartAfter.length) {
-      showCart();
-      return;
-    }
-
-    if (removedIdx >= 0) {
-      var row = document.getElementById('cart-row-' + removedIdx);
-      if (row) {
-        row.style.transition = 'opacity 0.3s, transform 0.3s, max-height 0.3s';
-        row.style.opacity = '0';
-        row.style.transform = 'translateX(-40px)';
-        row.style.overflow = 'hidden';
-        row.style.maxHeight = row.offsetHeight + 'px';
-        setTimeout(function () {
-          row.style.maxHeight = '0';
-          row.style.padding = '0';
-          row.style.margin = '0';
-        }, 50);
-        setTimeout(function () {
-          showCart();
-        }, 350);
-        var totalEl = document.getElementById('cart-total-val');
-        if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
-        return;
-      }
-    }
     showCart();
   };
 
