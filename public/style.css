@@ -2076,6 +2076,36 @@ button, select {
   font-weight: 500;
 }
 
+.orders-split-section {
+  margin-bottom: 20px;
+}
+
+.orders-split-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #000;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.orders-split-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  padding: 0 6px;
+}
+
 /* City overlay */
 #city-overlay {
   position: fixed;
