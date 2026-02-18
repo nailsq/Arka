@@ -328,13 +328,17 @@
     loadOrders();
   };
 
+  window.backToOrders = function () {
+    loadOrders();
+  };
+
   window.viewOrder = function (id) {
     api('GET', '/api/admin/orders').then(function (orders) {
       var o = orders.find(function (x) { return x.id === id; });
       if (!o) return;
 
       var el = document.getElementById('tab-content');
-      var h = '<button class="btn btn-sm" onclick="loadOrders()" style="margin-bottom:20px">Назад к списку</button>';
+      var h = '<button class="btn btn-sm" onclick="backToOrders()" style="margin-bottom:20px">Назад к списку</button>';
       h += '<div class="card">';
       h += '<div class="card-header"><span class="card-title">Заказ N ' + o.id + '</span>' + statusBadge(o.status) + '</div>';
 
