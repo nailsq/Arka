@@ -423,21 +423,61 @@ app.post('/api/admin/logout', adminAuth, function (req, res) {
 
 app.post('/api/admin/telegram-login', function (req, res) {
   var telegramId = String(req.body.telegram_id || '');
+  var username = String(req.body.username || '');
   if (!telegramId) {
     return res.status(400).json({ error: 'telegram_id required' });
   }
-  if (!ADMIN_TELEGRAM_IDS.includes(telegramId)) {
+  if (!isAdminUser(telegramId, username)) {
     return res.status(403).json({ error: 'Not an admin' });
+  }
+  if (username) {
+    var clean = username.replace(/^@/, '').toLowerCase();
+    var row = db.prepare('SELECT id FROM admin_users WHERE LOWER(telegram_username) = ?').get(clean);
+    if (row) {
+      db.prepare('UPDATE admin_users SET telegram_id = ? WHERE id = ?').run(String(telegramId), row.id);
+    }
   }
   var token = crypto.randomBytes(32).toString('hex');
   adminTokens.add(token);
-  res.json({ token: token });
+  res.json({ token: token, is_super_admin: isSuperAdmin(telegramId) });
 });
+
+function isAdminUser(telegramId, username) {
+  if (ADMIN_TELEGRAM_IDS.includes(String(telegramId))) return true;
+  if (telegramId) {
+    var byId = db.prepare('SELECT id FROM admin_users WHERE telegram_id = ?').get(String(telegramId));
+    if (byId) return true;
+  }
+  if (username) {
+    var clean = username.replace(/^@/, '').toLowerCase();
+    var byName = db.prepare('SELECT id FROM admin_users WHERE LOWER(telegram_username) = ?').get(clean);
+    if (byName) return true;
+  }
+  return false;
+}
+
+function isSuperAdmin(telegramId) {
+  return ADMIN_TELEGRAM_IDS.includes(String(telegramId));
+}
+
+function superAdminAuth(req, res, next) {
+  var token = req.headers['x-admin-token'];
+  if (!token || !adminTokens.has(token)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  var telegramId = req.headers['x-telegram-id'] || '';
+  if (!isSuperAdmin(telegramId)) {
+    return res.status(403).json({ error: 'Super admin only' });
+  }
+  next();
+}
 
 app.get('/api/user/is-admin', function (req, res) {
   var telegramId = String(req.query.telegram_id || '');
-  var isAdmin = ADMIN_TELEGRAM_IDS.includes(telegramId);
-  res.json({ is_admin: isAdmin });
+  var username = String(req.query.username || '');
+  var admin = isAdminUser(telegramId, username);
+  var superAdmin = isSuperAdmin(telegramId);
+  res.json({ is_admin: admin, is_super_admin: superAdmin });
 });
 
 // ============================================================
@@ -609,6 +649,45 @@ app.post('/api/admin/settings', adminAuth, function (req, res) {
     });
   });
   run();
+  res.json({ ok: true });
+});
+
+// ============================================================
+// ADMIN: Manage admin users (super admin only)
+// ============================================================
+
+app.get('/api/admin/admins', adminAuth, function (req, res) {
+  var telegramId = req.headers['x-telegram-id'] || '';
+  if (!isSuperAdmin(telegramId)) {
+    return res.status(403).json({ error: 'Super admin only' });
+  }
+  var admins = db.prepare('SELECT * FROM admin_users ORDER BY created_at DESC').all();
+  res.json(admins);
+});
+
+app.post('/api/admin/admins', adminAuth, function (req, res) {
+  var telegramId = req.headers['x-telegram-id'] || '';
+  if (!isSuperAdmin(telegramId)) {
+    return res.status(403).json({ error: 'Super admin only' });
+  }
+  var username = (req.body.username || '').replace(/^@/, '').trim();
+  if (!username) {
+    return res.status(400).json({ error: 'Username required' });
+  }
+  var existing = db.prepare('SELECT id FROM admin_users WHERE LOWER(telegram_username) = ?').get(username.toLowerCase());
+  if (existing) {
+    return res.status(400).json({ error: 'This user is already an admin' });
+  }
+  var info = db.prepare('INSERT INTO admin_users (telegram_username, added_by) VALUES (?, ?)').run(username.toLowerCase(), telegramId);
+  res.json({ id: info.lastInsertRowid, username: username });
+});
+
+app.delete('/api/admin/admins/:id', adminAuth, function (req, res) {
+  var telegramId = req.headers['x-telegram-id'] || '';
+  if (!isSuperAdmin(telegramId)) {
+    return res.status(403).json({ error: 'Super admin only' });
+  }
+  db.prepare('DELETE FROM admin_users WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 

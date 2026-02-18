@@ -1508,11 +1508,20 @@
     );
 
     var telegramId = getTelegramId();
+    var tgUsername = (tgUser && tgUser.username) || '';
     if (telegramId) {
-      fetchJSON('/api/user/is-admin?telegram_id=' + telegramId).then(function (data) {
+      var adminUrl = '/api/user/is-admin?telegram_id=' + telegramId;
+      if (tgUsername) adminUrl += '&username=' + encodeURIComponent(tgUsername);
+      fetchJSON(adminUrl).then(function (data) {
         if (data && data.is_admin) {
           var badge = document.getElementById('admin-badge');
-          if (badge) badge.style.display = 'inline-block';
+          if (badge) {
+            badge.style.display = 'inline-flex';
+            if (data.is_super_admin) {
+              badge.innerHTML = '<svg class="crown-icon" viewBox="0 0 24 24" width="12" height="12"><path fill="#fff" d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg> ГЛАВНЫЙ';
+              badge.classList.add('super-admin-badge');
+            }
+          }
           var btnWrap = document.getElementById('admin-panel-btn-wrap');
           if (btnWrap) btnWrap.style.display = 'block';
         }
@@ -1533,7 +1542,10 @@
   window.openAdminPanel = function () {
     var telegramId = getTelegramId();
     if (telegramId) {
-      window.location.href = '/admin.html?tg_auth=' + telegramId;
+      var url = '/admin.html?tg_auth=' + telegramId;
+      var username = (tgUser && tgUser.username) || '';
+      if (username) url += '&tg_user=' + encodeURIComponent(username);
+      window.location.href = url;
     }
   };
 

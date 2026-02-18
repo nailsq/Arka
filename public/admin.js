@@ -4,6 +4,8 @@
   var app = document.getElementById('admin-app');
   var token = localStorage.getItem('arka_admin_token') || '';
   var currentTab = 'orders';
+  var isSuperAdmin = false;
+  var currentTelegramId = localStorage.getItem('arka_admin_tg_id') || '';
 
   var ORDER_STATUSES_DELIVERY = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен'];
   var ORDER_STATUSES_PICKUP = ['Новый', 'Оплачен', 'Собирается', 'Готов к выдаче'];
@@ -30,7 +32,7 @@
   function api(method, url, body) {
     var opts = {
       method: method,
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token }
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token, 'X-Telegram-Id': currentTelegramId }
     };
     if (body && method !== 'GET') opts.body = JSON.stringify(body);
     return fetch(url, opts).then(function (r) {
@@ -191,6 +193,10 @@
   function showDashboard() {
     document.getElementById('logout-btn').style.display = 'block';
     document.getElementById('sidebar-nav').style.display = 'flex';
+    var sidebarAdminsBtn = document.getElementById('sidebar-admins-btn');
+    if (sidebarAdminsBtn) sidebarAdminsBtn.style.display = isSuperAdmin ? 'block' : 'none';
+    var mobileAdminsBtn = document.getElementById('mobile-admins-btn');
+    if (mobileAdminsBtn) mobileAdminsBtn.style.display = isSuperAdmin ? 'flex' : 'none';
     updateActiveTab();
     render('<div id="tab-content"><div class="empty-state">Загрузка...</div></div>');
     loadTab();
@@ -257,7 +263,8 @@
       orders: 'Заказы',
       products: 'Товары',
       categories: 'Категории',
-      settings: 'Настройки'
+      settings: 'Настройки',
+      admins: 'Администраторы'
     };
     var titleEl = document.getElementById('topbar-title');
     var titleText = titles[currentTab] || 'Панель управления';
@@ -282,6 +289,7 @@
       case 'products': loadProducts(); break;
       case 'categories': loadCategories(); break;
       case 'settings': loadSettings(); break;
+      case 'admins': loadAdmins(); break;
     }
   }
 
@@ -862,6 +870,83 @@
   };
 
   // ============================================================
+  // Admins management (super admin only)
+  // ============================================================
+
+  function loadAdmins() {
+    if (!isSuperAdmin) {
+      var el = document.getElementById('tab-content');
+      el.innerHTML = '<div class="empty-state">Доступ только для главного администратора</div>';
+      return;
+    }
+    api('GET', '/api/admin/admins').then(function (admins) {
+      var el = document.getElementById('tab-content');
+      var h = '<div class="card">';
+      h += '<div class="card-header"><span class="card-title">Администраторы</span></div>';
+      h += '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">' +
+        'Добавляйте администраторов по их Telegram username. Они получат доступ к админ-панели при входе через Telegram.</div>';
+
+      h += '<form onsubmit="addAdmin(event)" class="admin-add-form">' +
+        '<div class="form-group" style="flex:1;margin-bottom:0">' +
+          '<label class="form-label">Telegram username</label>' +
+          '<input type="text" class="form-input" id="new-admin-username" placeholder="@username" required>' +
+        '</div>' +
+        '<button type="submit" class="btn btn-primary" style="align-self:flex-end">Добавить</button>' +
+      '</form>';
+
+      if (!admins || !admins.length) {
+        h += '<div class="empty-state" style="padding:24px">Дополнительных администраторов нет.<br>Вы — единственный (главный) администратор.</div>';
+      } else {
+        h += '<div class="admin-list">';
+        admins.forEach(function (a) {
+          h += '<div class="admin-list-item" id="admin-row-' + a.id + '">' +
+            '<div class="admin-list-info">' +
+              '<div class="admin-list-username">@' + esc(a.telegram_username) + '</div>' +
+              '<div class="admin-list-meta">' +
+                (a.telegram_id ? 'ID: ' + esc(a.telegram_id) + ' · ' : 'Ещё не заходил · ') +
+                'Добавлен ' + fmtDate(a.created_at) +
+              '</div>' +
+            '</div>' +
+            '<button class="btn btn-sm btn-danger" onclick="removeAdmin(' + a.id + ',\'' + esc(a.telegram_username) + '\')">Удалить</button>' +
+          '</div>';
+        });
+        h += '</div>';
+      }
+
+      h += '</div>';
+      el.innerHTML = h;
+    }).catch(function () {
+      var el = document.getElementById('tab-content');
+      el.innerHTML = '<div class="empty-state">Не удалось загрузить список администраторов</div>';
+    });
+  }
+
+  window.addAdmin = function (e) {
+    e.preventDefault();
+    var input = document.getElementById('new-admin-username');
+    var username = (input.value || '').trim();
+    if (!username) return;
+    api('POST', '/api/admin/admins', { username: username }).then(function (r) {
+      if (r.error) {
+        adminToast(r.error, 'error');
+      } else {
+        adminToast('@' + username.replace(/^@/, '') + ' добавлен как администратор', 'success');
+        loadAdmins();
+      }
+    }).catch(function () {
+      adminToast('Ошибка при добавлении', 'error');
+    });
+  };
+
+  window.removeAdmin = function (id, username) {
+    if (!confirm('Удалить @' + username + ' из администраторов?')) return;
+    api('DELETE', '/api/admin/admins/' + id).then(function () {
+      adminToast('@' + username + ' удалён из администраторов', 'success');
+      loadAdmins();
+    });
+  };
+
+  // ============================================================
   // Search
   // ============================================================
 
@@ -1115,15 +1200,20 @@
   function tryTelegramAutoLogin() {
     var params = new URLSearchParams(window.location.search);
     var tgAuth = params.get('tg_auth');
+    var tgUser = params.get('tg_user') || '';
     if (!tgAuth) return false;
+    currentTelegramId = tgAuth;
+    localStorage.setItem('arka_admin_tg_id', tgAuth);
     fetch('/api/admin/telegram-login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ telegram_id: tgAuth })
+      body: JSON.stringify({ telegram_id: tgAuth, username: tgUser })
     }).then(function (r) { return r.json(); }).then(function (data) {
       if (data.token) {
         token = data.token;
         localStorage.setItem('arka_admin_token', token);
+        isSuperAdmin = !!data.is_super_admin;
+        localStorage.setItem('arka_admin_is_super', isSuperAdmin ? '1' : '0');
         window.history.replaceState({}, '', '/admin.html');
         showDashboard();
       } else {
@@ -1134,6 +1224,8 @@
     });
     return true;
   }
+
+  isSuperAdmin = localStorage.getItem('arka_admin_is_super') === '1';
 
   if (token) {
     api('GET', '/api/admin/orders').then(function () {
