@@ -407,8 +407,10 @@
         h += '<div class="order-items-list">';
         h += '<div style="font-weight:600;margin-bottom:8px">Состав заказа</div>';
         o.items.forEach(function (i) {
+          var sizeTag = i.size_label ? ' [' + esc(i.size_label) + ']' : '';
+          var fcTag = i.flower_count ? ' (' + i.flower_count + ' цветов)' : '';
           h += '<div class="order-item-row">' +
-            '<span>' + esc(i.product_name || 'Товар') + (i.flower_count ? ' (' + i.flower_count + ' цветов)' : '') + ' x ' + i.quantity + '</span>' +
+            '<span>' + esc(i.product_name || 'Товар') + sizeTag + fcTag + ' x ' + i.quantity + '</span>' +
             '<span><strong>' + fmtPrice(i.price * i.quantity) + '</strong></span>' +
           '</div>';
         });
@@ -468,11 +470,16 @@
 
         products.forEach(function (p) {
           var imgCount = p.images ? p.images.length : (p.image_url ? 1 : 0);
+          var sizesInfo = '';
+          if (p.sizes && p.sizes.length) {
+            sizesInfo = '<div style="font-size:10px;color:var(--text-secondary)">' +
+              p.sizes.map(function (s) { return s.label + ' (' + s.flower_count + ' цв.)'; }).join(', ') + '</div>';
+          }
           h += '<tr>' +
             '<td>' + productThumb(p.image_url) + (imgCount > 1 ? '<span style="font-size:10px;color:var(--text-secondary);display:block;text-align:center">+' + (imgCount - 1) + '</span>' : '') + '</td>' +
-            '<td><strong>' + esc(p.name) + '</strong>' + (p.is_bouquet ? '<div style="font-size:10px;color:var(--text-secondary)">' + p.flower_min + '-' + p.flower_max + ' цв., шаг ' + p.flower_step + ', +' + fmtPrice(p.price_per_flower) + '/шт</div>' : '') + '</td>' +
+            '<td><strong>' + esc(p.name) + '</strong>' + sizesInfo + '</td>' +
             '<td><span style="color:var(--text-secondary)">' + esc(p.category_name) + '</span></td>' +
-            '<td>' + fmtPrice(p.price) + (p.is_bouquet ? '<div style="font-size:10px;color:var(--text-secondary)">от ' + p.flower_min + ' цв.</div>' : '') + '</td>' +
+            '<td>' + fmtPrice(p.price) + (p.sizes && p.sizes.length ? '<div style="font-size:10px;color:var(--text-secondary)">' + p.sizes.length + ' размер(ов)</div>' : '') + '</td>' +
             '<td><div class="btn-group">' +
               '<button class="btn btn-sm" onclick="showProductForm(' + p.id + ')">Изменить</button>' +
               '<button class="btn btn-sm btn-danger" onclick="deleteProduct(' + p.id + ')">Удалить</button>' +
@@ -522,6 +529,18 @@
       existingImgs += '</div>';
     }
 
+    var sizesHtml = '';
+    if (product && p.sizes && p.sizes.length) {
+      sizesHtml = p.sizes.map(function (s) {
+        return '<div class="pf-size-row" data-size-id="' + s.id + '">' +
+          '<input type="text" class="form-input" style="width:70px" value="' + esc(s.label) + '" placeholder="M" data-field="label">' +
+          '<input type="number" class="form-input" style="width:80px" value="' + s.flower_count + '" placeholder="цветов" data-field="flower_count" min="0">' +
+          '<input type="number" class="form-input" style="width:100px" value="' + s.price + '" placeholder="цена" data-field="price" min="0">' +
+          '<button type="button" class="btn btn-sm btn-danger" onclick="removeSizeRow(this)" style="flex-shrink:0">X</button>' +
+        '</div>';
+      }).join('');
+    }
+
     modal.innerHTML =
       '<div class="modal-overlay" onclick="closeProductModal(event)">' +
         '<div class="modal-card" onclick="event.stopPropagation()">' +
@@ -537,19 +556,8 @@
                 '<select class="form-select" id="pf-category">' + catOptions + '</select>' +
               '</div>' +
               '<div class="form-group">' +
-                '<label class="form-label">Цена (руб.)</label>' +
+                '<label class="form-label">Цена (базовая, руб.)</label>' +
                 '<input type="number" class="form-input" id="pf-price" value="' + (p.price || '') + '" required>' +
-              '</div>' +
-            '</div>' +
-            '<div class="form-row" style="align-items:flex-end">' +
-              '<div class="form-group" style="flex:1">' +
-                '<label class="form-label">Цена за шт. (руб.)</label>' +
-                '<input type="number" class="form-input" id="pf-ppf" value="' + (p.price_per_flower || '') + '" min="0" placeholder="напр. 150"' + (!(p.is_bouquet && p.price_per_flower) ? ' disabled style="opacity:0.4"' : '') + '>' +
-              '</div>' +
-              '<div style="padding-bottom:6px">' +
-                '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;font-size:13px">' +
-                  '<input type="checkbox" id="pf-ppf-enabled"' + (p.is_bouquet && p.price_per_flower ? ' checked' : '') + ' onchange="togglePpfField()" style="width:16px;height:16px"> Применить' +
-                '</label>' +
               '</div>' +
             '</div>' +
             '<div class="form-group">' +
@@ -562,35 +570,13 @@
               '<input type="file" class="form-input" id="pf-images" accept="image/*" multiple>' +
               '<div style="margin-top:4px;font-size:12px;color:var(--text-secondary)">Можно выбрать несколько файлов. Первое фото будет обложкой.</div>' +
             '</div>' +
-            '<div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px" id="pf-bouquet-section">' +
-              '<div style="font-weight:600;margin-bottom:10px">Выбор количества (клиент выбирает на карточке)</div>' +
-              '<div class="form-group">' +
-                '<label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
-                  '<input type="checkbox" id="pf-is-bouquet"' + (p.is_bouquet ? ' checked' : '') + ' onchange="toggleBouquetFields()" style="width:18px;height:18px"> Включить выбор количества для этой позиции' +
-                '</label>' +
-                '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Если включено, клиент сможет выбрать количество цветов/единиц прямо на карточке товара перед добавлением в корзину.</div>' +
-              '</div>' +
-              '<div id="pf-bouquet-fields" style="' + (p.is_bouquet ? '' : 'display:none') + '">' +
-                '<div class="form-row">' +
-                  '<div class="form-group">' +
-                    '<label class="form-label">Минимум (шт.)</label>' +
-                    '<input type="number" class="form-input" id="pf-flower-min" value="' + (p.flower_min || 1) + '" min="1" placeholder="напр. 5">' +
-                    '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">С какого количества начинается выбор</div>' +
-                  '</div>' +
-                  '<div class="form-group">' +
-                    '<label class="form-label">Максимум (шт.)</label>' +
-                    '<input type="number" class="form-input" id="pf-flower-max" value="' + (p.flower_max || 1) + '" min="1" placeholder="напр. 51">' +
-                    '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">Максимальное количество для выбора</div>' +
-                  '</div>' +
-                '</div>' +
-                '<div class="form-group">' +
-                  '<label class="form-label">Шаг</label>' +
-                  '<input type="number" class="form-input" id="pf-flower-step" value="' + (p.flower_step || 1) + '" min="1" placeholder="напр. 1 или 2">' +
-                  '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">На сколько штук увеличивается за раз (1 = по одному, 2 = через один и т.д.)</div>' +
-                '</div>' +
-              '</div>' +
+            '<div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px" id="pf-sizes-section">' +
+              '<div style="font-weight:600;margin-bottom:6px">Размеры букета</div>' +
+              '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Добавьте размеры (S, M, L, XL и т.д.) с количеством цветов и ценой. Если размеров нет — товар продается без выбора размера.</div>' +
+              '<div id="pf-sizes-list">' + sizesHtml + '</div>' +
+              '<button type="button" class="btn btn-sm" onclick="addSizeRow()" style="margin-top:8px">+ Добавить размер</button>' +
             '</div>' +
-            '<div class="btn-group" style="margin-top:8px">' +
+            '<div class="btn-group" style="margin-top:16px">' +
               '<button type="submit" class="btn btn-primary">Сохранить</button>' +
               '<button type="button" class="btn" onclick="closeProductModal()">Отмена</button>' +
             '</div>' +
@@ -604,21 +590,31 @@
     }
   }
 
-  window.toggleBouquetFields = function () {
-    var chk = document.getElementById('pf-is-bouquet');
-    var fields = document.getElementById('pf-bouquet-fields');
-    if (chk && fields) {
-      fields.style.display = chk.checked ? '' : 'none';
-    }
+  window.addSizeRow = function () {
+    var list = document.getElementById('pf-sizes-list');
+    if (!list) return;
+    var row = document.createElement('div');
+    row.className = 'pf-size-row';
+    row.setAttribute('data-size-id', 'new');
+    row.innerHTML =
+      '<input type="text" class="form-input" style="width:70px" placeholder="M" data-field="label">' +
+      '<input type="number" class="form-input" style="width:80px" placeholder="цветов" data-field="flower_count" min="0">' +
+      '<input type="number" class="form-input" style="width:100px" placeholder="цена" data-field="price" min="0">' +
+      '<button type="button" class="btn btn-sm btn-danger" onclick="removeSizeRow(this)" style="flex-shrink:0">X</button>';
+    list.appendChild(row);
   };
 
-  window.togglePpfField = function () {
-    var chk = document.getElementById('pf-ppf-enabled');
-    var input = document.getElementById('pf-ppf');
-    if (input) {
-      input.disabled = !chk.checked;
-      input.style.opacity = chk.checked ? '1' : '0.4';
-      if (!chk.checked) input.value = '';
+  window.removeSizeRow = function (btn) {
+    var row = btn.closest('.pf-size-row');
+    if (!row) return;
+    var sizeId = row.getAttribute('data-size-id');
+    if (sizeId && sizeId !== 'new') {
+      api('DELETE', '/api/admin/product-sizes/' + sizeId).then(function () {
+        row.remove();
+        adminToast('Размер удалён', 'success');
+      });
+    } else {
+      row.remove();
     }
   };
 
@@ -640,16 +636,19 @@
 
   window.saveProduct = function (e) {
     e.preventDefault();
+    var sizeRows = document.querySelectorAll('#pf-sizes-list .pf-size-row');
+    var hasSizes = sizeRows.length > 0;
+
     var fd = new FormData();
     fd.append('name', document.getElementById('pf-name').value);
     fd.append('category_id', document.getElementById('pf-category').value);
     fd.append('price', document.getElementById('pf-price').value);
     fd.append('description', document.getElementById('pf-desc').value);
-    fd.append('is_bouquet', document.getElementById('pf-is-bouquet').checked ? '1' : '0');
-    fd.append('flower_min', document.getElementById('pf-flower-min').value || '0');
-    fd.append('flower_max', document.getElementById('pf-flower-max').value || '0');
-    fd.append('flower_step', document.getElementById('pf-flower-step').value || '1');
-    fd.append('price_per_flower', document.getElementById('pf-ppf').value || '0');
+    fd.append('is_bouquet', hasSizes ? '1' : '0');
+    fd.append('flower_min', '0');
+    fd.append('flower_max', '0');
+    fd.append('flower_step', '1');
+    fd.append('price_per_flower', '0');
     var fileInput = document.getElementById('pf-images');
     if (fileInput && fileInput.files.length) {
       for (var i = 0; i < fileInput.files.length; i++) {
@@ -660,11 +659,31 @@
     var url = editingProduct ? '/api/admin/products/' + editingProduct : '/api/admin/products';
     var method = editingProduct ? 'PUT' : 'POST';
 
-    apiUpload(method, url, fd).then(function () {
-      var msg = editingProduct ? 'Товар обновлен' : 'Товар добавлен';
-      editingProduct = null;
-      adminToast(msg, 'success');
-      loadProducts();
+    apiUpload(method, url, fd).then(function (result) {
+      var productId = editingProduct || result.id;
+
+      var sizeSavePromises = [];
+      sizeRows.forEach(function (row, idx) {
+        var sizeId = row.getAttribute('data-size-id');
+        var label = row.querySelector('[data-field="label"]').value.trim();
+        var flowerCount = row.querySelector('[data-field="flower_count"]').value || '0';
+        var price = row.querySelector('[data-field="price"]').value || '0';
+        if (!label) return;
+
+        var sizeData = { product_id: productId, label: label, flower_count: flowerCount, price: price, sort_order: idx };
+        if (sizeId && sizeId !== 'new') {
+          sizeSavePromises.push(api('PUT', '/api/admin/product-sizes/' + sizeId, sizeData));
+        } else {
+          sizeSavePromises.push(api('POST', '/api/admin/product-sizes', sizeData));
+        }
+      });
+
+      return Promise.all(sizeSavePromises).then(function () {
+        var msg = editingProduct ? 'Товар обновлен' : 'Товар добавлен';
+        editingProduct = null;
+        adminToast(msg, 'success');
+        loadProducts();
+      });
     });
   };
 

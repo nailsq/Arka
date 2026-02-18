@@ -7,7 +7,7 @@ echo.
 git add -A
 git status
 echo.
-git commit -m "Persistent storage: GitHub Gist backup + images in DB, no data loss on deploy"
+git commit -m "Replace flower count system with configurable sizes (S, M, L, XL)"
 echo.
 git push
 echo.

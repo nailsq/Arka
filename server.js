@@ -165,6 +165,28 @@ async function attachImagesOne(p) {
   return p;
 }
 
+async function attachSizes(products) {
+  if (!products || !products.length) return products;
+  var ids = products.map(function (p) { return p.id; });
+  var placeholders = ids.map(function () { return '?'; }).join(',');
+  var sizes = await db.prepare('SELECT * FROM product_sizes WHERE product_id IN (' + placeholders + ') ORDER BY sort_order, id').all.apply(null, ids);
+  var map = {};
+  sizes.forEach(function (s) {
+    if (!map[s.product_id]) map[s.product_id] = [];
+    map[s.product_id].push(s);
+  });
+  products.forEach(function (p) {
+    p.sizes = map[p.id] || [];
+  });
+  return products;
+}
+
+async function attachSizesOne(p) {
+  if (!p) return p;
+  p.sizes = await db.prepare('SELECT * FROM product_sizes WHERE product_id = ? ORDER BY sort_order, id').all(p.id);
+  return p;
+}
+
 app.get('/api/products', async function (req, res) {
   var cid = req.query.category_id;
   var products;
@@ -173,13 +195,17 @@ app.get('/api/products', async function (req, res) {
   } else {
     products = await db.prepare('SELECT * FROM products WHERE category_id = ?').all(cid);
   }
-  res.json(await attachImages(products));
+  products = await attachImages(products);
+  products = await attachSizes(products);
+  res.json(products);
 });
 
 app.get('/api/products/:id', async function (req, res) {
   var p = await db.prepare('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.id = ?').get(req.params.id);
   if (!p) return res.status(404).json({ error: 'Not found' });
-  res.json(await attachImagesOne(p));
+  await attachImagesOne(p);
+  await attachSizesOne(p);
+  res.json(p);
 });
 
 // ============================================================
@@ -346,8 +372,8 @@ app.post('/api/orders', async function (req, res) {
     for (var i = 0; i < items.length; i++) {
       var item = items[i];
       await db.prepare(
-        'INSERT INTO order_items (order_id, product_id, quantity, price, flower_count) VALUES (?,?,?,?,?)'
-      ).run(orderId, item.product_id, item.quantity, item.price, item.flower_count || 0);
+        'INSERT INTO order_items (order_id, product_id, quantity, price, flower_count, size_label) VALUES (?,?,?,?,?,?)'
+      ).run(orderId, item.product_id, item.quantity, item.price, item.flower_count || 0, item.size_label || '');
     }
 
     res.json({ success: true, order_id: orderId, total_amount: totalAmount });
@@ -550,7 +576,9 @@ app.delete('/api/admin/categories/:id', adminAuth, async function (req, res) {
 
 app.get('/api/admin/products', adminAuth, async function (req, res) {
   var products = await db.prepare('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id ORDER BY p.id DESC').all();
-  res.json(await attachImages(products));
+  products = await attachImages(products);
+  products = await attachSizes(products);
+  res.json(products);
 });
 
 app.post('/api/admin/products', adminAuth, upload.array('images', 10), async function (req, res) {
@@ -633,6 +661,40 @@ app.delete('/api/admin/product-images/:imgId', adminAuth, async function (req, r
   await db.prepare('DELETE FROM product_images WHERE id = ?').run(req.params.imgId);
   var first = await db.prepare('SELECT id, image_url FROM product_images WHERE product_id = ? ORDER BY sort_order, id LIMIT 1').get(img.product_id);
   await db.prepare('UPDATE products SET image_url = ? WHERE id = ?').run(first ? first.image_url : '', img.product_id);
+  res.json({ ok: true });
+});
+
+// ============================================================
+// ADMIN: Product Sizes
+// ============================================================
+
+app.get('/api/admin/product-sizes/:productId', adminAuth, async function (req, res) {
+  var sizes = await db.prepare('SELECT * FROM product_sizes WHERE product_id = ? ORDER BY sort_order, id').all(req.params.productId);
+  res.json(sizes);
+});
+
+app.post('/api/admin/product-sizes', adminAuth, async function (req, res) {
+  var b = req.body;
+  if (!b.product_id || !b.label || !b.price) {
+    return res.status(400).json({ error: 'product_id, label, price required' });
+  }
+  var maxSort = await db.prepare('SELECT COALESCE(MAX(sort_order),0) as ms FROM product_sizes WHERE product_id = ?').get(b.product_id);
+  var info = await db.prepare(
+    'INSERT INTO product_sizes (product_id, label, flower_count, price, sort_order) VALUES (?,?,?,?,?)'
+  ).run(b.product_id, b.label, parseInt(b.flower_count) || 0, parseInt(b.price), (maxSort ? maxSort.ms : 0) + 1);
+  res.json({ id: info.lastInsertRowid });
+});
+
+app.put('/api/admin/product-sizes/:id', adminAuth, async function (req, res) {
+  var b = req.body;
+  await db.prepare(
+    'UPDATE product_sizes SET label=?, flower_count=?, price=?, sort_order=? WHERE id=?'
+  ).run(b.label, parseInt(b.flower_count) || 0, parseInt(b.price), parseInt(b.sort_order) || 0, req.params.id);
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/product-sizes/:id', adminAuth, async function (req, res) {
+  await db.prepare('DELETE FROM product_sizes WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 

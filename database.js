@@ -147,6 +147,16 @@ var SCHEMA = "\
     added_by TEXT,\
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP\
   );\
+\
+  CREATE TABLE IF NOT EXISTS product_sizes (\
+    id INTEGER PRIMARY KEY AUTOINCREMENT,\
+    product_id INTEGER NOT NULL,\
+    label TEXT NOT NULL,\
+    flower_count INTEGER NOT NULL DEFAULT 0,\
+    price INTEGER NOT NULL DEFAULT 0,\
+    sort_order INTEGER DEFAULT 0,\
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE\
+  );\
 ";
 
 function addColumnIfMissing(table, column, definition) {
@@ -166,6 +176,7 @@ async function init() {
   getDb().exec(SCHEMA);
   addColumnIfMissing('product_images', 'image_data', 'TEXT');
   addColumnIfMissing('orders', 'status_updated_at', 'DATETIME');
+  addColumnIfMissing('order_items', 'size_label', 'TEXT');
   console.log('Database initialized.');
 }
 

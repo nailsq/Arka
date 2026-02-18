@@ -1847,3 +1847,31 @@ button { cursor: pointer; }
     font-size: 11px;
   }
 }
+
+/* Product size rows */
+.pf-size-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.pf-size-row .form-input {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .pf-size-row {
+    flex-wrap: wrap;
+  }
+  .pf-size-row .form-input {
+    flex: 1;
+    min-width: 60px;
+  }
+}
