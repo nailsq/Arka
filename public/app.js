@@ -421,6 +421,12 @@
   var activeTab = 'home';
   var trackingPollInterval = null;
 
+  function getTelegramId() {
+    if (dbUser && dbUser.telegram_id) return dbUser.telegram_id;
+    if (tgUser && tgUser.id) return tgUser.id;
+    try { return localStorage.getItem('arka_tg_id') || ''; } catch (e) { return ''; }
+  }
+
   function stopTrackingPoll() {
     if (trackingPollInterval) {
       clearInterval(trackingPollInterval);
@@ -498,8 +504,17 @@
         first_name: tgUser.first_name || '',
         init_data: tg ? tg.initData : ''
       }).then(function (r) {
-        if (r && r.user) dbUser = r.user;
+        if (r && r.user) {
+          dbUser = r.user;
+          try { localStorage.setItem('arka_tg_id', String(tgUser.id)); } catch (e) {}
+          try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
+        }
       }).catch(function () {});
+    } else {
+      try {
+        var savedUser = localStorage.getItem('arka_user');
+        if (savedUser) dbUser = JSON.parse(savedUser);
+      } catch (e) {}
     }
 
     var hasCity = checkCityOnStart();
@@ -1004,7 +1019,7 @@
   }
 
   function loadCheckoutAddresses() {
-    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    var telegramId = getTelegramId();
     if (!telegramId) return;
     fetchJSON('/api/user/addresses?telegram_id=' + telegramId).then(function (addrs) {
       var el = document.getElementById('saved-addr-picker');
@@ -1410,7 +1425,7 @@
 
   function showAccount() {
     setActiveTab('account');
-    if (!tgUser && !dbUser) {
+    if (!tgUser && !dbUser && !getTelegramId()) {
       render(
         '<div class="section-title">Профиль</div>' +
         '<div class="account-section">' +
@@ -1448,7 +1463,7 @@
 
       '<div class="profile-section profile-tracking-section">' +
         '<div class="profile-section-header">' +
-          '<span class="profile-section-title tracking-title">Отслеживание доставки</span>' +
+          '<span class="profile-section-title tracking-title">Доставка</span>' +
         '</div>' +
         '<div id="profile-tracking"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
       '</div>' +
@@ -1474,7 +1489,7 @@
       '</div>'
     );
 
-    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    var telegramId = getTelegramId();
     if (telegramId) {
       fetchJSON('/api/user/is-admin?telegram_id=' + telegramId).then(function (data) {
         if (data && data.is_admin) {
@@ -1498,14 +1513,14 @@
   }
 
   window.openAdminPanel = function () {
-    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    var telegramId = getTelegramId();
     if (telegramId) {
       window.location.href = '/admin.html?tg_auth=' + telegramId;
     }
   };
 
   function loadProfileTracking() {
-    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    var telegramId = getTelegramId();
     if (!telegramId) return;
     fetchJSON('/api/user/orders?telegram_id=' + telegramId).then(function (orders) {
       var el = document.getElementById('profile-tracking');
@@ -1542,7 +1557,7 @@
   }
 
   function loadProfileAddresses() {
-    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    var telegramId = getTelegramId();
     if (!telegramId) return;
     fetchJSON('/api/user/addresses?telegram_id=' + telegramId).then(function (addrs) {
       var el = document.getElementById('profile-addresses');
@@ -1565,7 +1580,7 @@
   }
 
   function loadProfileOrders() {
-    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    var telegramId = getTelegramId();
     if (!telegramId) return;
     fetchJSON('/api/user/orders?telegram_id=' + telegramId).then(function (orders) {
       var el = document.getElementById('profile-orders');
@@ -1630,7 +1645,7 @@
   };
 
   window.saveNewAddress = function () {
-    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    var telegramId = getTelegramId();
     if (!telegramId) return;
     var district = document.getElementById('addr-district').value.trim();
     var street = document.getElementById('addr-street').value.trim();
@@ -1658,7 +1673,7 @@
   };
 
   window.showOrderHistory = function () {
-    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    var telegramId = getTelegramId();
     if (!telegramId) return;
 
     render(
@@ -1715,7 +1730,7 @@
 
   window.saveProfile = function (event) {
     event.preventDefault();
-    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    var telegramId = getTelegramId();
     if (!telegramId) return;
     postJSON('/api/user/update', {
       telegram_id: telegramId,
@@ -1724,6 +1739,7 @@
     }).then(function (r) {
       if (r && r.user) {
         dbUser = r.user;
+        try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
         showToast('Данные сохранены');
         navigateTo('account');
       }
@@ -1737,12 +1753,12 @@
   var TRACK_STEPS = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен'];
 
   window.showDeliveryTracking = function () {
-    var telegramId = (dbUser && dbUser.telegram_id) || (tgUser && tgUser.id);
+    var telegramId = getTelegramId();
 
     if (!telegramId) {
       render(
         '<span class="back-link" onclick="navigateTo(\'account\')">К профилю</span>' +
-        '<div class="section-title">Отслеживание доставки</div>' +
+        '<div class="section-title">Доставка</div>' +
         '<div class="empty-state">Откройте приложение через Telegram для отслеживания заказов.</div>'
       );
       return;
@@ -1750,7 +1766,7 @@
 
     render(
       '<span class="back-link" onclick="navigateTo(\'account\')">К профилю</span>' +
-      '<div class="section-title">Отслеживание доставки</div>' +
+      '<div class="section-title">Доставка</div>' +
       '<div id="delivery-list"><div class="empty-state">Загрузка...</div></div>'
     );
 
