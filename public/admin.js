@@ -475,15 +475,16 @@
             sizesInfo = '<div style="font-size:10px;color:var(--text-secondary)">' +
               p.sizes.map(function (s) { return s.label + ' (' + s.flower_count + ' цв.)'; }).join(', ') + '</div>';
           }
-          var stockBadge = p.in_stock === 0
-            ? '<span style="display:inline-block;margin-top:4px;font-size:10px;padding:2px 6px;border-radius:4px;background:#fff3cd;color:#856404">Скоро</span>'
-            : '';
+          var stockToggle = p.in_stock === 0
+            ? '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#fff3cd;color:#856404;border-color:#ffe08a" onclick="toggleStock(' + p.id + ',1)">Скоро</button>'
+            : '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#d4edda;color:#155724;border-color:#b1dfbb" onclick="toggleStock(' + p.id + ',0)">В наличии</button>';
           h += '<tr>' +
             '<td>' + productThumb(p.image_url) + (imgCount > 1 ? '<span style="font-size:10px;color:var(--text-secondary);display:block;text-align:center">+' + (imgCount - 1) + '</span>' : '') + '</td>' +
-            '<td><strong>' + esc(p.name) + '</strong>' + sizesInfo + stockBadge + '</td>' +
+            '<td><strong>' + esc(p.name) + '</strong>' + sizesInfo + '</td>' +
             '<td><span style="color:var(--text-secondary)">' + esc(p.category_name) + '</span></td>' +
             '<td>' + fmtPrice(p.price) + (p.sizes && p.sizes.length ? '<div style="font-size:10px;color:var(--text-secondary)">' + p.sizes.length + ' размер(ов)</div>' : '') + '</td>' +
             '<td><div class="btn-group">' +
+              stockToggle +
               '<button class="btn btn-sm" onclick="showProductForm(' + p.id + ')">Изменить</button>' +
               '<button class="btn btn-sm btn-danger" onclick="deleteProduct(' + p.id + ')">Удалить</button>' +
             '</div></td>' +
@@ -702,6 +703,15 @@
     if (!confirm('Удалить этот товар?')) return;
     api('DELETE', '/api/admin/products/' + id).then(function () {
       adminToast('Товар удален', 'success');
+      loadProducts();
+    });
+  };
+
+  window.toggleStock = function (id, newValue) {
+    var fd = new FormData();
+    fd.append('in_stock', String(newValue));
+    apiUpload('PUT', '/api/admin/products/' + id, fd).then(function () {
+      adminToast(newValue ? 'Товар в наличии' : 'Товар: скоро будет', 'success');
       loadProducts();
     });
   };
