@@ -354,23 +354,22 @@
     var priceLabel = hasMultipleSizes ? 'от ' + formatPrice(cardPrice) : formatPrice(p.price);
     var outOfStock = p.in_stock === 0;
     var cardClass = 'product-card' + (outOfStock ? ' product-card--soon' : '');
-    var stockBadge = outOfStock
-      ? '<div class="stock-badge stock-badge--soon">Скоро будет</div>'
-      : '<div class="stock-badge stock-badge--in">В наличии</div>';
 
     return '<div class="' + cardClass + '">' +
+      (outOfStock
+        ? '<div class="stock-badge stock-badge--soon-top">Скоро будет</div>'
+        : '<div class="stock-badge stock-badge--in">В наличии</div>') +
       '<div class="product-card-img-wrap" onclick="navigateTo(\'product\',' + p.id + ')"' +
         (images.length > 1 ? ' data-slide-count="' + images.length + '"' : '') + '>' +
         imgHtml +
         dotsHtml +
-        (outOfStock ? stockBadge : '') +
+        (outOfStock ? '<div class="stock-overlay">Скоро будет</div>' : '') +
         '<button class="fav-btn' + favClass + '" onclick="toggleFav(' + p.id + ',event)">' + heartSvg + '</button>' +
         (!outOfStock ? '<button class="cart-icon-btn" onclick="addToCartById(' + p.id + ',event)">' + cartSvg + '</button>' : '') +
       '</div>' +
       '<div class="product-card-body" onclick="navigateTo(\'product\',' + p.id + ')">' +
         '<div class="product-card-name">' + escapeHtml(p.name) + '</div>' +
         '<div class="product-card-price">' + priceLabel + '</div>' +
-        (!outOfStock ? stockBadge : '') +
         desc +
       '</div>' +
     '</div>';
