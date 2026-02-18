@@ -7,7 +7,7 @@ echo.
 git add -A
 git status
 echo.
-git commit -m "Super admin with crown badge, admin management by username, mobile-optimized admin panel"
+git commit -m "Super admin: separate crown icon + ADMIN badge, admin management by username"
 echo.
 git push
 echo.

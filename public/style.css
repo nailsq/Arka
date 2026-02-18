@@ -1550,6 +1550,17 @@ button, select {
   gap: 8px;
 }
 
+.admin-crown {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.admin-crown svg {
+  display: block;
+}
+
 .admin-badge {
   background: #000;
   color: #fff;
@@ -1560,20 +1571,6 @@ button, select {
   letter-spacing: 1px;
   text-transform: uppercase;
   line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.super-admin-badge {
-  background: #000;
-  padding: 4px 10px;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-
-.crown-icon {
-  flex-shrink: 0;
 }
 
 .admin-panel-btn {
