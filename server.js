@@ -465,7 +465,7 @@ app.get('/api/admin/orders', adminAuth, function (req, res) {
 });
 
 app.post('/api/admin/orders/:id/status', adminAuth, function (req, res) {
-  var validStatuses = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен'];
+  var validStatuses = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен', 'Готов к выдаче'];
   var newStatus = req.body.status;
   if (!validStatuses.includes(newStatus)) {
     return res.status(400).json({ error: 'Invalid status' });
