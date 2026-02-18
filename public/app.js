@@ -801,6 +801,38 @@
     var h = '<div class="section-title">Корзина</div>';
     if (!cart.length) { render(h + '<div class="empty-state">Корзина пуста</div>'); return; }
 
+    render(h + '<div class="cart-items"><div class="empty-state" style="padding:20px">Загрузка...</div></div>');
+
+    var productIds = [];
+    cart.forEach(function (item) {
+      if (productIds.indexOf(item.product_id) < 0) productIds.push(item.product_id);
+    });
+
+    var sizeMap = {};
+    var fetches = productIds.map(function (pid) {
+      return fetchJSON('/api/products/' + pid).then(function (p) {
+        if (p && p.sizes && p.sizes.length) {
+          sizeMap[pid] = p.sizes;
+        }
+      }).catch(function () {});
+    });
+
+    Promise.all(fetches).then(function () {
+      var updated = false;
+      cart.forEach(function (item) {
+        if (sizeMap[item.product_id]) {
+          item.available_sizes = sizeMap[item.product_id];
+          updated = true;
+        }
+      });
+      if (updated) saveCart(cart);
+
+      renderCartItems(cart);
+    });
+  }
+
+  function renderCartItems(cart) {
+    var h = '<div class="section-title">Корзина</div>';
     h += '<div class="cart-items">';
     cart.forEach(function (item, idx) {
       var rowId = 'cart-row-' + idx;
