@@ -838,37 +838,7 @@
     var h = '<div class="section-title">Корзина</div>';
     h += '<div class="cart-items">';
     cart.forEach(function (item, idx) {
-      var rowId = 'cart-row-' + idx;
-      var sizeSelector = '';
-      var sizes = item.available_sizes || [];
-      if (sizes.length) {
-        var sizeBtns = sizes.map(function (s) {
-          var isActive = s.label === item.size_label;
-          return '<button type="button" class="size-btn' + (isActive ? ' active' : '') + '" ' +
-            'onclick="changeCartSize(' + idx + ',\'' + escapeHtml(s.label).replace(/'/g, "\\'") + '\',' + s.price + ',' + s.flower_count + ')">' +
-            escapeHtml(s.label) + '</button>';
-        }).join('');
-        sizeSelector = '<div class="cart-size-selector">' +
-          '<div class="size-btn-row">' + sizeBtns + '</div>' +
-          (item.flower_count ? '<div class="cart-size-fc">' + item.flower_count + ' цветов</div>' : '') +
-        '</div>';
-      }
-      var escapedLabel = escapeHtml(item.size_label || '').replace(/'/g, "\\'");
-      h += '<div class="cart-item" id="' + rowId + '">' +
-        productImage(item.image_url, item.name, 'cart-item-img') +
-        '<div class="cart-item-info">' +
-          '<div>' +
-            '<div class="cart-item-name">' + escapeHtml(item.name) + '</div>' +
-            sizeSelector +
-            '<div class="cart-item-price" id="price-val-' + idx + '">' + formatPrice(item.price) + '</div>' +
-          '</div>' +
-          '<div class="cart-item-controls">' +
-            '<button class="qty-btn" onclick="changeQty(' + item.product_id + ',\'' + escapedLabel + '\',-1)">-</button>' +
-            '<span class="qty-value" id="qty-val-' + idx + '">' + item.quantity + '</span>' +
-            '<button class="qty-btn" onclick="changeQty(' + item.product_id + ',\'' + escapedLabel + '\',1)">+</button>' +
-            '<button class="remove-btn" onclick="removeItem(' + item.product_id + ',\'' + escapedLabel + '\')">Удалить</button>' +
-          '</div>' +
-        '</div></div>';
+      h += buildCartRow(item, idx).replace('cart-item--appear', '');
     });
     h += '</div>';
     h += '<div id="cart-recommend"></div>';
@@ -924,17 +894,94 @@
     }).catch(function () {});
   }
 
+  function buildCartRow(item, idx) {
+    var sizeSelector = '';
+    var sizes = item.available_sizes || [];
+    if (sizes.length) {
+      var sizeBtns = sizes.map(function (s) {
+        var isActive = s.label === item.size_label;
+        return '<button type="button" class="size-btn' + (isActive ? ' active' : '') + '" ' +
+          'onclick="changeCartSize(' + idx + ',\'' + escapeHtml(s.label).replace(/'/g, "\\'") + '\',' + s.price + ',' + s.flower_count + ')">' +
+          escapeHtml(s.label) + '</button>';
+      }).join('');
+      sizeSelector = '<div class="cart-size-selector">' +
+        '<div class="size-btn-row">' + sizeBtns + '</div>' +
+        (item.flower_count ? '<div class="cart-size-fc">' + item.flower_count + ' цветов</div>' : '') +
+      '</div>';
+    }
+    var escapedLabel = escapeHtml(item.size_label || '').replace(/'/g, "\\'");
+    return '<div class="cart-item cart-item--appear" id="cart-row-' + idx + '">' +
+      productImage(item.image_url, item.name, 'cart-item-img') +
+      '<div class="cart-item-info">' +
+        '<div>' +
+          '<div class="cart-item-name">' + escapeHtml(item.name) + '</div>' +
+          sizeSelector +
+          '<div class="cart-item-price" id="price-val-' + idx + '">' + formatPrice(item.price) + '</div>' +
+        '</div>' +
+        '<div class="cart-item-controls">' +
+          '<button class="qty-btn" onclick="changeQty(' + item.product_id + ',\'' + escapedLabel + '\',-1)">-</button>' +
+          '<span class="qty-value" id="qty-val-' + idx + '">' + item.quantity + '</span>' +
+          '<button class="qty-btn" onclick="changeQty(' + item.product_id + ',\'' + escapedLabel + '\',1)">+</button>' +
+          '<button class="remove-btn" onclick="removeItem(' + item.product_id + ',\'' + escapedLabel + '\')">Удалить</button>' +
+        '</div>' +
+      '</div></div>';
+  }
+
   window.addRecToCart = function (productId, event) {
     if (event) event.stopPropagation();
+    var btn = event && event.currentTarget;
+    var recCard = btn ? btn.closest('.cart-rec-card') : null;
+
+    var cartBefore = getCart();
+    var countBefore = cartBefore.length;
+
     fetchJSON('/api/products/' + productId).then(function (p) {
-      if (p && !p.error) {
-        var sizeObj = null;
-        if (p.sizes && p.sizes.length) {
-          sizeObj = p.sizes[0];
+      if (!p || p.error) return;
+      var sizeObj = null;
+      if (p.sizes && p.sizes.length) sizeObj = p.sizes[0];
+      addToCart(p, sizeObj);
+
+      var cart = getCart();
+      var cartItemsEl = document.querySelector('.cart-items');
+
+      if (cart.length > countBefore) {
+        var newItem = cart[cart.length - 1];
+        if (cartItemsEl) {
+          var temp = document.createElement('div');
+          temp.innerHTML = buildCartRow(newItem, cart.length - 1);
+          var row = temp.firstChild;
+          cartItemsEl.appendChild(row);
         }
-        addToCart(p, sizeObj);
-        showCart();
+      } else {
+        var sizeLabel = sizeObj ? sizeObj.label : '';
+        var key = productId + '_' + sizeLabel;
+        for (var i = 0; i < cart.length; i++) {
+          if ((cart[i].product_id + '_' + (cart[i].size_label || '')) === key) {
+            var qtyEl = document.getElementById('qty-val-' + i);
+            if (qtyEl) qtyEl.textContent = cart[i].quantity;
+            break;
+          }
+        }
       }
+
+      var totalEl = document.getElementById('cart-total-val');
+      if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
+
+      if (recCard) {
+        recCard.style.transition = 'opacity 0.3s, transform 0.3s';
+        recCard.style.opacity = '0';
+        recCard.style.transform = 'scale(0.85)';
+        setTimeout(function () {
+          recCard.remove();
+          var scroll = document.querySelector('.cart-rec-scroll');
+          if (scroll && !scroll.children.length) {
+            var sec = document.getElementById('cart-recommend');
+            if (sec) sec.innerHTML = '';
+          }
+        }, 300);
+      }
+
+      updateCartBadge();
     });
   };
 

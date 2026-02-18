@@ -1125,6 +1125,13 @@ button, select {
   align-items: flex-start;
   contain: layout style;
 }
+.cart-item--appear {
+  animation: cartItemIn 0.35s ease both;
+}
+@keyframes cartItemIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 .cart-item-img,
 .cart-item .no-image {
