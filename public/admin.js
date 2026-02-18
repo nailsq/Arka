@@ -408,7 +408,7 @@
         h += '<div style="font-weight:600;margin-bottom:8px">Состав заказа</div>';
         o.items.forEach(function (i) {
           var sizeTag = i.size_label ? ' [' + esc(i.size_label) + ']' : '';
-          var fcTag = i.flower_count ? ' (' + i.flower_count + ' цветов)' : '';
+          var fcTag = i.flower_count ? ' (' + i.flower_count + ' цветков)' : '';
           h += '<div class="order-item-row">' +
             '<span>' + esc(i.product_name || 'Товар') + sizeTag + fcTag + ' x ' + i.quantity + '</span>' +
             '<span><strong>' + fmtPrice(i.price * i.quantity) + '</strong></span>' +

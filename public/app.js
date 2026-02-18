@@ -744,7 +744,7 @@
           '<div class="size-selector" id="size-selector">' +
             '<div class="size-selector-label">Размер букета</div>' +
             '<div class="size-btn-row">' + sizeBtns + '</div>' +
-            '<div class="size-info" id="size-info">' + firstSize.flower_count + ' цветов</div>' +
+            '<div class="size-info" id="size-info">' + firstSize.flower_count + ' цветков</div>' +
           '</div>';
       }
 
@@ -972,7 +972,7 @@
       }).join('');
       sizeSelector = '<div class="cart-size-selector">' +
         '<div class="size-btn-row">' + sizeBtns + '</div>' +
-        (item.flower_count ? '<div class="cart-size-fc">' + item.flower_count + ' цветов</div>' : '') +
+        (item.flower_count ? '<div class="cart-size-fc">' + item.flower_count + ' цветков</div>' : '') +
       '</div>';
     }
     var escapedLabel = escapeHtml(item.size_label || '').replace(/'/g, "\\'");
@@ -2303,7 +2303,7 @@
     var priceEl = document.getElementById('detail-price');
     if (priceEl) priceEl.textContent = formatPrice(price);
     var infoEl = document.getElementById('size-info');
-    if (infoEl) infoEl.textContent = fc + ' цветов';
+    if (infoEl) infoEl.textContent = fc + ' цветков';
   };
 
   window.formatPhoneInput = function (input) {
@@ -2354,7 +2354,7 @@
       var priceEl = document.getElementById('price-val-' + cartIdx);
       if (priceEl) priceEl.textContent = formatPrice(newPrice);
       var fcEl = row.querySelector('.cart-size-fc');
-      if (fcEl) fcEl.textContent = newFlowerCount ? newFlowerCount + ' цветов' : '';
+      if (fcEl) fcEl.textContent = newFlowerCount ? newFlowerCount + ' цветков' : '';
       var totalEl = document.getElementById('cart-total-val');
       if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
 
