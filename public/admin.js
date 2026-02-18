@@ -861,6 +861,13 @@
       h += '</div>';
 
       h += '<div class="settings-section">';
+      h += '<div class="settings-section-title">Бесплатная услуга к букету</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">При добавлении букета в корзину автоматически добавляется бесплатная услуга. Оставьте поле пустым, чтобы отключить.</div>';
+      h += '<div class="form-group"><label class="form-label">Название услуги</label>' +
+        '<input type="text" class="form-input" id="s-free-service" value="' + esc(s.free_service_name || '') + '" placeholder="напр. Открытка с подписью"></div>';
+      h += '</div>';
+
+      h += '<div class="settings-section">';
       h += '<div class="settings-section-title">Соцсети</div>';
       h += '<div class="form-group"><label class="form-label">Telegram</label>' +
         '<input type="text" class="form-input" id="s-social-tg" value="' + esc(s.social_telegram || '') + '"></div>';
@@ -899,6 +906,7 @@
       holiday_dates: document.getElementById('s-holidays').value,
       exact_time_surcharge: document.getElementById('s-exact-surcharge').value,
       delivery_info: document.getElementById('s-delivery-info').value,
+      free_service_name: document.getElementById('s-free-service').value,
       social_telegram: document.getElementById('s-social-tg').value,
       social_instagram: document.getElementById('s-social-ig').value,
       social_vk: document.getElementById('s-social-vk').value

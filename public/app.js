@@ -181,6 +181,7 @@
     var sizeLabel = '';
     var flowerCount = 0;
     var allSizes = (product.sizes && product.sizes.length) ? product.sizes : [];
+    var isBouquet = !!(sizeObj || product.is_bouquet);
 
     if (sizeObj) {
       price = sizeObj.price;
@@ -202,18 +203,51 @@
         quantity: 1,
         flower_count: flowerCount,
         size_label: sizeLabel,
-        is_bouquet: (sizeObj ? 1 : 0),
+        is_bouquet: isBouquet ? 1 : 0,
         base_price: product.price,
         available_sizes: allSizes
       });
     }
+
+    if (isBouquet) {
+      addFreeServiceIfNeeded(cart);
+    }
+
     saveCart(cart);
     updateCartBadge();
     showToast('Добавлено в корзину');
   }
 
+  function addFreeServiceIfNeeded(cart) {
+    var serviceName = appSettings.free_service_name;
+    if (!serviceName) return;
+    var already = cart.find(function (i) { return i.is_free_service; });
+    if (already) return;
+    cart.push({
+      product_id: 0,
+      name: serviceName,
+      price: 0,
+      image_url: '',
+      quantity: 1,
+      flower_count: 0,
+      size_label: '',
+      is_bouquet: 0,
+      base_price: 0,
+      available_sizes: [],
+      is_free_service: true
+    });
+  }
+
   function cartItemKey(item) {
     return item.product_id + '_' + (item.size_label || '');
+  }
+
+  function cleanFreeService(cart) {
+    var hasBouquet = cart.some(function (i) { return i.is_bouquet && !i.is_free_service; });
+    if (!hasBouquet) {
+      return cart.filter(function (i) { return !i.is_free_service; });
+    }
+    return cart;
   }
 
   function updateCartQty(productId, sizeLabel, delta) {
@@ -226,12 +260,15 @@
         cart = cart.filter(function (i) { return cartItemKey(i) !== key; });
       }
     }
+    cart = cleanFreeService(cart);
     saveCart(cart);
   }
 
   function removeFromCart(productId, sizeLabel) {
     var key = productId + '_' + (sizeLabel || '');
-    saveCart(getCart().filter(function (i) { return cartItemKey(i) !== key; }));
+    var cart = getCart().filter(function (i) { return cartItemKey(i) !== key; });
+    cart = cleanFreeService(cart);
+    saveCart(cart);
   }
 
   function getCartTotal() {
@@ -895,6 +932,16 @@
   }
 
   function buildCartRow(item, idx) {
+    if (item.is_free_service) {
+      return '<div class="cart-item cart-free-service cart-item--appear" id="cart-row-' + idx + '">' +
+        '<div class="free-service-icon">🎁</div>' +
+        '<div class="cart-item-info">' +
+          '<div>' +
+            '<div class="cart-item-name">' + escapeHtml(item.name) + '</div>' +
+            '<div class="cart-item-price" style="color:#2e7d32">Бесплатно</div>' +
+          '</div>' +
+        '</div></div>';
+    }
     var sizeSelector = '';
     var sizes = item.available_sizes || [];
     if (sizes.length) {
