@@ -1945,20 +1945,6 @@ button, select {
   transform: translateY(-2px);
 }
 
-.track-finished {
-  opacity: 0.45;
-  border-color: #999;
-  position: relative;
-}
-
-.track-card-mini.track-finished {
-  border-color: #999;
-  background: #f5f5f5;
-}
-
-.track-card.track-finished {
-  background: #eee;
-}
 
 .track-header {
   display: flex;
