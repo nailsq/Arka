@@ -219,10 +219,12 @@
   }
 
   function addFreeServiceIfNeeded(cart) {
-    var serviceName = appSettings.free_service_name;
-    if (!serviceName) return;
+    var serviceName = appSettings.free_service_name || 'Упаковка букета';
     var already = cart.find(function (i) { return i.is_free_service; });
-    if (already) return;
+    if (already) {
+      already.name = serviceName;
+      return;
+    }
     cart.push({
       product_id: 0,
       name: serviceName,
@@ -950,11 +952,12 @@
   function buildCartRow(item, idx) {
     if (item.is_free_service) {
       return '<div class="cart-item cart-free-service cart-item--appear" id="cart-row-' + idx + '">' +
-        '<div class="free-service-icon">🎁</div>' +
+        '<div class="free-service-img">🎁</div>' +
         '<div class="cart-item-info">' +
           '<div>' +
             '<div class="cart-item-name">' + escapeHtml(item.name) + '</div>' +
-            '<div class="cart-item-price" style="color:#2e7d32">Бесплатно</div>' +
+            '<div class="free-service-sub">Бесплатно к вашему букету</div>' +
+            '<div class="cart-item-price free-service-price">0 ₽</div>' +
           '</div>' +
         '</div></div>';
     }

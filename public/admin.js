@@ -861,10 +861,10 @@
       h += '</div>';
 
       h += '<div class="settings-section">';
-      h += '<div class="settings-section-title">Бесплатная услуга к букету</div>';
-      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">При добавлении букета в корзину автоматически добавляется бесплатная услуга. Оставьте поле пустым, чтобы отключить.</div>';
-      h += '<div class="form-group"><label class="form-label">Название услуги</label>' +
-        '<input type="text" class="form-input" id="s-free-service" value="' + esc(s.free_service_name || '') + '" placeholder="напр. Открытка с подписью"></div>';
+      h += '<div class="settings-section-title">Бесплатная позиция к букету</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Когда клиент добавляет букет в корзину, к нему автоматически добавляется бесплатная позиция (например, упаковка, открытка и т.д.). По умолчанию: «Упаковка букета».</div>';
+      h += '<div class="form-group"><label class="form-label">Название позиции</label>' +
+        '<input type="text" class="form-input" id="s-free-service" value="' + esc(s.free_service_name || '') + '" placeholder="Упаковка букета"></div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
