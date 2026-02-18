@@ -841,11 +841,11 @@
     var h = '<div class="section-title">Корзина</div>';
     if (!cart.length) { render(h + '<div class="empty-state">Корзина пуста</div>'); return; }
 
-    render(h + '<div class="cart-items"><div class="empty-state" style="padding:20px">Загрузка...</div></div>');
+    renderCartItems(cart);
 
     var productIds = [];
     cart.forEach(function (item) {
-      if (productIds.indexOf(item.product_id) < 0) productIds.push(item.product_id);
+      if (item.product_id && productIds.indexOf(item.product_id) < 0) productIds.push(item.product_id);
     });
 
     var sizeMap = {};
@@ -859,15 +859,31 @@
 
     Promise.all(fetches).then(function () {
       var updated = false;
+      cart = getCart();
       cart.forEach(function (item) {
         if (sizeMap[item.product_id]) {
           item.available_sizes = sizeMap[item.product_id];
           updated = true;
         }
       });
-      if (updated) saveCart(cart);
-
-      renderCartItems(cart);
+      if (updated) {
+        saveCart(cart);
+        cart.forEach(function (item, idx) {
+          if (!sizeMap[item.product_id]) return;
+          var row = document.getElementById('cart-row-' + idx);
+          if (!row) return;
+          var oldBtns = row.querySelector('.cart-size-selector');
+          if (!oldBtns) return;
+          var sizes = item.available_sizes || [];
+          var sizeBtns = sizes.map(function (s) {
+            var isActive = s.label === item.size_label;
+            return '<button type="button" class="size-btn' + (isActive ? ' active' : '') + '" ' +
+              'onclick="changeCartSize(' + idx + ',\'' + escapeHtml(s.label).replace(/'/g, "\\'") + '\',' + s.price + ',' + s.flower_count + ')">' +
+              escapeHtml(s.label) + '</button>';
+          }).join('');
+          oldBtns.querySelector('.size-btn-row').innerHTML = sizeBtns;
+        });
+      }
     });
   }
 
@@ -1015,17 +1031,12 @@
       if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
 
       if (recCard) {
-        recCard.style.transition = 'opacity 0.3s, transform 0.3s';
-        recCard.style.opacity = '0';
-        recCard.style.transform = 'scale(0.85)';
-        setTimeout(function () {
-          recCard.remove();
-          var scroll = document.querySelector('.cart-rec-scroll');
-          if (scroll && !scroll.children.length) {
-            var sec = document.getElementById('cart-recommend');
-            if (sec) sec.innerHTML = '';
-          }
-        }, 300);
+        var addBtn = recCard.querySelector('.cart-rec-add');
+        if (addBtn) {
+          addBtn.outerHTML = '<div class="cart-rec-in-cart">В корзине</div>';
+        }
+        recCard.removeAttribute('onclick');
+        recCard.style.opacity = '0.6';
       }
 
       updateCartBadge();
@@ -2360,33 +2371,96 @@
 
   window.changeQty = function (productId, sizeLabel, delta) {
     var cartBefore = getCart();
+    var key = productId + '_' + (sizeLabel || '');
+    var removedIdx = -1;
+    if (delta < 0) {
+      for (var i = 0; i < cartBefore.length; i++) {
+        if (cartItemKey(cartBefore[i]) === key && cartBefore[i].quantity <= 1) {
+          removedIdx = i;
+          break;
+        }
+      }
+    }
+
     updateCartQty(productId, sizeLabel, delta);
     var cartAfter = getCart();
     updateCartBadge();
 
-    if (cartAfter.length < cartBefore.length) {
-      showCart();
-      return;
-    }
     if (!cartAfter.length) {
       showCart();
       return;
     }
 
-    var key = productId + '_' + (sizeLabel || '');
+    if (cartAfter.length < cartBefore.length && removedIdx >= 0) {
+      var row = document.getElementById('cart-row-' + removedIdx);
+      if (row) {
+        row.style.transition = 'opacity 0.3s, transform 0.3s, max-height 0.3s';
+        row.style.opacity = '0';
+        row.style.transform = 'translateX(-40px)';
+        row.style.overflow = 'hidden';
+        row.style.maxHeight = row.offsetHeight + 'px';
+        setTimeout(function () {
+          row.style.maxHeight = '0';
+          row.style.padding = '0';
+          row.style.margin = '0';
+        }, 50);
+        setTimeout(function () { showCart(); }, 350);
+        var totalEl = document.getElementById('cart-total-val');
+        if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
+        return;
+      }
+      showCart();
+      return;
+    }
+
     cartAfter.forEach(function (item, idx) {
       if (cartItemKey(item) === key) {
         var qtyEl = document.getElementById('qty-val-' + idx);
         if (qtyEl) qtyEl.textContent = item.quantity;
       }
     });
-    var totalEl = document.getElementById('cart-total-val');
-    if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
+    var totalEl2 = document.getElementById('cart-total-val');
+    if (totalEl2) totalEl2.textContent = formatPrice(getCartTotal());
   };
 
   window.removeItem = function (productId, sizeLabel) {
+    var cartBefore = getCart();
+    var key = productId + '_' + (sizeLabel || '');
+    var removedIdx = -1;
+    for (var i = 0; i < cartBefore.length; i++) {
+      if (cartItemKey(cartBefore[i]) === key) { removedIdx = i; break; }
+    }
+
     removeFromCart(productId, sizeLabel);
     updateCartBadge();
+
+    var cartAfter = getCart();
+    if (!cartAfter.length) {
+      showCart();
+      return;
+    }
+
+    if (removedIdx >= 0) {
+      var row = document.getElementById('cart-row-' + removedIdx);
+      if (row) {
+        row.style.transition = 'opacity 0.3s, transform 0.3s, max-height 0.3s';
+        row.style.opacity = '0';
+        row.style.transform = 'translateX(-40px)';
+        row.style.overflow = 'hidden';
+        row.style.maxHeight = row.offsetHeight + 'px';
+        setTimeout(function () {
+          row.style.maxHeight = '0';
+          row.style.padding = '0';
+          row.style.margin = '0';
+        }, 50);
+        setTimeout(function () {
+          showCart();
+        }, 350);
+        var totalEl = document.getElementById('cart-total-val');
+        if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
+        return;
+      }
+    }
     showCart();
   };
 
