@@ -356,13 +356,11 @@
     var cardClass = 'product-card' + (outOfStock ? ' product-card--soon' : '');
 
     return '<div class="' + cardClass + '">' +
-      (outOfStock
-        ? '<div class="stock-badge stock-badge--soon-top">Скоро будет</div>'
-        : '<div class="stock-badge stock-badge--in">В наличии</div>') +
       '<div class="product-card-img-wrap" onclick="navigateTo(\'product\',' + p.id + ')"' +
         (images.length > 1 ? ' data-slide-count="' + images.length + '"' : '') + '>' +
         imgHtml +
         dotsHtml +
+        (!outOfStock ? '<div class="stock-badge stock-badge--in">В наличии</div>' : '') +
         (outOfStock ? '<div class="stock-overlay">Скоро будет</div>' : '') +
         '<button class="fav-btn' + favClass + '" onclick="toggleFav(' + p.id + ',event)">' + heartSvg + '</button>' +
         (!outOfStock ? '<button class="cart-icon-btn" onclick="addToCartById(' + p.id + ',event)">' + cartSvg + '</button>' : '') +
