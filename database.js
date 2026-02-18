@@ -140,6 +140,7 @@ addColumnIfMissing('orders', 'city_id', 'INTEGER');
 addColumnIfMissing('orders', 'payment_id', 'TEXT');
 addColumnIfMissing('orders', 'is_paid', 'INTEGER DEFAULT 0');
 addColumnIfMissing('orders', 'paid_at', 'DATETIME');
+addColumnIfMissing('orders', 'status_updated_at', 'DATETIME');
 
 // order_items table migrations
 addColumnIfMissing('order_items', 'flower_count', 'INTEGER DEFAULT 0');

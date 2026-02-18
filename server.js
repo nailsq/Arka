@@ -284,7 +284,7 @@ app.post('/api/orders', function (req, res) {
   }
 
   var insertOrder = db.prepare(
-    'INSERT INTO orders (user_id, city_id, user_name, user_phone, user_email, user_telegram, receiver_name, receiver_phone, delivery_address, delivery_type, delivery_zone, delivery_cost, delivery_interval, delivery_date, exact_time, comment, total_amount) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+    'INSERT INTO orders (user_id, city_id, user_name, user_phone, user_email, user_telegram, receiver_name, receiver_phone, delivery_address, delivery_type, delivery_zone, delivery_cost, delivery_interval, delivery_date, exact_time, comment, total_amount, status_updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)'
   );
   var insertItem = db.prepare(
     'INSERT INTO order_items (order_id, product_id, quantity, price, flower_count) VALUES (?,?,?,?,?)'
@@ -379,7 +379,7 @@ app.get('/api/payments/test-complete/:orderId', function (req, res) {
   var order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
   if (!order) return res.status(404).send('Order not found');
 
-  db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ? WHERE id = ?')
+  db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run('Оплачен', orderId);
 
   res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Оплата</title><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff;color:#000}div{text-align:center;border:1px solid #000;padding:40px}a{display:inline-block;margin-top:20px;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:8px}</style></head><body><div><p>Оплата прошла успешно</p><p>Заказ N ' + orderId + '</p><p>Статус заказа обновлен на "Оплачен"</p><a href="/">Вернуться в магазин</a></div></body></html>');
@@ -392,7 +392,7 @@ app.post('/api/payments/webhook', function (req, res) {
   if (paymentId) {
     var order = db.prepare('SELECT * FROM orders WHERE payment_id = ?').get(String(paymentId));
     if (order && !order.is_paid) {
-      db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ? WHERE id = ?')
+      db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
         .run('Оплачен', order.id);
     }
   }
@@ -470,7 +470,7 @@ app.post('/api/admin/orders/:id/status', adminAuth, function (req, res) {
   if (!validStatuses.includes(newStatus)) {
     return res.status(400).json({ error: 'Invalid status' });
   }
-  db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(newStatus, req.params.id);
+  db.prepare('UPDATE orders SET status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newStatus, req.params.id);
   res.json({ ok: true });
 });
 

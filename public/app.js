@@ -1537,18 +1537,29 @@
     }
   };
 
-  var TRACK_STEPS_DELIVERY = ['Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен'];
-  var TRACK_STEPS_PICKUP = ['Оплачен', 'Собирается', 'Готов к выдаче'];
+  var TRACK_STEPS_DELIVERY = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен'];
+  var TRACK_STEPS_PICKUP = ['Новый', 'Оплачен', 'Собирается', 'Готов к выдаче'];
 
   function getTrackSteps(order) {
     return order.delivery_type === 'pickup' ? TRACK_STEPS_PICKUP : TRACK_STEPS_DELIVERY;
   }
 
-  function isOrderFinished(order) {
-    if (order.delivery_type === 'pickup') {
-      return order.status === 'Готов к выдаче';
-    }
+  function isFinalStatus(order) {
+    if (order.delivery_type === 'pickup') return order.status === 'Готов к выдаче';
     return order.status === 'Доставлен';
+  }
+
+  function isRecentlyFinished(order) {
+    if (!isFinalStatus(order)) return false;
+    if (!order.status_updated_at) return false;
+    var finishedAt = new Date(order.status_updated_at).getTime();
+    var oneHour = 60 * 60 * 1000;
+    return (Date.now() - finishedAt) < oneHour;
+  }
+
+  function shouldShowInTracking(order) {
+    if (!isFinalStatus(order)) return true;
+    return isRecentlyFinished(order);
   }
 
   function loadProfileTracking() {
@@ -1561,7 +1572,7 @@
         el.innerHTML = '<div class="empty-state" style="padding:12px">Активных заказов нет</div>';
         return;
       }
-      var active = orders.filter(function (o) { return !isOrderFinished(o); });
+      var active = orders.filter(shouldShowInTracking);
       if (!active.length) {
         el.innerHTML = '<div class="empty-state" style="padding:12px">Все заказы выполнены</div>';
         return;
@@ -1590,7 +1601,9 @@
           timeInfo = '<div class="track-time-info">Доставка: ' + escapeHtml(o.delivery_date) +
             (o.exact_time ? ' к ' + escapeHtml(o.exact_time) : (o.delivery_interval ? ', ' + escapeHtml(o.delivery_interval) : '')) + '</div>';
         }
-        return '<div class="track-card-mini">' +
+        var finished = isFinalStatus(o);
+        var cardCls = 'track-card-mini' + (finished ? ' track-finished' : '');
+        return '<div class="' + cardCls + '">' +
           '<div class="track-header"><span class="track-id">Заказ #' + o.id + '</span><span class="track-status-badge">' + escapeHtml(o.status) + '</span></div>' +
           '<div class="track-status-row"><span class="track-total">' + formatPrice(o.total_amount) + '</span></div>' +
           timeInfo +
@@ -1895,7 +1908,9 @@
           if (parts.length) timeInfo = '<div class="track-time-info">' + parts.join(', ') + '</div>';
         }
 
-        return '<div class="track-card">' +
+        var finished = isFinalStatus(o);
+        var cardCls = 'track-card' + (finished ? ' track-finished' : '');
+        return '<div class="' + cardCls + '">' +
           '<div class="track-header">' +
             '<span class="track-id">Заказ #' + o.id + '</span>' +
             '<span class="track-status-badge">' + escapeHtml(o.status) + '</span>' +
