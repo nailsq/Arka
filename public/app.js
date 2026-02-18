@@ -2411,7 +2411,7 @@
     }
 
     cartAfter.forEach(function (item, idx) {
-      if (cartItemKey(item) === key) {
+      if (cartItemKey(item) === key || item.is_free_service) {
         var qtyEl = document.getElementById('qty-val-' + idx);
         if (qtyEl) qtyEl.textContent = item.quantity;
       }
