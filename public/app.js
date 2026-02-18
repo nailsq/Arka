@@ -209,35 +209,45 @@
       });
     }
 
-    if (isBouquet) {
-      addFreeServiceIfNeeded(cart);
-    }
-
     saveCart(cart);
     updateCartBadge();
     showToast('Добавлено в корзину');
+
+    if (isBouquet) {
+      addFreeProductIfNeeded();
+    }
   }
 
-  function addFreeServiceIfNeeded(cart) {
-    var serviceName = appSettings.free_service_name || 'Упаковка букета';
+  function addFreeProductIfNeeded() {
+    var freeId = appSettings.free_product_id;
+    if (!freeId) return;
+    freeId = parseInt(freeId);
+    if (!freeId) return;
+
+    var cart = getCart();
     var already = cart.find(function (i) { return i.is_free_service; });
-    if (already) {
-      already.name = serviceName;
-      return;
-    }
-    cart.push({
-      product_id: 0,
-      name: serviceName,
-      price: 0,
-      image_url: '',
-      quantity: 1,
-      flower_count: 0,
-      size_label: '',
-      is_bouquet: 0,
-      base_price: 0,
-      available_sizes: [],
-      is_free_service: true
-    });
+    if (already) return;
+
+    fetchJSON('/api/products/' + freeId).then(function (p) {
+      if (!p || p.error) return;
+      var c = getCart();
+      if (c.find(function (i) { return i.is_free_service; })) return;
+      c.push({
+        product_id: p.id,
+        name: p.name,
+        price: 0,
+        image_url: p.image_url,
+        quantity: 1,
+        flower_count: 0,
+        size_label: '',
+        is_bouquet: 0,
+        base_price: 0,
+        available_sizes: [],
+        is_free_service: true
+      });
+      saveCart(c);
+      updateCartBadge();
+    }).catch(function () {});
   }
 
   function cartItemKey(item) {
@@ -837,13 +847,13 @@
     }
   }
 
-  function showCart() {
+  function showCart(keepScroll) {
     setActiveTab('cart');
     var cart = getCart();
     var h = '<div class="section-title">Корзина</div>';
     if (!cart.length) { render(h + '<div class="empty-state">Корзина пуста</div>'); return; }
 
-    renderCartItems(cart);
+    renderCartItems(cart, keepScroll);
 
     var productIds = [];
     cart.forEach(function (item) {
@@ -889,7 +899,7 @@
     });
   }
 
-  function renderCartItems(cart) {
+  function renderCartItems(cart, keepScroll) {
     var h = '<div class="section-title">Корзина</div>';
     h += '<div class="cart-items">';
     cart.forEach(function (item, idx) {
@@ -899,7 +909,13 @@
     h += '<div id="cart-recommend"></div>';
     h += '<div class="cart-total">Итого: <span id="cart-total-val">' + formatPrice(getCartTotal()) + '</span></div>';
     h += '<button class="nav-btn" onclick="navigateTo(\'checkout\')">Оформить заказ</button>';
-    render(h);
+    if (keepScroll) {
+      var scrollY = window.scrollY;
+      appEl.innerHTML = h;
+      window.scrollTo(0, scrollY);
+    } else {
+      render(h);
+    }
     loadCartRecommendations(cart);
   }
 
@@ -951,12 +967,12 @@
 
   function buildCartRow(item, idx) {
     if (item.is_free_service) {
-      return '<div class="cart-item cart-free-service" id="cart-row-' + idx + '">' +
-        '<div class="free-service-img">🎁</div>' +
+      return '<div class="cart-item" id="cart-row-' + idx + '">' +
+        productImage(item.image_url, item.name, 'cart-item-img') +
         '<div class="cart-item-info">' +
           '<div>' +
             '<div class="cart-item-name">' + escapeHtml(item.name) + '</div>' +
-            '<div class="cart-item-price">Бесплатно</div>' +
+            '<div class="cart-item-price">0 ₽ — Бесплатно</div>' +
           '</div>' +
         '</div></div>';
     }
@@ -2335,7 +2351,7 @@
       cart.splice(cartIdx, 1);
       saveCart(cart);
       updateCartBadge();
-      showCart();
+      showCart(true);
       return;
     }
 
@@ -2380,7 +2396,7 @@
     updateCartBadge();
 
     if (cartAfter.length < cartBefore.length || !cartAfter.length) {
-      showCart();
+      showCart(true);
       return;
     }
 
@@ -2397,7 +2413,7 @@
   window.removeItem = function (productId, sizeLabel) {
     removeFromCart(productId, sizeLabel);
     updateCartBadge();
-    showCart();
+    showCart(true);
   };
 
 

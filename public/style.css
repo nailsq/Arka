@@ -1115,27 +1115,6 @@ button, select {
   margin-bottom: 0;
 }
 
-.cart-free-service {
-  min-height: auto;
-  padding: 16px;
-  align-items: center;
-}
-.cart-free-service .cart-item-info {
-  min-height: auto;
-  justify-content: center;
-}
-.free-service-img {
-  width: 80px;
-  height: 80px;
-  min-width: 80px;
-  border-radius: 16px;
-  background: #eee;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  flex-shrink: 0;
-}
 
 .cart-item {
   display: flex;
