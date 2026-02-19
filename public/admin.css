@@ -708,6 +708,24 @@ button { cursor: pointer; }
   transform: translateY(-1px);
 }
 
+.order-card--done {
+  opacity: 0.45;
+  background: #f8f8f8;
+}
+.order-card--done .order-card-id,
+.order-card--done .order-card-client,
+.order-card--done .order-card-price {
+  color: #aaa;
+  font-weight: 400;
+}
+.order-card--done .order-card-phone,
+.order-card--done .order-card-date {
+  color: #ccc;
+}
+.order-card--done:hover {
+  opacity: 0.7;
+}
+
 .order-card:last-child {
   margin-bottom: 0;
 }

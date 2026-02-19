@@ -309,7 +309,8 @@
     });
     statusBtns += '</div>';
 
-    return '<div class="order-card" onclick="viewOrder(' + o.id + ')">' +
+    var done = (o.status === 'Доставлен' || o.status === 'Готов к выдаче');
+    return '<div class="order-card' + (done ? ' order-card--done' : '') + '" onclick="viewOrder(' + o.id + ')">' +
       '<div class="order-card-top">' +
         '<span class="order-card-id">#' + o.id + '</span>' +
         statusBadge(o.status) +
@@ -383,11 +384,24 @@
     el.innerHTML = h;
   }
 
+  function isOrderDone(o) {
+    return o.status === 'Доставлен' || o.status === 'Готов к выдаче';
+  }
+
+  function sortOrdersDoneToBottom(list) {
+    var active = [];
+    var done = [];
+    list.forEach(function (o) {
+      if (isOrderDone(o)) done.push(o); else active.push(o);
+    });
+    return active.concat(done);
+  }
+
   function buildOrdersColumns(orders) {
     if (!orders.length) return '<div class="empty-state">Заказов не найдено</div>';
 
-    var delivery = orders.filter(function (o) { return o.delivery_type !== 'pickup'; });
-    var pickup = orders.filter(function (o) { return o.delivery_type === 'pickup'; });
+    var delivery = sortOrdersDoneToBottom(orders.filter(function (o) { return o.delivery_type !== 'pickup'; }));
+    var pickup = sortOrdersDoneToBottom(orders.filter(function (o) { return o.delivery_type === 'pickup'; }));
 
     var h = '<div class="orders-columns">';
     h += '<div class="orders-col">';
