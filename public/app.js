@@ -960,6 +960,8 @@
 
       var h = '<div class="cart-rec-section">';
       h += '<div class="cart-rec-title">Добавьте к заказу</div>';
+      h += '<div class="cart-rec-wrap">';
+      h += '<button class="cart-rec-arrow cart-rec-arrow--left" onclick="scrollRec(-1)">&#8249;</button>';
       h += '<div class="cart-rec-scroll">';
       sorted.forEach(function (p) {
         var img = p.image_url
@@ -974,18 +976,10 @@
           '<button class="cart-rec-add" onclick="addRecToCart(' + p.id + ',event)">+</button>' +
         '</div>';
       });
+      h += '</div>';
+      h += '<button class="cart-rec-arrow cart-rec-arrow--right" onclick="scrollRec(1)">&#8250;</button>';
       h += '</div></div>';
       el.innerHTML = h;
-
-      var scrollEl = el.querySelector('.cart-rec-scroll');
-      if (scrollEl) {
-        scrollEl.addEventListener('wheel', function (e) {
-          if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-            e.preventDefault();
-            scrollEl.scrollLeft += e.deltaY;
-          }
-        }, { passive: false });
-      }
     }).catch(function () {});
   }
 
@@ -1039,6 +1033,11 @@
         '</div>' +
       '</div></div>';
   }
+
+  window.scrollRec = function (dir) {
+    var s = document.querySelector('.cart-rec-scroll');
+    if (s) s.scrollBy({ left: dir * 260, behavior: 'smooth' });
+  };
 
   window.addRecToCart = function (productId, event) {
     if (event) event.stopPropagation();
