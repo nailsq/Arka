@@ -768,38 +768,23 @@ button { cursor: pointer; }
   font-weight: 600;
   padding: 5px 10px;
   border-radius: 8px;
-  border: 2px solid var(--border);
-  background: var(--bg);
-  color: var(--text-secondary);
+  border: 2px solid #ccc;
+  background: #fff;
+  color: #888;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .order-status-btn:hover {
-  opacity: 0.85;
-  transform: scale(1.03);
+  border-color: #000;
+  color: #000;
 }
 
 .order-status-btn.active {
+  background: #000;
   color: #fff;
-  border-color: transparent;
+  border-color: #000;
 }
-
-.order-status-btn[onclick*="Новый"].active { background: #3b82f6; }
-.order-status-btn[onclick*="Оплачен"].active { background: #10b981; }
-.order-status-btn[onclick*="Собирается"].active { background: #f59e0b; }
-.order-status-btn[onclick*="Собран"].active { background: #6366f1; }
-.order-status-btn[onclick*="Отправлен"].active { background: #8b5cf6; }
-.order-status-btn[onclick*="Доставлен"].active { background: #059669; }
-.order-status-btn[onclick*="Готов к выдаче"].active { background: #0284c7; }
-
-.order-status-btn[onclick*="Новый"]:not(.active) { border-color: #93c5fd; color: #2563eb; background: #eff6ff; }
-.order-status-btn[onclick*="Оплачен"]:not(.active) { border-color: #6ee7b7; color: #047857; background: #ecfdf5; }
-.order-status-btn[onclick*="Собирается"]:not(.active) { border-color: #fcd34d; color: #b45309; background: #fffbeb; }
-.order-status-btn[onclick*="Собран"]:not(.active) { border-color: #a5b4fc; color: #4338ca; background: #eef2ff; }
-.order-status-btn[onclick*="Отправлен"]:not(.active) { border-color: #c4b5fd; color: #6d28d9; background: #f5f3ff; }
-.order-status-btn[onclick*="Доставлен"]:not(.active) { border-color: #6ee7b7; color: #047857; background: #ecfdf5; }
-.order-status-btn[onclick*="Готов к выдаче"]:not(.active) { border-color: #7dd3fc; color: #0369a1; background: #f0f9ff; }
 
 /* ==================== ORDER DETAIL ==================== */
 
