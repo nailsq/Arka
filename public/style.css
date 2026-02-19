@@ -1228,11 +1228,18 @@ button, select {
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding-bottom: 4px;
+  padding-bottom: 6px;
 }
 .cart-rec-scroll::-webkit-scrollbar {
-  display: none;
+  height: 4px;
+}
+.cart-rec-scroll::-webkit-scrollbar-track {
+  background: #eee;
+  border-radius: 4px;
+}
+.cart-rec-scroll::-webkit-scrollbar-thumb {
+  background: #bbb;
+  border-radius: 4px;
 }
 .cart-rec-card {
   flex: 0 0 120px;

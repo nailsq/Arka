@@ -976,6 +976,16 @@
       });
       h += '</div></div>';
       el.innerHTML = h;
+
+      var scrollEl = el.querySelector('.cart-rec-scroll');
+      if (scrollEl) {
+        scrollEl.addEventListener('wheel', function (e) {
+          if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+            e.preventDefault();
+            scrollEl.scrollLeft += e.deltaY;
+          }
+        }, { passive: false });
+      }
     }).catch(function () {});
   }
 
