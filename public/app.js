@@ -400,12 +400,31 @@
 
     var cardPrice = p.price;
     var hasMultipleSizes = p.sizes && p.sizes.length > 0;
+    var firstDims = '';
     if (hasMultipleSizes) {
       cardPrice = p.sizes[0].price;
+      firstDims = p.sizes[0].dimensions || '';
+    } else {
+      firstDims = p.dimensions || '';
     }
     var priceLabel = hasMultipleSizes ? 'от ' + formatPrice(cardPrice) : formatPrice(p.price);
     var outOfStock = p.in_stock === 0;
     var cardClass = 'product-card' + (outOfStock ? ' product-card--soon' : '');
+
+    var dimsBadge = firstDims
+      ? '<div class="card-dims-badge" id="card-dims-' + p.id + '">' + escapeHtml(firstDims) + '</div>'
+      : '<div class="card-dims-badge" id="card-dims-' + p.id + '" style="display:none"></div>';
+
+    var sizeBtnsHtml = '';
+    if (hasMultipleSizes) {
+      sizeBtnsHtml = '<div class="card-size-row" onclick="event.stopPropagation()">';
+      p.sizes.forEach(function (s, idx) {
+        sizeBtnsHtml += '<button class="card-size-btn' + (idx === 0 ? ' active' : '') + '" ' +
+          'onclick="switchCardSize(event,' + p.id + ',this,' + s.price + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\')">' +
+          escapeHtml(s.label) + '</button>';
+      });
+      sizeBtnsHtml += '</div>';
+    }
 
     return '<div class="' + cardClass + '">' +
       '<div class="product-card-img-wrap" onclick="navigateTo(\'product\',' + p.id + ')"' +
@@ -414,12 +433,14 @@
         dotsHtml +
         (!outOfStock ? '<div class="stock-badge stock-badge--in">В наличии</div>' : '') +
         (outOfStock ? '<div class="stock-overlay">Скоро будет в наличии</div>' : '') +
+        dimsBadge +
         '<button class="fav-btn' + favClass + '" onclick="toggleFav(' + p.id + ',event)">' + heartSvg + '</button>' +
         (!outOfStock ? '<button class="cart-icon-btn" onclick="addToCartById(' + p.id + ',event)">' + cartSvg + '</button>' : '') +
       '</div>' +
       '<div class="product-card-body" onclick="navigateTo(\'product\',' + p.id + ')">' +
         '<div class="product-card-name">' + escapeHtml(p.name) + '</div>' +
-        '<div class="product-card-price">' + priceLabel + '</div>' +
+        sizeBtnsHtml +
+        '<div class="product-card-price" id="card-price-' + p.id + '">' + priceLabel + '</div>' +
         desc +
       '</div>' +
     '</div>';
@@ -2306,6 +2327,25 @@
   // ============================================================
   // Global handlers
   // ============================================================
+
+  window.switchCardSize = function (event, productId, btn, price, dims) {
+    event.stopPropagation();
+    var row = btn.parentElement;
+    var btns = row.querySelectorAll('.card-size-btn');
+    btns.forEach(function (b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    var priceEl = document.getElementById('card-price-' + productId);
+    if (priceEl) priceEl.textContent = formatPrice(price);
+    var dimsEl = document.getElementById('card-dims-' + productId);
+    if (dimsEl) {
+      if (dims) {
+        dimsEl.textContent = dims;
+        dimsEl.style.display = '';
+      } else {
+        dimsEl.style.display = 'none';
+      }
+    }
+  };
 
   window.addToCartById = function (productId, event) {
     if (event) event.stopPropagation();
