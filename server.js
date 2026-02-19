@@ -309,9 +309,11 @@ app.get('/api/user/orders', async function (req, res) {
   var telegramId = req.query.telegram_id;
   if (!telegramId) return res.status(400).json({ error: 'telegram_id required' });
   var user = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
+  console.log('[UserOrders] telegram_id=' + telegramId + ', user=' + (user ? 'id=' + user.id : 'NOT FOUND'));
   if (!user) return res.json([]);
 
   var orders = await db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC').all(user.id);
+  console.log('[UserOrders] Found ' + orders.length + ' orders for user_id=' + user.id);
 
   for (var i = 0; i < orders.length; i++) {
     orders[i].items = await db.prepare(
@@ -342,8 +344,18 @@ app.post('/api/orders', async function (req, res) {
 
   var userId = null;
   if (body.telegram_id) {
-    var user = await db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(String(body.telegram_id));
-    if (user) userId = user.id;
+    var tgId = String(body.telegram_id);
+    var user = await db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(tgId);
+    if (!user) {
+      var newUser = await db.prepare('INSERT INTO users (telegram_id, first_name) VALUES (?, ?)').run(tgId, userName);
+      userId = Number(newUser.lastInsertRowid);
+      console.log('[Order] Auto-created user id=' + userId + ' for telegram_id=' + tgId);
+    } else {
+      userId = user.id;
+    }
+    console.log('[Order] telegram_id=' + tgId + ', userId=' + userId);
+  } else {
+    console.log('[Order] No telegram_id provided, order will be anonymous');
   }
 
   try {

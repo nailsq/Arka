@@ -1653,7 +1653,7 @@
       delivery_date: dateVal,
       exact_time: checkoutState.exactTime ? (document.getElementById('field-exact-time') ? document.getElementById('field-exact-time').value : '') : '',
       comment: document.getElementById('field-comment') ? document.getElementById('field-comment').value.trim() : '',
-      telegram_id: tgUser ? tgUser.id : '',
+      telegram_id: getTelegramId() || '',
       city_id: selectedCity ? selectedCity.id : null,
       items: cart.map(function (i) {
         return { product_id: i.product_id, quantity: i.quantity, price: i.price, flower_count: i.flower_count || 0, size_label: i.size_label || '' };
