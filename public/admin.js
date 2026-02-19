@@ -623,9 +623,10 @@
     if (product && p.sizes && p.sizes.length) {
       sizesHtml = p.sizes.map(function (s) {
         return '<div class="pf-size-row" data-size-id="' + s.id + '">' +
-          '<input type="text" class="form-input" style="width:70px" value="' + esc(s.label) + '" placeholder="M" data-field="label">' +
-          '<input type="number" class="form-input" style="width:80px" value="' + s.flower_count + '" placeholder="цветов" data-field="flower_count" min="0">' +
-          '<input type="number" class="form-input" style="width:100px" value="' + s.price + '" placeholder="цена" data-field="price" min="0">' +
+          '<input type="text" class="form-input" style="width:60px" value="' + esc(s.label) + '" placeholder="M" data-field="label">' +
+          '<input type="number" class="form-input" style="width:70px" value="' + s.flower_count + '" placeholder="цветов" data-field="flower_count" min="0">' +
+          '<input type="number" class="form-input" style="width:90px" value="' + s.price + '" placeholder="цена" data-field="price" min="0">' +
+          '<input type="text" class="form-input" style="width:80px" value="' + esc(s.dimensions || '') + '" placeholder="см" data-field="dimensions">' +
           '<button type="button" class="btn btn-sm btn-danger" onclick="removeSizeRow(this)" style="flex-shrink:0">X</button>' +
         '</div>';
       }).join('');
@@ -667,9 +668,16 @@
               '<input type="file" class="form-input" id="pf-images" accept="image/*" multiple>' +
               '<div style="margin-top:4px;font-size:12px;color:var(--text-secondary)">Можно выбрать несколько файлов. Первое фото будет обложкой.</div>' +
             '</div>' +
+            '<div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px">' +
+              '<div class="form-group">' +
+                '<label class="form-label">Размер (см) — для товара без вариантов</label>' +
+                '<input type="text" class="form-input" id="pf-dimensions" value="' + esc(p.dimensions || '') + '" placeholder="напр. 40×30 см" style="max-width:200px">' +
+                '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Если у товара есть размеры ниже (S, M, L...), это поле можно оставить пустым.</div>' +
+              '</div>' +
+            '</div>' +
             '<div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px" id="pf-sizes-section">' +
               '<div style="font-weight:600;margin-bottom:6px">Размеры букета</div>' +
-              '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Добавьте размеры (S, M, L, XL и т.д.) с количеством цветов и ценой. Если размеров нет — товар продается без выбора размера.</div>' +
+              '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Добавьте размеры (S, M, L, XL и т.д.) с количеством цветков, ценой и размером в см.</div>' +
               '<div id="pf-sizes-list">' + sizesHtml + '</div>' +
               '<button type="button" class="btn btn-sm" onclick="addSizeRow()" style="margin-top:8px">+ Добавить размер</button>' +
             '</div>' +
@@ -694,9 +702,10 @@
     row.className = 'pf-size-row';
     row.setAttribute('data-size-id', 'new');
     row.innerHTML =
-      '<input type="text" class="form-input" style="width:70px" placeholder="M" data-field="label">' +
-      '<input type="number" class="form-input" style="width:80px" placeholder="цветов" data-field="flower_count" min="0">' +
-      '<input type="number" class="form-input" style="width:100px" placeholder="цена" data-field="price" min="0">' +
+      '<input type="text" class="form-input" style="width:60px" placeholder="M" data-field="label">' +
+      '<input type="number" class="form-input" style="width:70px" placeholder="цветов" data-field="flower_count" min="0">' +
+      '<input type="number" class="form-input" style="width:90px" placeholder="цена" data-field="price" min="0">' +
+      '<input type="text" class="form-input" style="width:80px" placeholder="см" data-field="dimensions">' +
       '<button type="button" class="btn btn-sm btn-danger" onclick="removeSizeRow(this)" style="flex-shrink:0">X</button>';
     list.appendChild(row);
   };
@@ -742,6 +751,7 @@
     fd.append('price', document.getElementById('pf-price').value);
     fd.append('description', document.getElementById('pf-desc').value);
     fd.append('in_stock', document.getElementById('pf-in-stock').value);
+    fd.append('dimensions', document.getElementById('pf-dimensions').value);
     fd.append('is_bouquet', hasSizes ? '1' : '0');
     fd.append('flower_min', '0');
     fd.append('flower_max', '0');
@@ -766,9 +776,11 @@
         var label = row.querySelector('[data-field="label"]').value.trim();
         var flowerCount = row.querySelector('[data-field="flower_count"]').value || '0';
         var price = row.querySelector('[data-field="price"]').value || '0';
+        var dims = row.querySelector('[data-field="dimensions"]');
+        var dimsVal = dims ? dims.value.trim() : '';
         if (!label) return;
 
-        var sizeData = { product_id: productId, label: label, flower_count: flowerCount, price: price, sort_order: idx };
+        var sizeData = { product_id: productId, label: label, flower_count: flowerCount, price: price, sort_order: idx, dimensions: dimsVal };
         if (sizeId && sizeId !== 'new') {
           sizeSavePromises.push(api('PUT', '/api/admin/product-sizes/' + sizeId, sizeData));
         } else {
