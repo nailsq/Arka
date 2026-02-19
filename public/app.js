@@ -1038,8 +1038,9 @@
       sizeSelector = '<div class="cart-size-selector"><div class="cart-size-fc">' + escapeHtml(item.dimensions) + '</div></div>';
     }
     var escapedLabel = escapeHtml(item.size_label || '').replace(/'/g, "\\'");
+    var sizeBadge = item.size_label ? '<span class="cart-img-size-badge">' + escapeHtml(item.size_label) + '</span>' : '';
     return '<div class="cart-item" id="cart-row-' + idx + '">' +
-      productImage(item.image_url, item.name, 'cart-item-img') +
+      '<div class="cart-img-wrap">' + productImage(item.image_url, item.name, 'cart-item-img') + sizeBadge + '</div>' +
       '<div class="cart-item-info">' +
         '<div>' +
           '<div class="cart-item-name">' + escapeHtml(item.name) + '</div>' +
