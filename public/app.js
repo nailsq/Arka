@@ -1888,11 +1888,40 @@
           timeInfo = '<div class="track-time-info">Доставка: ' + escapeHtml(o.delivery_date) +
             (o.exact_time ? ' к ' + escapeHtml(o.exact_time) : (o.delivery_interval ? ', ' + escapeHtml(o.delivery_interval) : '')) + '</div>';
         }
-        return '<div class="track-card-mini">' +
+        var itemsList = '';
+        if (o.items && o.items.length) {
+          itemsList = o.items.map(function (i) {
+            var s = escapeHtml(i.product_name || 'Товар');
+            if (i.size_label) s += ' [' + escapeHtml(i.size_label) + ']';
+            s += ' × ' + i.quantity + ' — ' + formatPrice(i.price * i.quantity);
+            return '<div class="track-order-item">' + s + '</div>';
+          }).join('');
+        }
+
+        var addressInfo = '';
+        if (isPickup) {
+          addressInfo = '<div class="track-detail-row"><span class="track-detail-label">Самовывоз</span></div>';
+        } else if (o.delivery_address) {
+          addressInfo = '<div class="track-detail-row"><span class="track-detail-label">Адрес:</span> ' + escapeHtml(o.delivery_address) + '</div>';
+        }
+        var receiverInfo = '';
+        if (o.receiver_name) {
+          receiverInfo = '<div class="track-detail-row"><span class="track-detail-label">Получатель:</span> ' + escapeHtml(o.receiver_name) + (o.receiver_phone ? ', ' + escapeHtml(o.receiver_phone) : '') + '</div>';
+        }
+
+        return '<div class="track-card-mini" onclick="toggleOrderDetail(this)">' +
           '<div class="track-header"><span class="track-id">Заказ #' + o.id + '</span><span class="track-status-badge">' + escapeHtml(o.status) + '</span></div>' +
           '<div class="track-status-row"><span class="track-total">' + formatPrice(o.total_amount) + '</span></div>' +
           timeInfo +
           '<div class="timeline">' + timelineHtml + '</div>' +
+          '<div class="track-order-details" style="display:none">' +
+            addressInfo +
+            receiverInfo +
+            (o.comment ? '<div class="track-detail-row"><span class="track-detail-label">Комментарий:</span> ' + escapeHtml(o.comment) + '</div>' : '') +
+            '<div class="track-detail-items-title">Состав заказа:</div>' +
+            itemsList +
+            (o.delivery_cost ? '<div class="track-detail-row" style="margin-top:6px"><span class="track-detail-label">Доставка:</span> ' + formatPrice(o.delivery_cost) + '</div>' : '') +
+          '</div>' +
         '</div>';
       }
 
@@ -1962,6 +1991,13 @@
   window.toggleProfileMenu = function () {
     var menu = document.getElementById('profile-menu');
     if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+  };
+
+  window.toggleOrderDetail = function (card) {
+    var details = card.querySelector('.track-order-details');
+    if (!details) return;
+    var isHidden = details.style.display === 'none';
+    details.style.display = isHidden ? 'block' : 'none';
   };
 
   window.toggleProfileSection = function (section) {

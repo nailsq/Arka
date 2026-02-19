@@ -31,8 +31,25 @@ var upload = multer({
   }
 });
 
+var https = require('https');
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+function sendTelegramMessage(chatId, text) {
+  if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE' || !chatId) return;
+  var data = JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'HTML' });
+  var options = {
+    hostname: 'api.telegram.org',
+    path: '/bot' + BOT_TOKEN + '/sendMessage',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
+  };
+  var req = https.request(options);
+  req.on('error', function (err) { console.error('[TG Notify] Error:', err.message); });
+  req.write(data);
+  req.end();
+}
 
 // ============================================================
 // HELPERS
@@ -569,6 +586,33 @@ app.post('/api/admin/orders/:id/status', adminAuth, async function (req, res) {
   }
   await db.prepare('UPDATE orders SET status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newStatus, req.params.id);
   res.json({ ok: true });
+
+  try {
+    var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+    if (order && order.user_id) {
+      var u = await db.prepare('SELECT telegram_id FROM users WHERE id = ?').get(order.user_id);
+      if (u && u.telegram_id) {
+        var statusEmoji = {
+          'Новый': '🆕', 'Оплачен': '✅', 'Собирается': '💐',
+          'Собран': '📦', 'Отправлен': '🚗', 'Доставлен': '🎉',
+          'Готов к выдаче': '🏪'
+        };
+        var emoji = statusEmoji[newStatus] || '📋';
+        var msg = emoji + ' <b>Заказ #' + order.id + '</b>\n\n' +
+          'Статус: <b>' + newStatus + '</b>\n';
+        if (order.delivery_type === 'pickup') {
+          msg += 'Тип: Самовывоз\n';
+        } else if (order.delivery_address) {
+          msg += 'Адрес: ' + order.delivery_address + '\n';
+        }
+        if (order.delivery_date) msg += 'Дата: ' + order.delivery_date + '\n';
+        msg += 'Сумма: ' + order.total_amount + ' ₽';
+        sendTelegramMessage(u.telegram_id, msg);
+      }
+    }
+  } catch (notifErr) {
+    console.error('[TG Notify] Status notification error:', notifErr.message);
+  }
 });
 
 // ============================================================

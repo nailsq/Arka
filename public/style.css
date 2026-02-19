@@ -2021,6 +2021,36 @@ button, select {
   padding: 18px;
   margin-bottom: 12px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  cursor: pointer;
+}
+
+.track-order-details {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+  font-size: 13px;
+}
+.track-detail-row {
+  margin-bottom: 4px;
+  color: #333;
+}
+.track-detail-label {
+  font-weight: 600;
+  color: #000;
+}
+.track-detail-items-title {
+  font-weight: 600;
+  margin-top: 10px;
+  margin-bottom: 6px;
+  color: #000;
+}
+.track-order-item {
+  padding: 3px 0;
+  color: #444;
+  border-bottom: 1px solid #f5f5f5;
+}
+.track-order-item:last-child {
+  border-bottom: none;
 }
 
 .track-card-mini .track-header {
