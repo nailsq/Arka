@@ -301,6 +301,14 @@
   var orderSearch = '';
 
   function renderOrderCard(o) {
+    var statuses = getStatusesForOrder(o);
+    var statusBtns = '<div class="order-card-statuses" onclick="event.stopPropagation()">';
+    statuses.forEach(function (s) {
+      var cls = s === o.status ? 'order-status-btn active' : 'order-status-btn';
+      statusBtns += '<button class="' + cls + '" onclick="changeOrderStatus(' + o.id + ',\'' + esc(s) + '\')">' + esc(s) + '</button>';
+    });
+    statusBtns += '</div>';
+
     return '<div class="order-card" onclick="viewOrder(' + o.id + ')">' +
       '<div class="order-card-top">' +
         '<span class="order-card-id">#' + o.id + '</span>' +
@@ -312,6 +320,7 @@
         '<span class="order-card-price">' + fmtPrice(o.total_amount) + '</span>' +
         '<span class="order-card-date">' + fmtDate(o.created_at) + '</span>' +
       '</div>' +
+      statusBtns +
     '</div>';
   }
 
@@ -455,8 +464,13 @@
 
   window.changeOrderStatus = function (id, status) {
     api('POST', '/api/admin/orders/' + id + '/status', { status: status }).then(function () {
-      adminToast('Статус обновлен', 'success');
-      viewOrder(id);
+      adminToast('Статус: ' + status, 'success');
+      var isDetailView = !!document.querySelector('.order-detail-grid');
+      if (isDetailView) {
+        viewOrder(id);
+      } else {
+        loadOrders();
+      }
     });
   };
 
