@@ -1269,28 +1269,30 @@ button, select {
 }
 .cart-rec-arrow {
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  border: none;
-  background: transparent;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid #bbb;
+  border-radius: 50%;
+  background: #fff;
   outline: none;
-  box-shadow: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: #555;
   padding: 0;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s, border-color 0.15s;
   z-index: 2;
   -webkit-appearance: none;
   appearance: none;
 }
 .cart-rec-arrow:hover {
-  opacity: 0.6;
+  border-color: #888;
+  color: #333;
 }
 .cart-rec-arrow:active {
-  opacity: 0.4;
+  opacity: 0.6;
 }
 .cart-rec-scroll {
   display: flex;
