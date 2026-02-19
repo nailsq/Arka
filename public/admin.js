@@ -938,11 +938,17 @@
       h += '</div>';
 
       h += '<div class="settings-section">';
-      h += '<div class="settings-section-title">Тарифы доставки по расстоянию</div>';
-      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Стоимость доставки рассчитывается автоматически по расстоянию от магазина до адреса клиента.</div>';
-      h += '<div id="s-tiers-list"></div>';
-      h += '<button type="button" class="btn btn-sm" onclick="addDeliveryTier()" style="margin-top:8px">+ Добавить зону</button>';
+      h += '<div class="settings-section-title">Тарифы доставки — Саратов (от магазина)</div>';
+      h += '<div id="s-tiers-list-saratov"></div>';
+      h += '<button type="button" class="btn btn-sm" onclick="addDeliveryTier(\'saratov\')" style="margin-top:8px">+ Добавить зону</button>';
       h += '<input type="hidden" id="s-delivery-tiers">';
+      h += '</div>';
+
+      h += '<div class="settings-section">';
+      h += '<div class="settings-section-title">Тарифы доставки — Энгельс (от центра)</div>';
+      h += '<div id="s-tiers-list-engels"></div>';
+      h += '<button type="button" class="btn btn-sm" onclick="addDeliveryTier(\'engels\')" style="margin-top:8px">+ Добавить зону</button>';
+      h += '<input type="hidden" id="s-delivery-tiers-engels">';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1014,18 +1020,23 @@
 
       el.innerHTML = h;
 
-      var tiers = [];
-      try { tiers = JSON.parse(s.delivery_distance_tiers || '[]'); } catch (e) {}
-      if (!tiers.length) tiers = [{ max_km: 5, price: 350 }, { max_km: 10, price: 500 }, { max_km: 20, price: 800 }, { max_km: 999, price: 1500 }];
-      renderDeliveryTiers(tiers);
+      var tiersSar = [];
+      try { tiersSar = JSON.parse(s.delivery_distance_tiers || '[]'); } catch (e) {}
+      if (!tiersSar.length) tiersSar = [{ max_km: 5, price: 350 }, { max_km: 10, price: 500 }, { max_km: 20, price: 800 }, { max_km: 999, price: 1500 }];
+      renderDeliveryTiers(tiersSar, 'saratov');
+
+      var tiersEng = [];
+      try { tiersEng = JSON.parse(s.delivery_distance_tiers_engels || '[]'); } catch (e) {}
+      if (!tiersEng.length) tiersEng = [{ max_km: 5, price: 350 }, { max_km: 10, price: 500 }, { max_km: 20, price: 800 }, { max_km: 999, price: 1500 }];
+      renderDeliveryTiers(tiersEng, 'engels');
     });
   }
 
-  function renderDeliveryTiers(tiers) {
-    var list = document.getElementById('s-tiers-list');
+  function renderDeliveryTiers(tiers, city) {
+    var list = document.getElementById('s-tiers-list-' + city);
     if (!list) return;
     var h = '';
-    tiers.forEach(function (t, idx) {
+    tiers.forEach(function (t) {
       h += '<div class="pf-size-row" style="margin-bottom:6px">' +
         '<label style="font-size:12px;white-space:nowrap;margin-right:4px">До</label>' +
         '<input type="number" class="form-input tier-km" value="' + t.max_km + '" style="width:80px" min="1"> ' +
@@ -1038,8 +1049,8 @@
     list.innerHTML = h;
   }
 
-  window.addDeliveryTier = function () {
-    var list = document.getElementById('s-tiers-list');
+  window.addDeliveryTier = function (city) {
+    var list = document.getElementById('s-tiers-list-' + city);
     if (!list) return;
     var row = document.createElement('div');
     row.className = 'pf-size-row';
@@ -1054,8 +1065,8 @@
     list.appendChild(row);
   };
 
-  function collectDeliveryTiers() {
-    var rows = document.querySelectorAll('#s-tiers-list .pf-size-row');
+  function collectTiersFrom(listId) {
+    var rows = document.querySelectorAll('#' + listId + ' .pf-size-row');
     var tiers = [];
     rows.forEach(function (row) {
       var km = parseInt(row.querySelector('.tier-km').value) || 0;
@@ -1063,8 +1074,14 @@
       if (km > 0) tiers.push({ max_km: km, price: price });
     });
     tiers.sort(function (a, b) { return a.max_km - b.max_km; });
-    var hidden = document.getElementById('s-delivery-tiers');
-    if (hidden) hidden.value = JSON.stringify(tiers);
+    return JSON.stringify(tiers);
+  }
+
+  function collectDeliveryTiers() {
+    var hiddenSar = document.getElementById('s-delivery-tiers');
+    if (hiddenSar) hiddenSar.value = collectTiersFrom('s-tiers-list-saratov');
+    var hiddenEng = document.getElementById('s-delivery-tiers-engels');
+    if (hiddenEng) hiddenEng.value = collectTiersFrom('s-tiers-list-engels');
   }
 
   window.saveSettings = function (e) {
@@ -1076,6 +1093,7 @@
       shop_coords: document.getElementById('s-shop-coords').value,
       engels_coords: document.getElementById('s-engels-coords').value,
       delivery_distance_tiers: document.getElementById('s-delivery-tiers').value,
+      delivery_distance_tiers_engels: document.getElementById('s-delivery-tiers-engels').value,
       delivery_regular: document.getElementById('s-delivery-regular').value,
       delivery_holiday: document.getElementById('s-delivery-holiday').value,
       pickup_address: document.getElementById('s-pickup').value,

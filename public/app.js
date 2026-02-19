@@ -1123,7 +1123,8 @@
     deliveryInterval: '',
     exactTime: false,
     deliveryDistance: 0,
-    deliveryCoords: null
+    deliveryCoords: null,
+    isEngels: false
   };
 
   var ymapsLoaded = false;
@@ -1167,13 +1168,14 @@
     return lower.indexOf('энгельс') !== -1 || lower.indexOf('engels') !== -1;
   }
 
-  function getDeliveryTiers() {
-    try { return JSON.parse(appSettings.delivery_distance_tiers || '[]'); }
+  function getDeliveryTiers(engels) {
+    var key = engels ? 'delivery_distance_tiers_engels' : 'delivery_distance_tiers';
+    try { return JSON.parse(appSettings[key] || '[]'); }
     catch (e) { return []; }
   }
 
-  function getDeliveryCostByDistance(km) {
-    var tiers = getDeliveryTiers();
+  function getDeliveryCostByDistance(km, engels) {
+    var tiers = getDeliveryTiers(engels);
     if (!tiers.length) return 0;
     tiers.sort(function (a, b) { return a.max_km - b.max_km; });
     for (var i = 0; i < tiers.length; i++) {
@@ -1188,7 +1190,7 @@
       return parseInt(appSettings.exact_time_surcharge) || 1000;
     }
     if (checkoutState.deliveryDistance > 0) {
-      return getDeliveryCostByDistance(checkoutState.deliveryDistance);
+      return getDeliveryCostByDistance(checkoutState.deliveryDistance, checkoutState.isEngels);
     }
     return 0;
   }
@@ -1410,8 +1412,10 @@
   }
 
   function geocodeAndCalcDistance(address) {
-    var origin = isEngelsAddress(address) ? getEngelsCoords() : getShopCoords();
-    var originLabel = isEngelsAddress(address) ? 'от центра Энгельса' : 'от магазина';
+    var engels = isEngelsAddress(address);
+    checkoutState.isEngels = engels;
+    var origin = engels ? getEngelsCoords() : getShopCoords();
+    var originLabel = engels ? 'от центра Энгельса' : 'от магазина';
     if (ymapsLoaded && window.ymaps) {
       window.ymaps.geocode(address, { results: 1 }).then(function (res) {
         var obj = res.geoObjects.get(0);
@@ -1440,7 +1444,7 @@
     var el = document.getElementById('delivery-distance-info');
     if (!el) return;
     if (km > 0) {
-      var cost = getDeliveryCostByDistance(km);
+      var cost = getDeliveryCostByDistance(km, checkoutState.isEngels);
       var label = originLabel ? ' (' + originLabel + ')' : '';
       el.innerHTML = 'Расстояние: <b>' + km.toFixed(1) + ' км</b>' + label + ' — Доставка: <b>' + formatPrice(cost) + '</b>';
       el.style.display = '';
