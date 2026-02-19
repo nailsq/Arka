@@ -324,82 +324,118 @@
     '</div>';
   }
 
+  var _allOrders = [];
+
+  function normalizePhone(ph) {
+    var digits = (ph || '').replace(/\D/g, '');
+    if (digits.length >= 11 && digits[0] === '8') digits = '7' + digits.slice(1);
+    if (digits.length >= 11 && digits[0] === '7') return digits;
+    return digits;
+  }
+
+  function matchesSearch(order, q) {
+    if (!q) return true;
+    if (String(order.id).indexOf(q) >= 0) return true;
+    var qDigits = q.replace(/\D/g, '');
+    if (qDigits) {
+      var qNorm = qDigits;
+      if (qNorm.length >= 1 && qNorm[0] === '8') qNorm = '7' + qNorm.slice(1);
+      if (normalizePhone(order.user_phone).indexOf(qNorm) >= 0) return true;
+      if (normalizePhone(order.receiver_phone).indexOf(qNorm) >= 0) return true;
+    }
+    return false;
+  }
+
   function loadOrders() {
-    var qp = [];
-    if (orderFilter) qp.push('status=' + encodeURIComponent(orderFilter));
-    if (orderSearch) qp.push('search=' + encodeURIComponent(orderSearch));
-    var url = '/api/admin/orders' + (qp.length ? '?' + qp.join('&') : '');
-    api('GET', url).then(function (orders) {
-      var el = document.getElementById('tab-content');
-
-      var h = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">' +
-        '<input type="text" class="form-input" id="order-search-input" placeholder="Поиск по № заказа или телефону" value="' + esc(orderSearch) + '" style="max-width:300px;margin:0" oninput="liveSearchOrders()">' +
-        (orderSearch ? '<button class="btn btn-sm" onclick="clearOrderSearch()">✕</button>' : '') +
-        '</div>';
-
-      h += '<div class="filter-bar">';
-      h += '<button class="filter-chip' + (!orderFilter ? ' active' : '') + '" onclick="filterOrders(\'\')">Все</button>';
-      ORDER_STATUSES.forEach(function (s) {
-        h += '<button class="filter-chip' + (orderFilter === s ? ' active' : '') + '" onclick="filterOrders(\'' + esc(s) + '\')">' + esc(s) + '</button>';
-      });
-      h += '</div>';
-
-      if (!orders.length) {
-        h += '<div class="empty-state">Заказов не найдено</div>';
-        el.innerHTML = h;
-        return;
-      }
-
-      var delivery = orders.filter(function (o) { return o.delivery_type !== 'pickup'; });
-      var pickup = orders.filter(function (o) { return o.delivery_type === 'pickup'; });
-
-      h += '<div class="orders-columns">';
-
-      h += '<div class="orders-col">';
-      h += '<div class="orders-col-title">Доставка <span class="orders-col-count">' + delivery.length + '</span></div>';
-      if (delivery.length) {
-        delivery.forEach(function (o) { h += renderOrderCard(o); });
-      } else {
-        h += '<div class="empty-state" style="padding:20px">Нет заказов</div>';
-      }
-      h += '</div>';
-
-      h += '<div class="orders-col">';
-      h += '<div class="orders-col-title">Самовывоз <span class="orders-col-count">' + pickup.length + '</span></div>';
-      if (pickup.length) {
-        pickup.forEach(function (o) { h += renderOrderCard(o); });
-      } else {
-        h += '<div class="empty-state" style="padding:20px">Нет заказов</div>';
-      }
-      h += '</div>';
-
-      h += '</div>';
-      el.innerHTML = h;
+    api('GET', '/api/admin/orders').then(function (orders) {
+      _allOrders = orders;
+      renderOrdersList();
     });
+  }
+
+  function renderOrdersList() {
+    var el = document.getElementById('tab-content');
+
+    var filtered = _allOrders;
+    if (orderFilter) {
+      filtered = filtered.filter(function (o) { return o.status === orderFilter; });
+    }
+    if (orderSearch) {
+      filtered = filtered.filter(function (o) { return matchesSearch(o, orderSearch); });
+    }
+
+    var h = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">' +
+      '<input type="text" class="form-input" id="order-search-input" placeholder="Поиск по № заказа или телефону" value="' + esc(orderSearch) + '" style="max-width:300px;margin:0" oninput="liveSearchOrders()">' +
+      (orderSearch ? '<button class="btn btn-sm" onclick="clearOrderSearch()" style="min-width:32px">✕</button>' : '') +
+      '</div>';
+
+    h += '<div class="filter-bar">';
+    h += '<button class="filter-chip' + (!orderFilter ? ' active' : '') + '" onclick="filterOrders(\'\')">Все</button>';
+    ORDER_STATUSES.forEach(function (s) {
+      h += '<button class="filter-chip' + (orderFilter === s ? ' active' : '') + '" onclick="filterOrders(\'' + esc(s) + '\')">' + esc(s) + '</button>';
+    });
+    h += '</div>';
+
+    h += '<div id="orders-list-area">';
+    h += buildOrdersColumns(filtered);
+    h += '</div>';
+
+    el.innerHTML = h;
+  }
+
+  function buildOrdersColumns(orders) {
+    if (!orders.length) return '<div class="empty-state">Заказов не найдено</div>';
+
+    var delivery = orders.filter(function (o) { return o.delivery_type !== 'pickup'; });
+    var pickup = orders.filter(function (o) { return o.delivery_type === 'pickup'; });
+
+    var h = '<div class="orders-columns">';
+    h += '<div class="orders-col">';
+    h += '<div class="orders-col-title">Доставка <span class="orders-col-count">' + delivery.length + '</span></div>';
+    if (delivery.length) {
+      delivery.forEach(function (o) { h += renderOrderCard(o); });
+    } else {
+      h += '<div class="empty-state" style="padding:20px">Нет заказов</div>';
+    }
+    h += '</div>';
+    h += '<div class="orders-col">';
+    h += '<div class="orders-col-title">Самовывоз <span class="orders-col-count">' + pickup.length + '</span></div>';
+    if (pickup.length) {
+      pickup.forEach(function (o) { h += renderOrderCard(o); });
+    } else {
+      h += '<div class="empty-state" style="padding:20px">Нет заказов</div>';
+    }
+    h += '</div>';
+    h += '</div>';
+    return h;
+  }
+
+  function filterOrdersInPlace() {
+    var filtered = _allOrders;
+    if (orderFilter) {
+      filtered = filtered.filter(function (o) { return o.status === orderFilter; });
+    }
+    if (orderSearch) {
+      filtered = filtered.filter(function (o) { return matchesSearch(o, orderSearch); });
+    }
+    var area = document.getElementById('orders-list-area');
+    if (area) area.innerHTML = buildOrdersColumns(filtered);
   }
 
   window.filterOrders = function (status) {
     orderFilter = status;
-    loadOrders();
+    renderOrdersList();
   };
 
-  var _searchTimer = null;
   window.liveSearchOrders = function () {
-    clearTimeout(_searchTimer);
-    _searchTimer = setTimeout(function () {
-      var inp = document.getElementById('order-search-input');
-      orderSearch = inp ? inp.value.trim() : '';
-      loadOrders();
-      setTimeout(function () {
-        var inp2 = document.getElementById('order-search-input');
-        if (inp2) { inp2.focus(); inp2.selectionStart = inp2.selectionEnd = inp2.value.length; }
-      }, 50);
-    }, 300);
+    var inp = document.getElementById('order-search-input');
+    orderSearch = inp ? inp.value.trim() : '';
+    filterOrdersInPlace();
   };
 
   window.clearOrderSearch = function () {
     orderSearch = '';
-    loadOrders();
+    renderOrdersList();
   };
 
   window.backToOrders = function () {
@@ -476,7 +512,10 @@
       if (isDetailView) {
         viewOrder(id);
       } else {
-        loadOrders();
+        for (var i = 0; i < _allOrders.length; i++) {
+          if (_allOrders[i].id === id) { _allOrders[i].status = status; break; }
+        }
+        filterOrdersInPlace();
       }
     });
   };
