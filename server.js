@@ -377,7 +377,7 @@ app.post('/api/orders', async function (req, res) {
 
   try {
     var r = await db.prepare(
-      'INSERT INTO orders (user_id, city_id, user_name, user_phone, user_email, user_telegram, receiver_name, receiver_phone, delivery_address, delivery_type, delivery_zone, delivery_cost, delivery_interval, delivery_date, exact_time, comment, total_amount, status_updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)'
+      'INSERT INTO orders (user_id, city_id, user_name, user_phone, user_email, user_telegram, receiver_name, receiver_phone, delivery_address, delivery_type, delivery_zone, delivery_cost, delivery_interval, delivery_date, exact_time, comment, total_amount, delivery_distance, status_updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)'
     ).run(
       userId,
       body.city_id || null,
@@ -395,7 +395,8 @@ app.post('/api/orders', async function (req, res) {
       body.delivery_date || '',
       body.exact_time || '',
       body.comment || '',
-      totalAmount
+      totalAmount,
+      parseFloat(body.delivery_distance) || 0
     );
     var orderId = Number(r.lastInsertRowid);
 

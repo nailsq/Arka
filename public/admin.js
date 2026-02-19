@@ -926,15 +926,20 @@
       var h = '<form onsubmit="saveSettings(event)">';
 
       h += '<div class="card"><div class="settings-section">';
-      h += '<div class="settings-section-title">Стоимость доставки по районам</div>';
-      h += '<div class="form-row">' +
-        '<div class="form-group"><label class="form-label">г. Саратов (Ленинский, Кировский, Фрунзенский, Заводской, Волжский, Октябрьский р-ны)</label>' +
-        '<input type="number" class="form-input" id="s-zone-saratov" value="' + esc(s.delivery_zone_saratov || s.delivery_saratov_base || '350') + '"></div>' +
-        '<div class="form-group"><label class="form-label">г. Энгельс</label>' +
-        '<input type="number" class="form-input" id="s-zone-engels" value="' + esc(s.delivery_zone_engels || s.delivery_engels_base || '450') + '"></div>' +
-      '</div>';
-      h += '<div class="form-group"><label class="form-label">Окрестности г. Саратова и Энгельса (в т.ч. Гагаринский р-н)</label>' +
-        '<input type="number" class="form-input" id="s-zone-remote" value="' + esc(s.delivery_zone_remote || s.delivery_remote || '1000') + '" style="max-width:200px"></div>';
+      h += '<div class="settings-section-title">Яндекс.Карты</div>';
+      h += '<div class="form-group"><label class="form-label">API-ключ Яндекс.Карт</label>' +
+        '<input type="text" class="form-input" id="s-yandex-key" value="' + esc(s.yandex_maps_key || '') + '" placeholder="Получить на developer.tech.yandex.ru"></div>';
+      h += '<div class="form-group"><label class="form-label">Координаты магазина (широта,долгота)</label>' +
+        '<input type="text" class="form-input" id="s-shop-coords" value="' + esc(s.shop_coords || '51.533,46.034') + '" placeholder="51.533,46.034" style="max-width:250px"></div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Координаты точки отсчёта для расчёта расстояния доставки.</div>';
+      h += '</div>';
+
+      h += '<div class="settings-section">';
+      h += '<div class="settings-section-title">Тарифы доставки по расстоянию</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Стоимость доставки рассчитывается автоматически по расстоянию от магазина до адреса клиента.</div>';
+      h += '<div id="s-tiers-list"></div>';
+      h += '<button type="button" class="btn btn-sm" onclick="addDeliveryTier()" style="margin-top:8px">+ Добавить зону</button>';
+      h += '<input type="hidden" id="s-delivery-tiers">';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1005,22 +1010,68 @@
       h += '</div></form>';
 
       el.innerHTML = h;
+
+      var tiers = [];
+      try { tiers = JSON.parse(s.delivery_distance_tiers || '[]'); } catch (e) {}
+      if (!tiers.length) tiers = [{ max_km: 5, price: 350 }, { max_km: 10, price: 500 }, { max_km: 20, price: 800 }, { max_km: 999, price: 1500 }];
+      renderDeliveryTiers(tiers);
     });
+  }
+
+  function renderDeliveryTiers(tiers) {
+    var list = document.getElementById('s-tiers-list');
+    if (!list) return;
+    var h = '';
+    tiers.forEach(function (t, idx) {
+      h += '<div class="pf-size-row" style="margin-bottom:6px">' +
+        '<label style="font-size:12px;white-space:nowrap;margin-right:4px">До</label>' +
+        '<input type="number" class="form-input tier-km" value="' + t.max_km + '" style="width:80px" min="1"> ' +
+        '<label style="font-size:12px;white-space:nowrap;margin:0 4px">км →</label>' +
+        '<input type="number" class="form-input tier-price" value="' + t.price + '" style="width:100px" min="0"> ' +
+        '<label style="font-size:12px;white-space:nowrap;margin-left:4px">₽</label>' +
+        '<button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()" style="flex-shrink:0;margin-left:6px">X</button>' +
+      '</div>';
+    });
+    list.innerHTML = h;
+  }
+
+  window.addDeliveryTier = function () {
+    var list = document.getElementById('s-tiers-list');
+    if (!list) return;
+    var row = document.createElement('div');
+    row.className = 'pf-size-row';
+    row.style.marginBottom = '6px';
+    row.innerHTML =
+      '<label style="font-size:12px;white-space:nowrap;margin-right:4px">До</label>' +
+      '<input type="number" class="form-input tier-km" value="10" style="width:80px" min="1"> ' +
+      '<label style="font-size:12px;white-space:nowrap;margin:0 4px">км →</label>' +
+      '<input type="number" class="form-input tier-price" value="500" style="width:100px" min="0"> ' +
+      '<label style="font-size:12px;white-space:nowrap;margin-left:4px">₽</label>' +
+      '<button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()" style="flex-shrink:0;margin-left:6px">X</button>';
+    list.appendChild(row);
+  };
+
+  function collectDeliveryTiers() {
+    var rows = document.querySelectorAll('#s-tiers-list .pf-size-row');
+    var tiers = [];
+    rows.forEach(function (row) {
+      var km = parseInt(row.querySelector('.tier-km').value) || 0;
+      var price = parseInt(row.querySelector('.tier-price').value) || 0;
+      if (km > 0) tiers.push({ max_km: km, price: price });
+    });
+    tiers.sort(function (a, b) { return a.max_km - b.max_km; });
+    var hidden = document.getElementById('s-delivery-tiers');
+    if (hidden) hidden.value = JSON.stringify(tiers);
   }
 
   window.saveSettings = function (e) {
     e.preventDefault();
-    var saratov = document.getElementById('s-zone-saratov').value;
-    var engels = document.getElementById('s-zone-engels').value;
-    var remote = document.getElementById('s-zone-remote').value;
+    collectDeliveryTiers();
 
     var data = {
-      delivery_zone_saratov: saratov,
-      delivery_zone_engels: engels,
-      delivery_zone_remote: remote,
-      delivery_saratov_base: saratov,
-      delivery_engels_base: engels,
-      delivery_remote: remote,
+      yandex_maps_key: document.getElementById('s-yandex-key').value,
+      shop_coords: document.getElementById('s-shop-coords').value,
+      delivery_distance_tiers: document.getElementById('s-delivery-tiers').value,
       delivery_regular: document.getElementById('s-delivery-regular').value,
       delivery_holiday: document.getElementById('s-delivery-holiday').value,
       pickup_address: document.getElementById('s-pickup').value,

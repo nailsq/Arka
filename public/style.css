@@ -2752,3 +2752,17 @@ button, select {
     gap: 8px;
   }
 }
+
+#delivery-distance-info {
+  background: #f7f7f7;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: #333;
+}
+#ymaps-minimap {
+  border: 1px solid #e0e0e0;
+}
+.ymaps-2-1-79-suggest,
+[class*="ymaps"][class*="suggest"] {
+  z-index: 9999 !important;
+}

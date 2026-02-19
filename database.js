@@ -181,6 +181,7 @@ async function init() {
   addColumnIfMissing('products', 'hidden', 'INTEGER DEFAULT 0');
   addColumnIfMissing('products', 'dimensions', "TEXT DEFAULT ''");
   addColumnIfMissing('product_sizes', 'dimensions', "TEXT DEFAULT ''");
+  addColumnIfMissing('orders', 'delivery_distance', 'REAL DEFAULT 0');
   console.log('Database initialized.');
 }
 

@@ -1121,17 +1121,54 @@
     deliveryType: 'delivery',
     deliveryZoneKey: '',
     deliveryInterval: '',
-    exactTime: false
+    exactTime: false,
+    deliveryDistance: 0,
+    deliveryCoords: null
   };
 
-  function getCityZones() {
-    var cityName = selectedCity ? selectedCity.name : '';
-    var zonesKey = '';
-    if (cityName === 'Саратов') zonesKey = 'saratov_zones';
-    else if (cityName === 'Энгельс') zonesKey = 'engels_zones';
-    if (!zonesKey || !appSettings[zonesKey]) return [];
-    try { return JSON.parse(appSettings[zonesKey]); }
+  var ymapsLoaded = false;
+  function loadYmaps(cb) {
+    if (ymapsLoaded) { if (cb) cb(); return; }
+    var key = appSettings.yandex_maps_key;
+    if (!key) { if (cb) cb(); return; }
+    var s = document.createElement('script');
+    s.src = 'https://api-maps.yandex.ru/2.1/?apikey=' + encodeURIComponent(key) + '&lang=ru_RU&suggest_apikey=' + encodeURIComponent(key);
+    s.onload = function () {
+      window.ymaps.ready(function () { ymapsLoaded = true; if (cb) cb(); });
+    };
+    s.onerror = function () { if (cb) cb(); };
+    document.head.appendChild(s);
+  }
+
+  function haversineKm(lat1, lon1, lat2, lon2) {
+    var R = 6371;
+    var dLat = (lat2 - lat1) * Math.PI / 180;
+    var dLon = (lon2 - lon1) * Math.PI / 180;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function getShopCoords() {
+    var str = appSettings.shop_coords || '51.533,46.034';
+    var parts = str.split(',');
+    return { lat: parseFloat(parts[0]) || 51.533, lon: parseFloat(parts[1]) || 46.034 };
+  }
+
+  function getDeliveryTiers() {
+    try { return JSON.parse(appSettings.delivery_distance_tiers || '[]'); }
     catch (e) { return []; }
+  }
+
+  function getDeliveryCostByDistance(km) {
+    var tiers = getDeliveryTiers();
+    if (!tiers.length) return 0;
+    tiers.sort(function (a, b) { return a.max_km - b.max_km; });
+    for (var i = 0; i < tiers.length; i++) {
+      if (km <= tiers[i].max_km) return tiers[i].price;
+    }
+    return tiers[tiers.length - 1].price;
   }
 
   function getDeliveryCost() {
@@ -1139,13 +1176,10 @@
     if (checkoutState.exactTime) {
       return parseInt(appSettings.exact_time_surcharge) || 1000;
     }
-    var key = checkoutState.deliveryZoneKey;
-    if (!key) {
-      var zones = getCityZones();
-      if (zones.length) key = zones[0].key;
+    if (checkoutState.deliveryDistance > 0) {
+      return getDeliveryCostByDistance(checkoutState.deliveryDistance);
     }
-    var cost = parseInt(appSettings['delivery_' + key]) || 0;
-    return cost;
+    return 0;
   }
 
   var currentStep = 1;
@@ -1171,18 +1205,9 @@
     var holiday = isHolidayToday();
     var pickup = appSettings.pickup_address || 'г. Саратов, 3-й Дегтярный проезд, 21к3';
 
-    var zones = getCityZones();
-    if (zones.length) {
-      checkoutState.deliveryZoneKey = zones[0].key;
-    }
-
-    var zonesHtml = zones.map(function (z, idx) {
-      var cost = parseInt(appSettings['delivery_' + z.key]) || 0;
-      return '<label class="radio-option' + (idx === 0 ? ' selected' : '') +
-        '" onclick="setZone(\'' + escapeHtml(z.key) + '\')">' +
-        '<input type="radio" name="zone" value="' + escapeHtml(z.key) + '"' + (idx === 0 ? ' checked' : '') + '>' +
-        '<span class="radio-dot"></span> ' + escapeHtml(z.name) + ' (' + formatPrice(cost) + ')</label>';
-    }).join('');
+    checkoutState.deliveryDistance = 0;
+    checkoutState.deliveryCoords = null;
+    _miniMap = null;
 
     var todayStr = sNow.dateStr;
     var tmrw = new Date(sNow.year, sNow.month - 1, sNow.day + 1);
@@ -1238,15 +1263,11 @@
           '</div></div>' +
 
           '<div id="delivery-fields">' +
-            (zonesHtml ? '<div class="form-group"><label>Зона доставки</label>' +
-              '<div class="radio-group" id="zone-group">' + zonesHtml + '</div></div>' : '') +
             '<div id="saved-addr-picker"></div>' +
-            '<div class="form-group"><label>Город</label>' +
-            '<input type="text" id="field-addr-city" placeholder="Город" value="' + escapeHtml(selectedCity ? selectedCity.name : '') + '" readonly style="background:#f5f5f5"></div>' +
-            '<div class="form-group"><label>Район</label>' +
-            '<input type="text" id="field-addr-district" placeholder="Район (напр. Ленинский)"></div>' +
-            '<div class="form-group"><label>Улица, дом</label>' +
-            '<input type="text" id="field-addr-street" placeholder="Улица, дом"></div>' +
+            '<div class="form-group"><label>Адрес доставки</label>' +
+            '<input type="text" id="field-addr-suggest" autocomplete="off" placeholder="Начните вводить адрес…"></div>' +
+            '<div id="ymaps-minimap" style="width:100%;height:180px;border-radius:10px;overflow:hidden;margin:8px 0;display:none"></div>' +
+            '<div id="delivery-distance-info" style="font-size:13px;margin:6px 0;display:none"></div>' +
             '<div class="form-group"><label>Квартира / офис</label>' +
             '<input type="text" id="field-addr-apt" placeholder="Квартира, подъезд, этаж"></div>' +
             '<div class="form-group"><label>Дополнение к адресу</label>' +
@@ -1313,6 +1334,7 @@
     updateCheckoutSummary();
     renderIntervals();
     loadCheckoutAddresses();
+    initYmapsSuggest();
   }
 
   function loadCheckoutAddresses() {
@@ -1336,14 +1358,14 @@
     var addrs = window._checkoutAddresses || [];
     var a = addrs.find(function (x) { return x.id === addrId; });
     if (!a) return;
-    var city = document.getElementById('field-addr-city');
-    var district = document.getElementById('field-addr-district');
-    var street = document.getElementById('field-addr-street');
+    var suggest = document.getElementById('field-addr-suggest');
     var apt = document.getElementById('field-addr-apt');
     var note = document.getElementById('field-addr-note');
-    if (city && a.city) city.value = a.city;
-    if (district) district.value = a.district || '';
-    if (street) street.value = a.street || '';
+    var fullAddr = [a.city, a.district, a.street].filter(Boolean).join(', ');
+    if (suggest) {
+      suggest.value = fullAddr;
+      geocodeAndCalcDistance(fullAddr);
+    }
     if (apt) apt.value = a.apartment || '';
     if (note) note.value = a.note || '';
     var chips = document.querySelectorAll('.saved-addr-chip');
@@ -1352,6 +1374,89 @@
     if (clicked) clicked.classList.add('active');
     showToast('Адрес заполнен');
   };
+
+  function initYmapsSuggest() {
+    loadYmaps(function () {
+      var input = document.getElementById('field-addr-suggest');
+      if (!input) return;
+      if (!ymapsLoaded || !window.ymaps) {
+        input.addEventListener('blur', function () {
+          var val = input.value.trim();
+          if (val) geocodeAndCalcDistance(val);
+        });
+        return;
+      }
+      var suggestView = new window.ymaps.SuggestView('field-addr-suggest', {
+        results: 5,
+        boundedBy: [[51.0, 45.0], [52.0, 47.0]],
+        strictBounds: false
+      });
+      suggestView.events.add('select', function (e) {
+        var item = e.get('item');
+        geocodeAndCalcDistance(item.value);
+      });
+    });
+  }
+
+  function geocodeAndCalcDistance(address) {
+    var shop = getShopCoords();
+    if (ymapsLoaded && window.ymaps) {
+      window.ymaps.geocode(address, { results: 1 }).then(function (res) {
+        var obj = res.geoObjects.get(0);
+        if (!obj) {
+          showDistanceResult(0);
+          return;
+        }
+        var coords = obj.geometry.getCoordinates();
+        checkoutState.deliveryCoords = { lat: coords[0], lon: coords[1] };
+        var km = haversineKm(shop.lat, shop.lon, coords[0], coords[1]);
+        checkoutState.deliveryDistance = Math.round(km * 10) / 10;
+        showDistanceResult(checkoutState.deliveryDistance);
+        showMiniMap(coords);
+        var hidden = document.getElementById('field-address');
+        if (hidden) hidden.value = address;
+      });
+    } else {
+      checkoutState.deliveryDistance = 0;
+      showDistanceResult(0);
+      var hidden = document.getElementById('field-address');
+      if (hidden) hidden.value = address;
+    }
+  }
+
+  function showDistanceResult(km) {
+    var el = document.getElementById('delivery-distance-info');
+    if (!el) return;
+    if (km > 0) {
+      var cost = getDeliveryCostByDistance(km);
+      el.innerHTML = 'Расстояние: <b>' + km.toFixed(1) + ' км</b> — Доставка: <b>' + formatPrice(cost) + '</b>';
+      el.style.display = '';
+    } else {
+      el.style.display = 'none';
+    }
+    updateCheckoutSummary();
+  }
+
+  var _miniMap = null;
+  function showMiniMap(coords) {
+    var container = document.getElementById('ymaps-minimap');
+    if (!container || !ymapsLoaded) return;
+    container.style.display = '';
+    if (_miniMap) {
+      _miniMap.setCenter(coords, 15);
+      _miniMap.geoObjects.removeAll();
+    } else {
+      _miniMap = new window.ymaps.Map('ymaps-minimap', {
+        center: coords,
+        zoom: 15,
+        controls: ['zoomControl']
+      }, { suppressMapOpenBlock: true });
+    }
+    var placemark = new window.ymaps.Placemark(coords, {}, {
+      preset: 'islands#darkCircleDotIcon'
+    });
+    _miniMap.geoObjects.add(placemark);
+  }
 
   window.goToStep = function (step) {
     if (step > currentStep) {
@@ -1375,17 +1480,13 @@
       }
       if (currentStep === 2) {
         if (checkoutState.deliveryType === 'delivery') {
-          var district = document.getElementById('field-addr-district') ? document.getElementById('field-addr-district').value.trim() : '';
-          var street = document.getElementById('field-addr-street') ? document.getElementById('field-addr-street').value.trim() : '';
-          var apt = document.getElementById('field-addr-apt') ? document.getElementById('field-addr-apt').value.trim() : '';
-          if (!district) { showToast('Укажите район'); return; }
-          if (!street) { showToast('Укажите улицу и дом'); return; }
-          if (!apt) { showToast('Укажите квартиру / офис'); return; }
-          var addrNote = document.getElementById('field-addr-note') ? document.getElementById('field-addr-note').value.trim() : '';
-          var cityVal = document.getElementById('field-addr-city') ? document.getElementById('field-addr-city').value.trim() : '';
-          var fullAddr = cityVal + ', ' + district + ', ' + street + ', кв./оф. ' + apt + (addrNote ? ', ' + addrNote : '');
+          var suggestVal = document.getElementById('field-addr-suggest') ? document.getElementById('field-addr-suggest').value.trim() : '';
+          if (!suggestVal) { showToast('Укажите адрес доставки'); return; }
+          if (checkoutState.deliveryDistance <= 0 && ymapsLoaded) {
+            geocodeAndCalcDistance(suggestVal);
+          }
           var hiddenAddr = document.getElementById('field-address');
-          if (hiddenAddr) hiddenAddr.value = fullAddr;
+          if (hiddenAddr) hiddenAddr.value = buildDeliveryAddress();
         }
         var dateVal = document.getElementById('field-date').value;
         if (!dateVal) { showToast('Укажите дату доставки'); return; }
@@ -1462,6 +1563,9 @@
     var h = '<div class="order-summary">Товары: ' + formatPrice(goodsTotal) + '</div>';
     if (checkoutState.deliveryType === 'delivery') {
       var deliveryLabel = checkoutState.exactTime ? 'Доставка (точно ко времени)' : 'Доставка';
+      if (checkoutState.deliveryDistance > 0 && !checkoutState.exactTime) {
+        deliveryLabel += ' (' + checkoutState.deliveryDistance.toFixed(1) + ' км)';
+      }
       h += '<div class="order-summary">' + deliveryLabel + ': ' + formatPrice(deliveryCost) + '</div>';
     }
     h += '<div class="cart-total">Итого: ' + formatPrice(total) + '</div>';
@@ -1616,6 +1720,17 @@
   // Submit order + payment
   // ============================================================
 
+  function buildDeliveryAddress() {
+    var suggest = document.getElementById('field-addr-suggest');
+    var apt = document.getElementById('field-addr-apt');
+    var note = document.getElementById('field-addr-note');
+    var parts = [];
+    if (suggest && suggest.value.trim()) parts.push(suggest.value.trim());
+    if (apt && apt.value.trim()) parts.push('кв./оф. ' + apt.value.trim());
+    if (note && note.value.trim()) parts.push(note.value.trim());
+    return parts.join(', ');
+  }
+
   window.submitOrder = function (event) {
     if (event && event.preventDefault) event.preventDefault();
     var cart = getCart();
@@ -1643,10 +1758,11 @@
       receiver_phone: rcvPhone,
       delivery_address: (checkoutState.deliveryType === 'pickup')
         ? (appSettings.pickup_address || 'Самовывоз')
-        : (document.getElementById('field-address') ? document.getElementById('field-address').value.trim() : ''),
+        : buildDeliveryAddress(),
       delivery_type: checkoutState.deliveryType,
-      delivery_zone: checkoutState.deliveryType === 'delivery' ? checkoutState.deliveryZoneKey : '',
+      delivery_zone: '',
       delivery_cost: getDeliveryCost(),
+      delivery_distance: checkoutState.deliveryDistance || 0,
       delivery_interval: checkoutState.exactTime
         ? ('Точно ко времени: ' + (document.getElementById('field-exact-time') ? document.getElementById('field-exact-time').value : ''))
         : (checkoutState.deliveryType === 'delivery' ? checkoutState.deliveryInterval : ''),
