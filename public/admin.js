@@ -298,6 +298,7 @@
   // ============================================================
 
   var orderFilter = '';
+  var orderSearch = '';
 
   function renderOrderCard(o) {
     return '<div class="order-card" onclick="viewOrder(' + o.id + ')">' +
@@ -315,11 +316,20 @@
   }
 
   function loadOrders() {
-    var url = '/api/admin/orders' + (orderFilter ? '?status=' + encodeURIComponent(orderFilter) : '');
+    var qp = [];
+    if (orderFilter) qp.push('status=' + encodeURIComponent(orderFilter));
+    if (orderSearch) qp.push('search=' + encodeURIComponent(orderSearch));
+    var url = '/api/admin/orders' + (qp.length ? '?' + qp.join('&') : '');
     api('GET', url).then(function (orders) {
       var el = document.getElementById('tab-content');
 
-      var h = '<div class="filter-bar">';
+      var h = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">' +
+        '<input type="text" class="form-input" id="order-search-input" placeholder="Поиск по № заказа или телефону" value="' + esc(orderSearch) + '" style="max-width:300px;margin:0" onkeydown="if(event.key===\'Enter\')searchOrders()">' +
+        '<button class="btn btn-sm btn-primary" onclick="searchOrders()">Найти</button>' +
+        (orderSearch ? '<button class="btn btn-sm" onclick="clearOrderSearch()">Сбросить</button>' : '') +
+        '</div>';
+
+      h += '<div class="filter-bar">';
       h += '<button class="filter-chip' + (!orderFilter ? ' active' : '') + '" onclick="filterOrders(\'\')">Все</button>';
       ORDER_STATUSES.forEach(function (s) {
         h += '<button class="filter-chip' + (orderFilter === s ? ' active' : '') + '" onclick="filterOrders(\'' + esc(s) + '\')">' + esc(s) + '</button>';
@@ -362,6 +372,17 @@
 
   window.filterOrders = function (status) {
     orderFilter = status;
+    loadOrders();
+  };
+
+  window.searchOrders = function () {
+    var inp = document.getElementById('order-search-input');
+    orderSearch = inp ? inp.value.trim() : '';
+    loadOrders();
+  };
+
+  window.clearOrderSearch = function () {
+    orderSearch = '';
     loadOrders();
   };
 
@@ -478,13 +499,18 @@
           var stockToggle = p.in_stock === 0
             ? '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#fff3cd;color:#856404;border-color:#ffe08a" onclick="toggleStock(' + p.id + ',1)">Скоро</button>'
             : '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#d4edda;color:#155724;border-color:#b1dfbb" onclick="toggleStock(' + p.id + ',0)">В наличии</button>';
-          h += '<tr>' +
+          var hideToggle = p.hidden
+            ? '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#e2e3e5;color:#383d41;border-color:#d6d8db" onclick="toggleHidden(' + p.id + ',0)">Скрыт</button>'
+            : '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#cce5ff;color:#004085;border-color:#b8daff" onclick="toggleHidden(' + p.id + ',1)">Виден</button>';
+          var rowStyle = p.hidden ? ' style="opacity:0.5"' : '';
+          h += '<tr' + rowStyle + '>' +
             '<td>' + productThumb(p.image_url) + (imgCount > 1 ? '<span style="font-size:10px;color:var(--text-secondary);display:block;text-align:center">+' + (imgCount - 1) + '</span>' : '') + '</td>' +
             '<td><strong>' + esc(p.name) + '</strong>' + sizesInfo + '</td>' +
             '<td><span style="color:var(--text-secondary)">' + esc(p.category_name) + '</span></td>' +
             '<td>' + fmtPrice(p.price) + (p.sizes && p.sizes.length ? '<div style="font-size:10px;color:var(--text-secondary)">' + p.sizes.length + ' размер(ов)</div>' : '') + '</td>' +
             '<td><div class="btn-group">' +
               stockToggle +
+              hideToggle +
               '<button class="btn btn-sm" onclick="showProductForm(' + p.id + ')">Изменить</button>' +
               '<button class="btn btn-sm btn-danger" onclick="deleteProduct(' + p.id + ')">Удалить</button>' +
             '</div></td>' +
@@ -712,6 +738,15 @@
     fd.append('in_stock', String(newValue));
     apiUpload('PUT', '/api/admin/products/' + id, fd).then(function () {
       adminToast(newValue ? 'Товар в наличии' : 'Товар: скоро будет', 'success');
+      loadProducts();
+    });
+  };
+
+  window.toggleHidden = function (id, newValue) {
+    var fd = new FormData();
+    fd.append('hidden', String(newValue));
+    apiUpload('PUT', '/api/admin/products/' + id, fd).then(function () {
+      adminToast(newValue ? 'Товар скрыт из каталога' : 'Товар отображается в каталоге', 'success');
       loadProducts();
     });
   };

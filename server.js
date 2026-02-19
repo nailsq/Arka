@@ -5,6 +5,7 @@ var crypto = require('crypto');
 var multer = require('multer');
 var backup = require('./backup');
 var db = require('./database');
+var gsheets = require('./google-sheets');
 
 var app = express();
 var PORT = process.env.PORT || 3000;
@@ -191,9 +192,9 @@ app.get('/api/products', async function (req, res) {
   var cid = req.query.category_id;
   var products;
   if (!cid) {
-    products = await db.prepare('SELECT * FROM products').all();
+    products = await db.prepare('SELECT * FROM products WHERE hidden = 0').all();
   } else {
-    products = await db.prepare('SELECT * FROM products WHERE category_id = ?').all(cid);
+    products = await db.prepare('SELECT * FROM products WHERE category_id = ? AND hidden = 0').all(cid);
   }
   products = await attachImages(products);
   products = await attachSizes(products);
@@ -377,6 +378,16 @@ app.post('/api/orders', async function (req, res) {
     }
 
     res.json({ success: true, order_id: orderId, total_amount: totalAmount });
+
+    try {
+      var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+      var orderItems = await db.prepare(
+        'SELECT oi.*, p.name FROM order_items oi LEFT JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?'
+      ).all(orderId);
+      gsheets.appendOrder(order, orderItems);
+    } catch (gsErr) {
+      console.error('Google Sheets export error:', gsErr.message);
+    }
   } catch (err) {
     console.error('Order creation error:', err);
     res.status(500).json({ error: 'Order creation failed: ' + err.message });
@@ -509,16 +520,25 @@ app.get('/api/user/is-admin', async function (req, res) {
 
 app.get('/api/admin/orders', adminAuth, async function (req, res) {
   var status = req.query.status;
+  var search = (req.query.search || '').trim();
   var sql = 'SELECT * FROM orders';
+  var conditions = [];
   var params = [];
+
   if (status) {
-    sql += ' WHERE status = ?';
+    conditions.push('status = ?');
     params.push(status);
   }
+  if (search) {
+    conditions.push('(CAST(id AS TEXT) LIKE ? OR user_phone LIKE ? OR receiver_phone LIKE ?)');
+    var like = '%' + search + '%';
+    params.push(like, like, like);
+  }
+  if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
   sql += ' ORDER BY created_at DESC';
-  var orders = params.length
-    ? await db.prepare(sql).all(params[0])
-    : await db.prepare(sql).all();
+
+  var stmt = await db.prepare(sql);
+  var orders = params.length ? await stmt.all.apply(stmt, params) : await stmt.all();
 
   for (var i = 0; i < orders.length; i++) {
     orders[i].items = await db.prepare(
@@ -618,7 +638,7 @@ app.put('/api/admin/products/:id', adminAuth, upload.array('images', 10), async 
   if (!product) return res.status(404).json({ error: 'Not found' });
 
   await db.prepare(
-    'UPDATE products SET category_id=?, name=?, description=?, price=?, is_bouquet=?, flower_min=?, flower_max=?, flower_step=?, price_per_flower=?, in_stock=? WHERE id=?'
+    'UPDATE products SET category_id=?, name=?, description=?, price=?, is_bouquet=?, flower_min=?, flower_max=?, flower_step=?, price_per_flower=?, in_stock=?, hidden=? WHERE id=?'
   ).run(
     parseInt(b.category_id || product.category_id),
     b.name || product.name,
@@ -630,6 +650,7 @@ app.put('/api/admin/products/:id', adminAuth, upload.array('images', 10), async 
     b.flower_step !== undefined ? parseInt(b.flower_step) : product.flower_step,
     b.price_per_flower !== undefined ? parseInt(b.price_per_flower) : product.price_per_flower,
     b.in_stock !== undefined ? parseInt(b.in_stock) : product.in_stock,
+    b.hidden !== undefined ? parseInt(b.hidden) : product.hidden,
     req.params.id
   );
 

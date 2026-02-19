@@ -178,6 +178,7 @@ async function init() {
   addColumnIfMissing('orders', 'status_updated_at', 'DATETIME');
   addColumnIfMissing('order_items', 'size_label', 'TEXT');
   addColumnIfMissing('products', 'in_stock', 'INTEGER DEFAULT 1');
+  addColumnIfMissing('products', 'hidden', 'INTEGER DEFAULT 0');
   console.log('Database initialized.');
 }
 
