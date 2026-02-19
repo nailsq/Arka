@@ -1230,26 +1230,28 @@ button, select {
 }
 .cart-rec-arrow {
   flex-shrink: 0;
-  width: 24px;
+  width: 20px;
+  height: 20px;
   border: none;
-  background: none;
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1;
+  background: transparent;
+  outline: none;
+  box-shadow: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #000;
+  color: #fff;
   padding: 0;
   transition: opacity 0.15s;
   z-index: 2;
+  -webkit-appearance: none;
+  appearance: none;
 }
 .cart-rec-arrow:hover {
-  opacity: 0.5;
+  opacity: 0.6;
 }
 .cart-rec-arrow:active {
-  opacity: 0.3;
+  opacity: 0.4;
 }
 .cart-rec-scroll {
   display: flex;

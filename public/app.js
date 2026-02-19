@@ -961,7 +961,7 @@
       var h = '<div class="cart-rec-section">';
       h += '<div class="cart-rec-title">Добавьте к заказу</div>';
       h += '<div class="cart-rec-wrap">';
-      h += '<button class="cart-rec-arrow cart-rec-arrow--left" onclick="scrollRec(-1)">&#8249;</button>';
+      h += '<button class="cart-rec-arrow cart-rec-arrow--left" onclick="scrollRec(-1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>';
       h += '<div class="cart-rec-scroll">';
       sorted.forEach(function (p) {
         var img = p.image_url
@@ -977,7 +977,7 @@
         '</div>';
       });
       h += '</div>';
-      h += '<button class="cart-rec-arrow cart-rec-arrow--right" onclick="scrollRec(1)">&#8250;</button>';
+      h += '<button class="cart-rec-arrow cart-rec-arrow--right" onclick="scrollRec(1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>';
       h += '</div></div>';
       el.innerHTML = h;
     }).catch(function () {});
