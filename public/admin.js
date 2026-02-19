@@ -316,7 +316,7 @@
         statusBadge(o.status) +
       '</div>' +
       '<div class="order-card-client">' + esc(o.user_name) + '</div>' +
-      '<div class="order-card-phone">' + esc(o.user_phone) + '</div>' +
+      '<div class="order-card-phone" onclick="event.stopPropagation()"><a href="tel:' + esc(o.user_phone) + '" style="color:inherit;text-decoration:underline">' + esc(o.user_phone) + '</a></div>' +
       '<div class="order-card-bottom">' +
         '<span class="order-card-price">' + fmtPrice(o.total_amount) + '</span>' +
         '<span class="order-card-date">' + fmtDate(o.created_at) + '</span>' +
@@ -469,15 +469,18 @@
       h += '<div class="order-detail-grid">';
       h += '<div class="detail-item"><span class="detail-label">Дата</span><span class="detail-value">' + fmtDate(o.created_at) + '</span></div>';
       h += '<div class="detail-item"><span class="detail-label">Клиент</span><span class="detail-value">' + esc(o.user_name) + '</span></div>';
-      h += '<div class="detail-item"><span class="detail-label">Телефон</span><span class="detail-value">' + esc(o.user_phone) + '</span></div>';
-      if (o.user_telegram) h += '<div class="detail-item"><span class="detail-label">Telegram</span><span class="detail-value">' + esc(o.user_telegram) + '</span></div>';
-      if (o.user_email) h += '<div class="detail-item"><span class="detail-label">Email</span><span class="detail-value">' + esc(o.user_email) + '</span></div>';
+      h += '<div class="detail-item"><span class="detail-label">Телефон</span><span class="detail-value"><a href="tel:' + esc(o.user_phone) + '" class="detail-link">' + esc(o.user_phone) + '</a></span></div>';
+      if (o.user_telegram) {
+        var tgLink = o.user_telegram.startsWith('@') ? 'https://t.me/' + o.user_telegram.slice(1) : 'https://t.me/' + o.user_telegram;
+        h += '<div class="detail-item"><span class="detail-label">Telegram</span><span class="detail-value"><a href="' + esc(tgLink) + '" target="_blank" class="detail-link">' + esc(o.user_telegram) + '</a></span></div>';
+      }
+      if (o.user_email) h += '<div class="detail-item"><span class="detail-label">Email</span><span class="detail-value"><a href="mailto:' + esc(o.user_email) + '" class="detail-link">' + esc(o.user_email) + '</a></span></div>';
       if (o.receiver_name) h += '<div class="detail-item"><span class="detail-label">Получатель</span><span class="detail-value">' + esc(o.receiver_name) + '</span></div>';
-      if (o.receiver_phone) h += '<div class="detail-item"><span class="detail-label">Тел. получателя</span><span class="detail-value">' + esc(o.receiver_phone) + '</span></div>';
+      if (o.receiver_phone) h += '<div class="detail-item"><span class="detail-label">Тел. получателя</span><span class="detail-value"><a href="tel:' + esc(o.receiver_phone) + '" class="detail-link">' + esc(o.receiver_phone) + '</a></span></div>';
       h += '<div class="detail-item"><span class="detail-label">Способ</span><span class="detail-value">' + (o.delivery_type === 'pickup' ? 'Самовывоз' : 'Доставка') + '</span></div>';
       if (o.delivery_type !== 'pickup') {
         h += '<div class="detail-item"><span class="detail-label">Зона</span><span class="detail-value">' + esc(o.delivery_zone) + '</span></div>';
-        h += '<div class="detail-item"><span class="detail-label">Адрес</span><span class="detail-value">' + esc(o.delivery_address) + '</span></div>';
+        h += '<div class="detail-item"><span class="detail-label">Адрес</span><span class="detail-value"><a href="https://yandex.ru/maps/?text=' + encodeURIComponent(o.delivery_address) + '" target="_blank" class="detail-link">' + esc(o.delivery_address) + '</a></span></div>';
         if (o.delivery_date) h += '<div class="detail-item"><span class="detail-label">Дата доставки</span><span class="detail-value">' + esc(o.delivery_date) + '</span></div>';
         h += '<div class="detail-item"><span class="detail-label">Интервал</span><span class="detail-value">' + esc(o.delivery_interval || '—') + '</span></div>';
         if (o.exact_time) h += '<div class="detail-item"><span class="detail-label">Точное время</span><span class="detail-value">' + esc(o.exact_time) + '</span></div>';

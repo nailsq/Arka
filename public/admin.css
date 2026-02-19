@@ -832,6 +832,16 @@ button { cursor: pointer; }
   color: var(--text);
 }
 
+.detail-link {
+  color: var(--primary);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--primary);
+  transition: opacity 0.15s;
+}
+.detail-link:hover {
+  opacity: 0.7;
+}
+
 .order-items-list {
   border-top: 1px solid var(--border);
   padding-top: 16px;
