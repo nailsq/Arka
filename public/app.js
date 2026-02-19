@@ -419,7 +419,7 @@
     if (hasMultipleSizes) {
       sizeBtnsHtml = '<div class="card-size-row" onclick="event.stopPropagation()">';
       p.sizes.forEach(function (s, idx) {
-        sizeBtnsHtml += '<button class="card-size-btn' + (idx === 0 ? ' active' : '') + '" ' +
+        sizeBtnsHtml += '<button class="card-size-btn' + (idx === 0 ? ' active' : '') + '" data-idx="' + idx + '" ' +
           'onclick="switchCardSize(event,' + p.id + ',this,' + s.price + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\')">' +
           escapeHtml(s.label) + '</button>';
       });
@@ -2349,11 +2349,19 @@
 
   window.addToCartById = function (productId, event) {
     if (event) event.stopPropagation();
+    var selectedIdx = 0;
+    var card = event && event.target ? event.target.closest('.product-card') : null;
+    if (card) {
+      var activeBtn = card.querySelector('.card-size-btn.active');
+      if (activeBtn && activeBtn.getAttribute('data-idx')) {
+        selectedIdx = parseInt(activeBtn.getAttribute('data-idx')) || 0;
+      }
+    }
     fetchJSON('/api/products/' + productId).then(function (p) {
       if (p && !p.error) {
         var sizeObj = null;
         if (p.sizes && p.sizes.length) {
-          sizeObj = p.sizes[0];
+          sizeObj = p.sizes[selectedIdx] || p.sizes[0];
         }
         addToCart(p, sizeObj);
       }
