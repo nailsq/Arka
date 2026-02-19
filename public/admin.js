@@ -333,9 +333,8 @@
       var el = document.getElementById('tab-content');
 
       var h = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">' +
-        '<input type="text" class="form-input" id="order-search-input" placeholder="Поиск по № заказа или телефону" value="' + esc(orderSearch) + '" style="max-width:300px;margin:0" onkeydown="if(event.key===\'Enter\')searchOrders()">' +
-        '<button class="btn btn-sm btn-primary" onclick="searchOrders()">Найти</button>' +
-        (orderSearch ? '<button class="btn btn-sm" onclick="clearOrderSearch()">Сбросить</button>' : '') +
+        '<input type="text" class="form-input" id="order-search-input" placeholder="Поиск по № заказа или телефону" value="' + esc(orderSearch) + '" style="max-width:300px;margin:0" oninput="liveSearchOrders()">' +
+        (orderSearch ? '<button class="btn btn-sm" onclick="clearOrderSearch()">✕</button>' : '') +
         '</div>';
 
       h += '<div class="filter-bar">';
@@ -384,10 +383,18 @@
     loadOrders();
   };
 
-  window.searchOrders = function () {
-    var inp = document.getElementById('order-search-input');
-    orderSearch = inp ? inp.value.trim() : '';
-    loadOrders();
+  var _searchTimer = null;
+  window.liveSearchOrders = function () {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(function () {
+      var inp = document.getElementById('order-search-input');
+      orderSearch = inp ? inp.value.trim() : '';
+      loadOrders();
+      setTimeout(function () {
+        var inp2 = document.getElementById('order-search-input');
+        if (inp2) { inp2.focus(); inp2.selectionStart = inp2.selectionEnd = inp2.value.length; }
+      }, 50);
+    }, 300);
   };
 
   window.clearOrderSearch = function () {
