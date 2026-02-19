@@ -1821,7 +1821,11 @@
   }
 
   function shouldShowInTracking(order) {
-    return !isFinalStatus(order);
+    if (!isFinalStatus(order)) return true;
+    var created = new Date(order.status_updated_at || order.created_at);
+    var now = new Date();
+    var daysSince = (now - created) / (1000 * 60 * 60 * 24);
+    return daysSince < 7;
   }
 
   function loadProfileTracking() {
