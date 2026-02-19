@@ -929,9 +929,12 @@
       h += '<div class="settings-section-title">Яндекс.Карты</div>';
       h += '<div class="form-group"><label class="form-label">API-ключ Яндекс.Карт</label>' +
         '<input type="text" class="form-input" id="s-yandex-key" value="' + esc(s.yandex_maps_key || '') + '" placeholder="Получить на developer.tech.yandex.ru"></div>';
-      h += '<div class="form-group"><label class="form-label">Координаты магазина (широта,долгота)</label>' +
+      h += '<div class="form-group"><label class="form-label">Координаты магазина — Саратов (широта,долгота)</label>' +
         '<input type="text" class="form-input" id="s-shop-coords" value="' + esc(s.shop_coords || '51.533,46.034') + '" placeholder="51.533,46.034" style="max-width:250px"></div>';
-      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Координаты точки отсчёта для расчёта расстояния доставки.</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">Точка отсчёта для адресов в Саратове.</div>';
+      h += '<div class="form-group"><label class="form-label">Координаты центра — Энгельс (широта,долгота)</label>' +
+        '<input type="text" class="form-input" id="s-engels-coords" value="' + esc(s.engels_coords || '51.485,46.126') + '" placeholder="51.485,46.126" style="max-width:250px"></div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Точка отсчёта для адресов в Энгельсе. Расстояние считается от центра города.</div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1071,6 +1074,7 @@
     var data = {
       yandex_maps_key: document.getElementById('s-yandex-key').value,
       shop_coords: document.getElementById('s-shop-coords').value,
+      engels_coords: document.getElementById('s-engels-coords').value,
       delivery_distance_tiers: document.getElementById('s-delivery-tiers').value,
       delivery_regular: document.getElementById('s-delivery-regular').value,
       delivery_holiday: document.getElementById('s-delivery-holiday').value,

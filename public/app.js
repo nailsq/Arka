@@ -1156,6 +1156,17 @@
     return { lat: parseFloat(parts[0]) || 51.533, lon: parseFloat(parts[1]) || 46.034 };
   }
 
+  function getEngelsCoords() {
+    var str = appSettings.engels_coords || '51.485,46.126';
+    var parts = str.split(',');
+    return { lat: parseFloat(parts[0]) || 51.485, lon: parseFloat(parts[1]) || 46.126 };
+  }
+
+  function isEngelsAddress(address) {
+    var lower = address.toLowerCase();
+    return lower.indexOf('энгельс') !== -1 || lower.indexOf('engels') !== -1;
+  }
+
   function getDeliveryTiers() {
     try { return JSON.parse(appSettings.delivery_distance_tiers || '[]'); }
     catch (e) { return []; }
@@ -1399,37 +1410,39 @@
   }
 
   function geocodeAndCalcDistance(address) {
-    var shop = getShopCoords();
+    var origin = isEngelsAddress(address) ? getEngelsCoords() : getShopCoords();
+    var originLabel = isEngelsAddress(address) ? 'от центра Энгельса' : 'от магазина';
     if (ymapsLoaded && window.ymaps) {
       window.ymaps.geocode(address, { results: 1 }).then(function (res) {
         var obj = res.geoObjects.get(0);
         if (!obj) {
-          showDistanceResult(0);
+          showDistanceResult(0, '');
           return;
         }
         var coords = obj.geometry.getCoordinates();
         checkoutState.deliveryCoords = { lat: coords[0], lon: coords[1] };
-        var km = haversineKm(shop.lat, shop.lon, coords[0], coords[1]);
+        var km = haversineKm(origin.lat, origin.lon, coords[0], coords[1]);
         checkoutState.deliveryDistance = Math.round(km * 10) / 10;
-        showDistanceResult(checkoutState.deliveryDistance);
+        showDistanceResult(checkoutState.deliveryDistance, originLabel);
         showMiniMap(coords);
         var hidden = document.getElementById('field-address');
         if (hidden) hidden.value = address;
       });
     } else {
       checkoutState.deliveryDistance = 0;
-      showDistanceResult(0);
+      showDistanceResult(0, '');
       var hidden = document.getElementById('field-address');
       if (hidden) hidden.value = address;
     }
   }
 
-  function showDistanceResult(km) {
+  function showDistanceResult(km, originLabel) {
     var el = document.getElementById('delivery-distance-info');
     if (!el) return;
     if (km > 0) {
       var cost = getDeliveryCostByDistance(km);
-      el.innerHTML = 'Расстояние: <b>' + km.toFixed(1) + ' км</b> — Доставка: <b>' + formatPrice(cost) + '</b>';
+      var label = originLabel ? ' (' + originLabel + ')' : '';
+      el.innerHTML = 'Расстояние: <b>' + km.toFixed(1) + ' км</b>' + label + ' — Доставка: <b>' + formatPrice(cost) + '</b>';
       el.style.display = '';
     } else {
       el.style.display = 'none';
