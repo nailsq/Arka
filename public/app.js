@@ -1857,14 +1857,14 @@
     var dayNames = ['воскресенье', 'понедельник', 'вторник', 'среду', 'четверг', 'пятницу', 'субботу'];
 
     if (todayAvailable.length > 0) {
-      el.innerHTML = '<span class="nearest-icon">&#9201;</span> Ближайшая доставка: <b>сегодня, ' + escapeHtml(todayAvailable[0]) + '</b>';
+      el.innerHTML = 'Ближайшая доставка: <b>сегодня, ' + escapeHtml(todayAvailable[0]) + '</b>';
       el.style.display = '';
     } else if (intervals.length > 0) {
       var tmrw = new Date(sNow.year, sNow.month - 1, sNow.day + 1);
       var dayIdx = tmrw.getDay();
       var dayName = dayNames[dayIdx];
       var tmrwStr = String(tmrw.getDate()).padStart(2, '0') + '.' + String(tmrw.getMonth() + 1).padStart(2, '0');
-      el.innerHTML = '<span class="nearest-icon">&#9201;</span> Ближайшая доставка: <b>' + dayName + ' ' + tmrwStr + ', ' + escapeHtml(intervals[0]) + '</b>';
+      el.innerHTML = 'Ближайшая доставка: <b>' + dayName + ' ' + tmrwStr + ', ' + escapeHtml(intervals[0]) + '</b>';
       el.style.display = '';
     } else {
       el.style.display = 'none';

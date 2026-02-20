@@ -1663,16 +1663,13 @@ button, select {
 }
 
 .nearest-delivery-hint {
-  background: #f0f7f0;
-  color: #2d6a2d;
+  background: #f3f3f3;
+  color: #333;
   padding: 10px 14px;
   border-radius: 10px;
   font-size: 13px;
   margin-bottom: 12px;
   line-height: 1.4;
-}
-.nearest-delivery-hint .nearest-icon {
-  margin-right: 4px;
 }
 
 .consent-check {
