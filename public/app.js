@@ -1522,6 +1522,8 @@
 
   window.goToStep = function (step) {
     if (step > currentStep) {
+      var curBtn = document.getElementById(currentStep === 1 ? 'step1-next' : 'step2-next');
+      if (curBtn && curBtn.classList.contains('btn-dimmed')) return;
       if (currentStep === 1) {
         var phone = document.getElementById('field-phone').value.trim();
         var tg = document.getElementById('field-tg').value.trim();
@@ -1531,7 +1533,11 @@
           return;
         }
         if (!validatePhone(phone)) return;
-        if (email && !validateEmail(email)) return;
+        if (!email) {
+          showToast('Заполните электронную почту');
+          return;
+        }
+        if (!validateEmail(email)) return;
       }
       if (currentStep === 2) {
         if (checkoutState.deliveryType === 'delivery') {
@@ -1624,7 +1630,9 @@
     if (btn1) {
       var tg = (document.getElementById('field-tg') || {}).value || '';
       var phone = (document.getElementById('field-phone') || {}).value || '';
-      var ready1 = tg.trim().length > 0 && phone.replace(/\D/g, '').length >= 11;
+      var email = (document.getElementById('field-email') || {}).value || '';
+      var emailOk = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
+      var ready1 = tg.trim().length > 0 && phone.replace(/\D/g, '').length >= 11 && emailOk;
       btn1.classList.toggle('btn-dimmed', !ready1);
     }
 
@@ -1632,7 +1640,8 @@
     if (btn2) {
       var ready2 = true;
       if (checkoutState.deliveryType === 'delivery') {
-        ready2 = checkoutState.addressValidated;
+        if (!checkoutState.addressValidated) ready2 = false;
+        if (!checkoutState.deliveryInterval && !checkoutState.exactTime) ready2 = false;
       }
       var dateField = document.getElementById('field-date');
       if (!dateField || !dateField.value) ready2 = false;
@@ -1763,6 +1772,7 @@
     checkoutState.deliveryInterval = '';
     renderIntervals();
     if (checkoutState.exactTime) validateExactTime();
+    updateStepButtons();
   };
 
   window.setDeliveryType = function (type) {
@@ -1793,6 +1803,7 @@
     renderIntervals();
     updateNearestDeliveryHint();
     updateCheckoutSummary();
+    updateStepButtons();
   };
 
   window.setZone = function (zoneKey) {
@@ -1814,6 +1825,7 @@
     radios.forEach(function (r) {
       if (r.value === iv) r.closest('.radio-option').classList.add('selected');
     });
+    updateStepButtons();
   };
 
   window.toggleExactTime = function () {
@@ -1833,6 +1845,7 @@
       validateExactTime();
     }
     updateCheckoutSummary();
+    updateStepButtons();
   };
 
   window.validateExactTime = function () {
@@ -1884,6 +1897,8 @@
 
   window.submitOrder = function (event) {
     if (event && event.preventDefault) event.preventDefault();
+    var submitBtn = document.getElementById('checkout-submit');
+    if (submitBtn && submitBtn.classList.contains('btn-dimmed')) return;
 
     var consentCb = document.getElementById('consent-cb');
     if (!consentCb || !consentCb.checked) {
@@ -2848,6 +2863,7 @@
     if (digits.length === 0) { input.value = ''; return; }
     if (digits[0] === '8') digits = '7' + digits.slice(1);
     if (digits[0] !== '7') digits = '7' + digits;
+    if (digits.length <= 1) { input.value = ''; return; }
     digits = digits.slice(0, 11);
     var formatted = '+7';
     if (digits.length > 1) formatted += ' (' + digits.slice(1, 4);
