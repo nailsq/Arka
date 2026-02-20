@@ -1131,7 +1131,8 @@
     exactTime: false,
     deliveryDistance: 0,
     deliveryCoords: null,
-    isEngels: false
+    isEngels: false,
+    addressValidated: false
   };
 
   var ymapsLoaded = false;
@@ -1211,6 +1212,9 @@
     currentStep = 1;
     checkoutState.deliveryInterval = '';
     checkoutState.exactTime = false;
+    checkoutState.addressValidated = false;
+    checkoutState.deliveryDistance = 0;
+    checkoutState.deliveryCoords = null;
 
     var userName = (dbUser && dbUser.first_name) || (tgUser && tgUser.first_name) || '';
     var userPhone = (dbUser && dbUser.phone) || '';
@@ -1413,7 +1417,17 @@
       });
       suggestView.events.add('select', function (e) {
         var item = e.get('item');
+        checkoutState.addressValidated = false;
         geocodeAndCalcDistance(item.value);
+      });
+      input.addEventListener('input', function () {
+        checkoutState.addressValidated = false;
+        checkoutState.deliveryDistance = 0;
+        checkoutState.deliveryCoords = null;
+        var mapEl = document.getElementById('ymaps-minimap');
+        if (mapEl) mapEl.style.display = 'none';
+        var distEl = document.getElementById('delivery-distance-info');
+        if (distEl) distEl.style.display = 'none';
       });
     });
   }
@@ -1423,23 +1437,34 @@
     checkoutState.isEngels = engels;
     var origin = engels ? getEngelsCoords() : getShopCoords();
     var originLabel = engels ? 'от центра Энгельса' : 'от магазина';
+    checkoutState.addressValidated = false;
     if (ymapsLoaded && window.ymaps) {
       window.ymaps.geocode(address, { results: 1 }).then(function (res) {
         var obj = res.geoObjects.get(0);
         if (!obj) {
+          checkoutState.addressValidated = false;
           showDistanceResult(0, '');
+          return;
+        }
+        var precision = obj.properties.get('metaDataProperty.GeocoderMetaData.precision');
+        if (precision === 'other') {
+          checkoutState.addressValidated = false;
+          showDistanceResult(0, '');
+          showToast('Адрес не найден. Выберите адрес из подсказок.');
           return;
         }
         var coords = obj.geometry.getCoordinates();
         checkoutState.deliveryCoords = { lat: coords[0], lon: coords[1] };
         var km = haversineKm(origin.lat, origin.lon, coords[0], coords[1]);
         checkoutState.deliveryDistance = Math.round(km * 10) / 10;
+        checkoutState.addressValidated = true;
         showDistanceResult(checkoutState.deliveryDistance, originLabel);
         showMiniMap(coords);
         var hidden = document.getElementById('field-address');
         if (hidden) hidden.value = address;
       });
     } else {
+      checkoutState.addressValidated = true;
       checkoutState.deliveryDistance = 0;
       showDistanceResult(0, '');
       var hidden = document.getElementById('field-address');
@@ -1499,8 +1524,9 @@
         if (checkoutState.deliveryType === 'delivery') {
           var suggestVal = document.getElementById('field-addr-suggest') ? document.getElementById('field-addr-suggest').value.trim() : '';
           if (!suggestVal) { showToast('Укажите адрес доставки'); return; }
-          if (checkoutState.deliveryDistance <= 0 && ymapsLoaded) {
-            geocodeAndCalcDistance(suggestVal);
+          if (!checkoutState.addressValidated) {
+            showToast('Выберите точный адрес из подсказок');
+            return;
           }
           var hiddenAddr = document.getElementById('field-address');
           if (hiddenAddr) hiddenAddr.value = buildDeliveryAddress();
