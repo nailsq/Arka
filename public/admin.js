@@ -1012,6 +1012,8 @@
       h += '<div id="s-tiers-list-saratov"></div>';
       h += '<button type="button" class="btn btn-sm" onclick="addDeliveryTier(\'saratov\')" style="margin-top:8px">+ Добавить зону</button>';
       h += '<input type="hidden" id="s-delivery-tiers">';
+      h += '<div class="form-group" style="margin-top:12px"><label class="form-label">Макс. расстояние доставки (км)</label>' +
+        '<input type="number" class="form-input" id="s-max-distance-saratov" value="' + esc(s.max_delivery_km_saratov || '30') + '" placeholder="30"></div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1019,6 +1021,8 @@
       h += '<div id="s-tiers-list-engels"></div>';
       h += '<button type="button" class="btn btn-sm" onclick="addDeliveryTier(\'engels\')" style="margin-top:8px">+ Добавить зону</button>';
       h += '<input type="hidden" id="s-delivery-tiers-engels">';
+      h += '<div class="form-group" style="margin-top:12px"><label class="form-label">Макс. расстояние доставки (км)</label>' +
+        '<input type="number" class="form-input" id="s-max-distance-engels" value="' + esc(s.max_delivery_km_engels || '30') + '" placeholder="30"></div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1193,6 +1197,8 @@
       engels_coords: document.getElementById('s-engels-coords').value,
       delivery_distance_tiers: document.getElementById('s-delivery-tiers').value,
       delivery_distance_tiers_engels: document.getElementById('s-delivery-tiers-engels').value,
+      max_delivery_km_saratov: document.getElementById('s-max-distance-saratov').value,
+      max_delivery_km_engels: document.getElementById('s-max-distance-engels').value,
       delivery_regular: document.getElementById('s-delivery-regular').value,
       delivery_holiday: document.getElementById('s-delivery-holiday').value,
       pickup_address: document.getElementById('s-pickup').value,

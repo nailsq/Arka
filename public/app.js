@@ -1221,6 +1221,17 @@
     catch (e) { return []; }
   }
 
+  function getMaxDeliveryKm(engels) {
+    var key = engels ? 'max_delivery_km_engels' : 'max_delivery_km_saratov';
+    return parseFloat(appSettings[key]) || 30;
+  }
+
+  function isDeliveryTooFar() {
+    if (checkoutState.deliveryType !== 'delivery') return false;
+    if (checkoutState.deliveryDistance <= 0) return false;
+    return checkoutState.deliveryDistance > getMaxDeliveryKm(checkoutState.isEngels);
+  }
+
   function getDeliveryCostByDistance(km, engels) {
     var tiers = getDeliveryTiers(engels);
     if (!tiers.length) return 0;
@@ -1629,9 +1640,16 @@
     var el = document.getElementById('delivery-distance-info');
     if (!el) return;
     if (km > 0) {
-      var cost = getDeliveryCostByDistance(km, checkoutState.isEngels);
+      var maxKm = getMaxDeliveryKm(checkoutState.isEngels);
       var label = originLabel ? ' (' + originLabel + ')' : '';
-      el.innerHTML = 'Расстояние: <b>' + km.toFixed(1) + ' км</b>' + label + ' — Доставка: <b>' + formatPrice(cost) + '</b>';
+      if (km > maxKm) {
+        el.innerHTML = '<span style="color:#c00">Расстояние: <b>' + km.toFixed(1) + ' км</b>' + label +
+          ' — Доставка по этому адресу недоступна (макс. ' + maxKm + ' км)</span>';
+        checkoutState.addressValidated = false;
+      } else {
+        var cost = getDeliveryCostByDistance(km, checkoutState.isEngels);
+        el.innerHTML = 'Расстояние: <b>' + km.toFixed(1) + ' км</b>' + label + ' — Доставка: <b>' + formatPrice(cost) + '</b>';
+      }
       el.style.display = '';
     } else {
       el.style.display = 'none';
@@ -1685,6 +1703,11 @@
           if (!suggestVal) { showToast('Укажите адрес доставки'); return; }
           if (!checkoutState.addressValidated) {
             geocodeAndCalcDistance(suggestVal);
+          }
+          if (isDeliveryTooFar()) {
+            var maxKm = getMaxDeliveryKm(checkoutState.isEngels);
+            showToast('Доставка по этому адресу недоступна (макс. ' + maxKm + ' км)');
+            return;
           }
           var hiddenAddr = document.getElementById('field-address');
           if (hiddenAddr) hiddenAddr.value = buildDeliveryAddress();
@@ -1783,6 +1806,7 @@
         var addrInput = document.getElementById('field-addr-suggest');
         if (!addrInput || !addrInput.value.trim()) ready2 = false;
         if (!checkoutState.deliveryInterval && !checkoutState.exactTime) ready2 = false;
+        if (isDeliveryTooFar()) ready2 = false;
       } else {
         if (!checkoutState.deliveryInterval) ready2 = false;
       }
