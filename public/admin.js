@@ -1063,6 +1063,11 @@
       h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">При добавлении букета в корзину автоматически добавляется бесплатная позиция (0 р.). Количество = количеству букетов. Оставьте пустым, чтобы отключить.</div>';
       h += '<div class="form-group"><label class="form-label">Название</label>' +
         '<input type="text" class="form-input" id="s-free-service" value="' + esc(s.free_service_name || '') + '" placeholder="напр. Упаковка букета"></div>';
+      h += '<div class="form-group"><label class="form-label">Фото</label>' +
+        '<input type="file" id="s-free-service-img" accept="image/*" onchange="previewFreeServiceImg(this)">' +
+        '<div id="s-free-service-img-preview" style="margin-top:8px">' +
+        (s.free_service_image ? '<img src="' + esc(s.free_service_image) + '" style="width:60px;height:60px;object-fit:cover;border-radius:8px"><button type="button" class="btn btn-sm" onclick="clearFreeServiceImg()" style="margin-left:8px">Удалить</button>' : '') +
+        '</div></div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1137,6 +1142,27 @@
     return JSON.stringify(tiers);
   }
 
+  var _freeServiceImgData = null;
+
+  window.previewFreeServiceImg = function (input) {
+    if (!input.files || !input.files[0]) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      _freeServiceImgData = e.target.result;
+      var preview = document.getElementById('s-free-service-img-preview');
+      if (preview) preview.innerHTML = '<img src="' + _freeServiceImgData + '" style="width:60px;height:60px;object-fit:cover;border-radius:8px"><button type="button" class="btn btn-sm" onclick="clearFreeServiceImg()" style="margin-left:8px">Удалить</button>';
+    };
+    reader.readAsDataURL(input.files[0]);
+  };
+
+  window.clearFreeServiceImg = function () {
+    _freeServiceImgData = '';
+    var preview = document.getElementById('s-free-service-img-preview');
+    if (preview) preview.innerHTML = '';
+    var input = document.getElementById('s-free-service-img');
+    if (input) input.value = '';
+  };
+
   function collectDeliveryTiers() {
     var hiddenSar = document.getElementById('s-delivery-tiers');
     if (hiddenSar) hiddenSar.value = collectTiersFrom('s-tiers-list-saratov');
@@ -1166,6 +1192,7 @@
       pickup_cutoff_hour: document.getElementById('s-pickup-cutoff').value,
       delivery_info: document.getElementById('s-delivery-info').value,
       free_service_name: document.getElementById('s-free-service').value,
+      free_service_image: _freeServiceImgData !== null ? _freeServiceImgData : (document.querySelector('#s-free-service-img-preview img') ? document.querySelector('#s-free-service-img-preview img').src : ''),
       social_telegram: document.getElementById('s-social-tg').value,
       social_instagram: document.getElementById('s-social-ig').value,
       social_vk: document.getElementById('s-social-vk').value

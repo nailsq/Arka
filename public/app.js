@@ -253,12 +253,13 @@
     if (idx >= 0) {
       cart[idx].name = name;
       cart[idx].quantity = bouquetCount;
+      cart[idx].image_url = appSettings.free_service_image || '';
     } else {
       cart.push({
         product_id: 0,
         name: name,
         price: 0,
-        image_url: '',
+        image_url: appSettings.free_service_image || '',
         quantity: bouquetCount,
         flower_count: 0,
         size_label: '',
@@ -1044,9 +1045,8 @@
       sizeSelector = '<div class="cart-size-selector"><div class="cart-size-fc">' + escapeHtml(item.dimensions) + '</div></div>';
     }
     var escapedLabel = escapeHtml(item.size_label || '').replace(/'/g, "\\'");
-    var sizeBadge = item.size_label ? '<span class="cart-img-size-badge">' + escapeHtml(item.size_label) + '</span>' : '';
     return '<div class="cart-item" id="cart-row-' + idx + '">' +
-      '<div class="cart-img-wrap">' + productImage(item.image_url, item.name, 'cart-item-img') + sizeBadge + '</div>' +
+      '<div class="cart-img-wrap">' + productImage(item.image_url, item.name, 'cart-item-img') + '</div>' +
       '<div class="cart-item-info">' +
         '<div>' +
           '<div class="cart-item-name">' + escapeHtml(item.name) + '</div>' +
