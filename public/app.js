@@ -1135,6 +1135,58 @@
     addressValidated: false
   };
 
+  var _abandonedSent = false;
+  var _abandonedTimer = null;
+  var _inCheckout = false;
+  var ABANDON_TIMEOUT = 10 * 60 * 1000;
+
+  function sendAbandonedCart() {
+    if (_abandonedSent || !_inCheckout) return;
+    var cart = getCart();
+    if (!cart.length) return;
+    _abandonedSent = true;
+    var userId = getTelegramId();
+    if (!userId) return;
+    var username = (tgUser && tgUser.username) || null;
+    var phone = (dbUser && dbUser.phone) || '';
+    var phoneField = document.getElementById('field-phone');
+    if (phoneField && phoneField.value.trim()) phone = phoneField.value.trim();
+    var items = cart.filter(function (c) { return !c.is_free_service; }).map(function (c) {
+      return { name: c.name, quantity: c.quantity, price: c.price };
+    });
+    var total = getCartTotal();
+    navigator.sendBeacon('/api/abandoned-cart', new Blob([JSON.stringify({
+      user_id: String(userId),
+      username: username,
+      phone: phone,
+      cart: items,
+      total: total
+    })], { type: 'application/json' }));
+  }
+
+  function startAbandonTimer() {
+    stopAbandonTimer();
+    _inCheckout = true;
+    _abandonedSent = false;
+    _abandonedTimer = setTimeout(sendAbandonedCart, ABANDON_TIMEOUT);
+  }
+
+  function stopAbandonTimer() {
+    if (_abandonedTimer) { clearTimeout(_abandonedTimer); _abandonedTimer = null; }
+  }
+
+  function resetAbandonTimer() {
+    if (!_inCheckout) return;
+    stopAbandonTimer();
+    _abandonedTimer = setTimeout(sendAbandonedCart, ABANDON_TIMEOUT);
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden && _inCheckout && !_abandonedSent) {
+      sendAbandonedCart();
+    }
+  });
+
   window.saveCheckoutDraft = function() {
     try {
       var draft = {
@@ -1488,6 +1540,7 @@
 
     if (currentStep > 1) goToStep(currentStep);
     updateStepButtons();
+    startAbandonTimer();
   }
 
   function loadCheckoutAddresses() {
@@ -1789,6 +1842,7 @@
   };
 
   window.updateStepButtons = function () {
+    resetAbandonTimer();
     var btn1 = document.getElementById('step1-next');
     if (btn1) {
       var tg = (document.getElementById('field-tg') || {}).value || '';
@@ -2130,6 +2184,9 @@
 
       saveCart([]);
       clearCheckoutDraft();
+      _inCheckout = false;
+      _abandonedSent = true;
+      stopAbandonTimer();
       updateCartBadge();
 
       postJSON('/api/payments/create', { order_id: result.order_id }).then(function (pay) {
@@ -2921,6 +2978,11 @@
 
   window.navigateTo = function (page, param) {
     if (page !== 'account') stopTrackingPoll();
+    if (page !== 'checkout' && _inCheckout) {
+      sendAbandonedCart();
+      _inCheckout = false;
+      stopAbandonTimer();
+    }
     updateCartBadge();
     updateFavBadge();
     switch (page) {

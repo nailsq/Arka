@@ -359,6 +359,48 @@ app.get('/api/user/orders', async function (req, res) {
 });
 
 // ============================================================
+// PUBLIC API: Abandoned cart
+// ============================================================
+
+var _recentAbandoned = {};
+
+app.post('/api/abandoned-cart', async function (req, res) {
+  var body = req.body;
+  var userId = String(body.user_id || '');
+  if (!userId) return res.json({ ok: true });
+
+  var now = Date.now();
+  if (_recentAbandoned[userId] && now - _recentAbandoned[userId] < 5 * 60 * 1000) {
+    return res.json({ ok: true });
+  }
+  _recentAbandoned[userId] = now;
+
+  var cart = body.cart || [];
+  if (!cart.length) return res.json({ ok: true });
+
+  var username = body.username ? '@' + body.username : '—';
+  var phone = body.phone || '—';
+  var total = body.total || 0;
+
+  var items = cart.map(function (c) {
+    return '  • ' + c.name + ' × ' + c.quantity + ' — ' + c.price + ' ₽';
+  }).join('\n');
+
+  var msg = '🛒 <b>Брошенная корзина</b>\n\n' +
+    'Пользователь: ' + username + '\n' +
+    'Телефон: ' + phone + '\n' +
+    'ID: ' + userId + '\n\n' +
+    items + '\n\n' +
+    'Итого: <b>' + total + ' ₽</b>';
+
+  ADMIN_TELEGRAM_IDS.forEach(function (id) {
+    sendTelegramMessage(id, msg);
+  });
+
+  res.json({ ok: true });
+});
+
+// ============================================================
 // PUBLIC API: Create order
 // ============================================================
 
