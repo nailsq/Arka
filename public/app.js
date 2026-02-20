@@ -1558,8 +1558,8 @@
           showToast('Доставка на сегодня недоступна. Выберите другую дату или самовывоз.');
           return;
         }
-        if (!checkoutState.exactTime && checkoutState.deliveryType === 'delivery' && !checkoutState.deliveryInterval) {
-          showToast('Выберите время доставки (интервал или точное время)');
+        if (!checkoutState.deliveryInterval && !checkoutState.exactTime) {
+          showToast(checkoutState.deliveryType === 'pickup' ? 'Выберите время готовности' : 'Выберите время доставки (интервал или точное время)');
           return;
         }
         if (checkoutState.exactTime && !validateExactTime()) {
@@ -1642,6 +1642,8 @@
       if (checkoutState.deliveryType === 'delivery') {
         if (!checkoutState.addressValidated) ready2 = false;
         if (!checkoutState.deliveryInterval && !checkoutState.exactTime) ready2 = false;
+      } else {
+        if (!checkoutState.deliveryInterval) ready2 = false;
       }
       var dateField = document.getElementById('field-date');
       if (!dateField || !dateField.value) ready2 = false;
