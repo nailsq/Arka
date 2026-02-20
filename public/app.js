@@ -1545,10 +1545,28 @@
         return;
       }
       try {
+        var cleanProvider = {
+          suggest: function (request, options) {
+            return window.ymaps.suggest(request, {
+              results: options.results || 5,
+              boundedBy: [[51.0, 45.0], [52.0, 47.0]]
+            }).then(function (items) {
+              return items.map(function (item) {
+                var short = item.displayName
+                  .replace(/Россия,?\s*/i, '')
+                  .replace(/Саратовская область,?\s*/i, '')
+                  .replace(/городской округ[^,]*,?\s*/i, '')
+                  .replace(/^\s*,\s*/, '').trim();
+                return { displayName: short, value: item.value };
+              });
+            });
+          }
+        };
         var suggestView = new window.ymaps.SuggestView('field-addr-suggest', {
           results: 5,
           boundedBy: [[51.0, 45.0], [52.0, 47.0]],
-          strictBounds: false
+          strictBounds: false,
+          provider: cleanProvider
         });
         suggestView.events.add('select', function (e) {
           var item = e.get('item');
