@@ -226,9 +226,9 @@ app.get('/api/products', async function (req, res) {
   var cid = req.query.category_id;
   var products;
   if (!cid) {
-    products = await db.prepare('SELECT * FROM products WHERE hidden = 0').all();
+    products = await db.prepare('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.hidden = 0').all();
   } else {
-    products = await db.prepare('SELECT * FROM products WHERE category_id = ? AND hidden = 0').all(cid);
+    products = await db.prepare('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.category_id = ? AND p.hidden = 0').all(cid);
   }
   products = await attachImages(products);
   products = await attachSizes(products);
