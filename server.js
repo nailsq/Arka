@@ -714,7 +714,7 @@ app.put('/api/admin/products/:id', adminAuth, upload.array('images', 10), async 
   if (!product) return res.status(404).json({ error: 'Not found' });
 
   await db.prepare(
-    'UPDATE products SET category_id=?, name=?, description=?, price=?, is_bouquet=?, flower_min=?, flower_max=?, flower_step=?, price_per_flower=?, in_stock=?, hidden=?, dimensions=? WHERE id=?'
+    'UPDATE products SET category_id=?, name=?, description=?, price=?, is_bouquet=?, flower_min=?, flower_max=?, flower_step=?, price_per_flower=?, in_stock=?, hidden=?, dimensions=?, is_recommended=? WHERE id=?'
   ).run(
     parseInt(b.category_id || product.category_id),
     b.name || product.name,
@@ -728,6 +728,7 @@ app.put('/api/admin/products/:id', adminAuth, upload.array('images', 10), async 
     b.in_stock !== undefined ? parseInt(b.in_stock) : product.in_stock,
     b.hidden !== undefined ? parseInt(b.hidden) : product.hidden,
     b.dimensions !== undefined ? b.dimensions : (product.dimensions || ''),
+    b.is_recommended !== undefined ? parseInt(b.is_recommended) : (product.is_recommended || 0),
     req.params.id
   );
 

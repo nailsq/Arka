@@ -636,6 +636,9 @@
           var hideToggle = p.hidden
             ? '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#e2e3e5;color:#383d41;border-color:#d6d8db" onclick="toggleHidden(' + p.id + ',0)">Скрыт</button>'
             : '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#cce5ff;color:#004085;border-color:#b8daff" onclick="toggleHidden(' + p.id + ',1)">Виден</button>';
+          var recToggle = p.is_recommended
+            ? '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#e8d5f5;color:#5b2d8e;border-color:#d4b3e8" onclick="toggleRecommended(' + p.id + ',0)">Доп ✓</button>'
+            : '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#f5f5f5;color:#999;border-color:#e0e0e0" onclick="toggleRecommended(' + p.id + ',1)">Доп</button>';
           var rowStyle = p.hidden ? ' style="opacity:0.5"' : '';
           h += '<tr' + rowStyle + '>' +
             '<td>' + productThumb(p.image_url) + (imgCount > 1 ? '<span style="font-size:10px;color:var(--text-secondary);display:block;text-align:center">+' + (imgCount - 1) + '</span>' : '') + '</td>' +
@@ -645,6 +648,7 @@
             '<td><div class="btn-group">' +
               stockToggle +
               hideToggle +
+              recToggle +
               '<button class="btn btn-sm" onclick="showProductForm(' + p.id + ')">Изменить</button>' +
               '<button class="btn btn-sm btn-danger" onclick="deleteProduct(' + p.id + ')">Удалить</button>' +
             '</div></td>' +
@@ -893,6 +897,15 @@
     fd.append('hidden', String(newValue));
     apiUpload('PUT', '/api/admin/products/' + id, fd).then(function () {
       adminToast(newValue ? 'Товар скрыт из каталога' : 'Товар отображается в каталоге', 'success');
+      loadProducts();
+    });
+  };
+
+  window.toggleRecommended = function (id, newValue) {
+    var fd = new FormData();
+    fd.append('is_recommended', String(newValue));
+    apiUpload('PUT', '/api/admin/products/' + id, fd).then(function () {
+      adminToast(newValue ? 'Товар добавлен в допы к заказу' : 'Товар убран из допов', 'success');
       loadProducts();
     });
   };

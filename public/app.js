@@ -979,7 +979,7 @@
     fetchJSON('/api/products').then(function (products) {
       if (!products || !products.length) return;
       var sorted = products.filter(function (p) {
-        return !cartIds[p.id] && p.in_stock !== 0 && !isBouquetCategory(p.category_name);
+        return !cartIds[p.id] && p.in_stock !== 0 && p.is_recommended;
       });
       if (!sorted.length) return;
 
