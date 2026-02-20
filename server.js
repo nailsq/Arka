@@ -580,7 +580,7 @@ app.get('/api/admin/orders', adminAuth, async function (req, res) {
 });
 
 app.post('/api/admin/orders/:id/status', adminAuth, async function (req, res) {
-  var validStatuses = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен', 'Готов к выдаче'];
+  var validStatuses = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен', 'Готов к выдаче', 'Выполнен'];
   var newStatus = req.body.status;
   if (!validStatuses.includes(newStatus)) {
     return res.status(400).json({ error: 'Invalid status' });
@@ -596,7 +596,7 @@ app.post('/api/admin/orders/:id/status', adminAuth, async function (req, res) {
         var statusEmoji = {
           'Новый': '🆕', 'Оплачен': '✅', 'Собирается': '💐',
           'Собран': '📦', 'Отправлен': '🚗', 'Доставлен': '🎉',
-          'Готов к выдаче': '🏪'
+          'Готов к выдаче': '🏪', 'Выполнен': '✔️'
         };
         var emoji = statusEmoji[newStatus] || '📋';
         var msg = emoji + ' <b>Заказ #' + order.id + '</b>\n\n' +

@@ -622,6 +622,7 @@ button { cursor: pointer; }
 .badge-shipped { background: #f3e8ff; color: #7c3aed; }
 .badge-delivered { background: #d1fae5; color: #065f46; }
 .badge-pickup-ready { background: #e0f2fe; color: #075985; }
+.badge-completed { background: #e5e7eb; color: #374151; }
 
 /* ==================== FILTER BAR ==================== */
 

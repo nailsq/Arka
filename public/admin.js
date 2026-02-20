@@ -7,9 +7,9 @@
   var isSuperAdmin = false;
   var currentTelegramId = localStorage.getItem('arka_admin_tg_id') || '';
 
-  var ORDER_STATUSES_DELIVERY = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен'];
-  var ORDER_STATUSES_PICKUP = ['Новый', 'Оплачен', 'Собирается', 'Готов к выдаче'];
-  var ORDER_STATUSES = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен', 'Готов к выдаче'];
+  var ORDER_STATUSES_DELIVERY = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен', 'Выполнен'];
+  var ORDER_STATUSES_PICKUP = ['Новый', 'Оплачен', 'Собирается', 'Готов к выдаче', 'Выполнен'];
+  var ORDER_STATUSES = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен', 'Готов к выдаче', 'Выполнен'];
 
   var STATUS_BADGE = {
     'Новый': 'badge-new',
@@ -18,7 +18,8 @@
     'Собран': 'badge-ready',
     'Отправлен': 'badge-shipped',
     'Доставлен': 'badge-delivered',
-    'Готов к выдаче': 'badge-pickup-ready'
+    'Готов к выдаче': 'badge-pickup-ready',
+    'Выполнен': 'badge-completed'
   };
 
   function getStatusesForOrder(order) {
@@ -261,6 +262,7 @@
     });
     var titles = {
       orders: 'Заказы',
+      completed: 'Завершённые заказы',
       products: 'Товары',
       categories: 'Категории',
       settings: 'Настройки',
@@ -286,6 +288,7 @@
   function loadTab() {
     switch (currentTab) {
       case 'orders': loadOrders(); break;
+      case 'completed': loadCompletedOrders(); break;
       case 'products': loadProducts(); break;
       case 'categories': loadCategories(); break;
       case 'settings': loadSettings(); break;
@@ -309,7 +312,7 @@
     });
     statusBtns += '</div>';
 
-    var done = (o.status === 'Доставлен' || o.status === 'Готов к выдаче');
+    var done = (o.status === 'Доставлен' || o.status === 'Готов к выдаче' || o.status === 'Выполнен');
     return '<div class="order-card' + (done ? ' order-card--done' : '') + '" onclick="viewOrder(' + o.id + ')">' +
       '<div class="order-card-top">' +
         '<span class="order-card-id">#' + o.id + '</span>' +
@@ -357,7 +360,7 @@
   function renderOrdersList() {
     var el = document.getElementById('tab-content');
 
-    var filtered = _allOrders;
+    var filtered = _allOrders.filter(function (o) { return !isOrderCompleted(o); });
     if (orderFilter) {
       filtered = filtered.filter(function (o) { return o.status === orderFilter; });
     }
@@ -373,6 +376,7 @@
     h += '<div class="filter-bar">';
     h += '<button class="filter-chip' + (!orderFilter ? ' active' : '') + '" onclick="filterOrders(\'\')">Все</button>';
     ORDER_STATUSES.forEach(function (s) {
+      if (s === 'Выполнен') return;
       h += '<button class="filter-chip' + (orderFilter === s ? ' active' : '') + '" onclick="filterOrders(\'' + esc(s) + '\')">' + esc(s) + '</button>';
     });
     h += '</div>';
@@ -386,6 +390,10 @@
 
   function isOrderDone(o) {
     return o.status === 'Доставлен' || o.status === 'Готов к выдаче';
+  }
+
+  function isOrderCompleted(o) {
+    return o.status === 'Выполнен';
   }
 
   function sortOrdersDoneToBottom(list) {
@@ -425,7 +433,7 @@
   }
 
   function filterOrdersInPlace() {
-    var filtered = _allOrders;
+    var filtered = _allOrders.filter(function (o) { return !isOrderCompleted(o); });
     if (orderFilter) {
       filtered = filtered.filter(function (o) { return o.status === orderFilter; });
     }
@@ -528,6 +536,8 @@
       var isDetailView = !!document.querySelector('.order-detail-grid');
       if (isDetailView) {
         viewOrder(id);
+      } else if (currentTab === 'completed') {
+        loadCompletedOrders();
       } else {
         for (var i = 0; i < _allOrders.length; i++) {
           if (_allOrders[i].id === id) { _allOrders[i].status = status; break; }
@@ -536,6 +546,44 @@
       }
     });
   };
+
+  // ============================================================
+  // ============================================================
+  // Completed Orders
+  // ============================================================
+
+  function loadCompletedOrders() {
+    api('GET', '/api/admin/orders').then(function (orders) {
+      var completed = orders.filter(function (o) { return isOrderCompleted(o); });
+      var el = document.getElementById('tab-content');
+
+      if (!completed.length) {
+        el.innerHTML = '<div class="empty-state">Завершённых заказов пока нет</div>';
+        return;
+      }
+
+      var delivery = completed.filter(function (o) { return o.delivery_type !== 'pickup'; });
+      var pickup = completed.filter(function (o) { return o.delivery_type === 'pickup'; });
+
+      var h = '<div class="orders-columns"><div class="orders-col">';
+      h += '<div class="orders-col-title">Доставка (' + delivery.length + ')</div>';
+      if (delivery.length) {
+        delivery.forEach(function (o) { h += renderOrderCard(o); });
+      } else {
+        h += '<div class="empty-state" style="font-size:13px">Нет</div>';
+      }
+      h += '</div><div class="orders-col">';
+      h += '<div class="orders-col-title">Самовывоз (' + pickup.length + ')</div>';
+      if (pickup.length) {
+        pickup.forEach(function (o) { h += renderOrderCard(o); });
+      } else {
+        h += '<div class="empty-state" style="font-size:13px">Нет</div>';
+      }
+      h += '</div></div>';
+
+      el.innerHTML = h;
+    });
+  }
 
   // ============================================================
   // Products

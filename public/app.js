@@ -1965,14 +1965,15 @@
     }
   };
 
-  var TRACK_STEPS_DELIVERY = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен'];
-  var TRACK_STEPS_PICKUP = ['Новый', 'Оплачен', 'Собирается', 'Готов к выдаче'];
+  var TRACK_STEPS_DELIVERY = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен', 'Выполнен'];
+  var TRACK_STEPS_PICKUP = ['Новый', 'Оплачен', 'Собирается', 'Готов к выдаче', 'Выполнен'];
 
   function getTrackSteps(order) {
     return order.delivery_type === 'pickup' ? TRACK_STEPS_PICKUP : TRACK_STEPS_DELIVERY;
   }
 
   function isFinalStatus(order) {
+    if (order.status === 'Выполнен') return true;
     if (order.delivery_type === 'pickup') return order.status === 'Готов к выдаче';
     return order.status === 'Доставлен';
   }

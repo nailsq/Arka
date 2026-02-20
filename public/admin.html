@@ -11,6 +11,7 @@
     <div class="sidebar-brand">АРКА <span class="brand-slash">/</span> <span class="brand-admin">ADMIN</span></div>
     <nav id="sidebar-nav" style="display:none">
       <button class="sidebar-link active" data-tab="orders" onclick="switchTab('orders')">Заказы</button>
+      <button class="sidebar-link" data-tab="completed" onclick="switchTab('completed')">Завершённые</button>
       <button class="sidebar-link" data-tab="products" onclick="switchTab('products')">Товары</button>
       <button class="sidebar-link" data-tab="categories" onclick="switchTab('categories')">Категории</button>
       <button class="sidebar-link" data-tab="settings" onclick="switchTab('settings')">Настройки</button>
@@ -46,6 +47,10 @@
       <button class="mobile-nav-btn active" data-tab="orders" onclick="switchTab('orders')">
         <span class="mobile-nav-icon"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg></span>
         <span>Заказы</span>
+      </button>
+      <button class="mobile-nav-btn" data-tab="completed" onclick="switchTab('completed')">
+        <span class="mobile-nav-icon"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg></span>
+        <span>Готовые</span>
       </button>
       <button class="mobile-nav-btn" data-tab="products" onclick="switchTab('products')">
         <span class="mobile-nav-icon"><svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm-3.5-6.5l-.71.71C7.03 17 6 18.36 6 20h12c0-1.64-1.03-3-1.79-3.79l-.71-.71V11c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5S8 3.17 8 4v.68C5.13 5.36 3.5 7.92 3.5 11v4.5zm.5-2V11c0-2.49 1.51-4.5 3.5-4.5S16 8.51 16 11v2.5l.5.5H7l.5-.5z"/></svg></span>
