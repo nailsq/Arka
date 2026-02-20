@@ -1965,8 +1965,8 @@
     }
   };
 
-  var TRACK_STEPS_DELIVERY = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен', 'Выполнен'];
-  var TRACK_STEPS_PICKUP = ['Новый', 'Оплачен', 'Собирается', 'Готов к выдаче', 'Выполнен'];
+  var TRACK_STEPS_DELIVERY = ['Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен'];
+  var TRACK_STEPS_PICKUP = ['Оплачен', 'Собирается', 'Готов к выдаче'];
 
   function getTrackSteps(order) {
     return order.delivery_type === 'pickup' ? TRACK_STEPS_PICKUP : TRACK_STEPS_DELIVERY;
@@ -1979,6 +1979,7 @@
   }
 
   function shouldShowInTracking(order) {
+    if (order.status === 'Выполнен') return false;
     if (!isFinalStatus(order)) return true;
     var created = new Date(order.status_updated_at || order.created_at);
     var now = new Date();
@@ -2007,7 +2008,8 @@
       function renderMiniCard(o) {
         var steps = getTrackSteps(o);
         var currentIdx = steps.indexOf(o.status);
-        if (currentIdx < 0) currentIdx = 0;
+        if (o.status === 'Выполнен') currentIdx = steps.length - 1;
+        else if (currentIdx < 0) currentIdx = -1;
         var timelineHtml = '';
         steps.forEach(function (step, idx) {
           if (idx > 0) timelineHtml += '<div class="timeline-line' + (idx <= currentIdx ? ' filled' : '') + '"></div>';
@@ -2331,7 +2333,8 @@
       function renderFullCard(o) {
         var steps = getTrackSteps(o);
         var currentIdx = steps.indexOf(o.status);
-        if (currentIdx < 0) currentIdx = 0;
+        if (o.status === 'Выполнен') currentIdx = steps.length - 1;
+        else if (currentIdx < 0) currentIdx = -1;
 
         var timelineHtml = '';
         steps.forEach(function (step, idx) {
