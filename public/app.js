@@ -1643,8 +1643,8 @@
       var maxKm = getMaxDeliveryKm(checkoutState.isEngels);
       var label = originLabel ? ' (' + originLabel + ')' : '';
       if (km > maxKm) {
-        el.innerHTML = '<span style="color:#c00">Расстояние: <b>' + km.toFixed(1) + ' км</b>' + label +
-          ' — Доставка по этому адресу недоступна (макс. ' + maxKm + ' км)</span>';
+        el.innerHTML = 'Расстояние: <b>' + km.toFixed(1) + ' км</b>' + label +
+          ' — Доставка по этому адресу недоступна (макс. ' + maxKm + ' км)';
         checkoutState.addressValidated = false;
       } else {
         var cost = getDeliveryCostByDistance(km, checkoutState.isEngels);
