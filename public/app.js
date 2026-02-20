@@ -1169,12 +1169,13 @@
 
   var ymapsLoaded = false;
   var YMAPS_KEY = '860d165d-0fa8-47b3-87af-b926029b9c20';
+  var YMAPS_SUGGEST_KEY = 'b52747c9-3455-4915-8898-7565ad0cba80';
   function loadYmaps(cb) {
     if (ymapsLoaded) { if (cb) cb(); return; }
     var key = YMAPS_KEY || appSettings.yandex_maps_key;
     if (!key) { if (cb) cb(); return; }
     var s = document.createElement('script');
-    s.src = 'https://api-maps.yandex.ru/2.1/?apikey=' + encodeURIComponent(key) + '&lang=ru_RU&suggest_apikey=' + encodeURIComponent(key);
+    s.src = 'https://api-maps.yandex.ru/2.1/?apikey=' + encodeURIComponent(key) + '&lang=ru_RU&suggest_apikey=' + encodeURIComponent(YMAPS_SUGGEST_KEY);
     s.onload = function () {
       window.ymaps.ready(function () { ymapsLoaded = true; if (cb) cb(); });
     };
@@ -1338,7 +1339,7 @@
           '<div id="delivery-fields">' +
             '<div id="saved-addr-picker"></div>' +
             '<div class="form-group"><label>Адрес доставки</label>' +
-            '<input type="text" id="field-addr-suggest" autocomplete="off" placeholder="Начните вводить адрес…"></div>' +
+            '<input type="text" id="field-addr-suggest" autocomplete="off" placeholder="Начните вводить адрес…" oninput="updateStepButtons()"></div>' +
             '<div id="ymaps-minimap" style="width:100%;height:180px;border-radius:10px;overflow:hidden;margin:8px 0;display:none"></div>' +
             '<div id="delivery-distance-info" style="font-size:13px;margin:6px 0;display:none"></div>' +
             '<div class="form-group"><label>Квартира / офис</label>' +
@@ -1515,23 +1516,14 @@
     loadYmaps(function () {
       var input = document.getElementById('field-addr-suggest');
       if (!input) return;
-      if (!ymapsLoaded || !window.ymaps) {
-        input.addEventListener('blur', function () {
-          var val = input.value.trim();
-          if (val) geocodeAndCalcDistance(val);
-        });
-        return;
-      }
-      var suggestView = new window.ymaps.SuggestView('field-addr-suggest', {
-        results: 5,
-        boundedBy: [[51.0, 45.0], [52.0, 47.0]],
-        strictBounds: false
+
+      input.addEventListener('blur', function () {
+        var val = input.value.trim();
+        if (val && !checkoutState.addressValidated) {
+          geocodeAndCalcDistance(val);
+        }
       });
-      suggestView.events.add('select', function (e) {
-        var item = e.get('item');
-        checkoutState.addressValidated = false;
-        geocodeAndCalcDistance(item.value);
-      });
+
       input.addEventListener('input', function () {
         checkoutState.addressValidated = false;
         checkoutState.deliveryDistance = 0;
@@ -1542,6 +1534,22 @@
         if (distEl) distEl.style.display = 'none';
         updateStepButtons();
       });
+
+      if (!ymapsLoaded || !window.ymaps) return;
+      try {
+        var suggestView = new window.ymaps.SuggestView('field-addr-suggest', {
+          results: 5,
+          boundedBy: [[51.0, 45.0], [52.0, 47.0]],
+          strictBounds: false
+        });
+        suggestView.events.add('select', function (e) {
+          var item = e.get('item');
+          checkoutState.addressValidated = false;
+          geocodeAndCalcDistance(item.value);
+        });
+      } catch (e) {
+        console.warn('Suggest init failed:', e);
+      }
     });
   }
 
@@ -1555,15 +1563,12 @@
       window.ymaps.geocode(address, { results: 1 }).then(function (res) {
         var obj = res.geoObjects.get(0);
         if (!obj) {
-          checkoutState.addressValidated = false;
+          checkoutState.addressValidated = true;
+          checkoutState.deliveryDistance = 0;
           showDistanceResult(0, '');
-          return;
-        }
-        var precision = obj.properties.get('metaDataProperty.GeocoderMetaData.precision');
-        if (precision === 'other') {
-          checkoutState.addressValidated = false;
-          showDistanceResult(0, '');
-          showToast('Адрес не найден. Выберите адрес из подсказок.');
+          updateStepButtons();
+          var hidden = document.getElementById('field-address');
+          if (hidden) hidden.value = address;
           return;
         }
         var coords = obj.geometry.getCoordinates();
@@ -1576,11 +1581,18 @@
         updateStepButtons();
         var hidden = document.getElementById('field-address');
         if (hidden) hidden.value = address;
+      }).catch(function () {
+        checkoutState.addressValidated = true;
+        checkoutState.deliveryDistance = 0;
+        updateStepButtons();
+        var hidden = document.getElementById('field-address');
+        if (hidden) hidden.value = address;
       });
     } else {
       checkoutState.addressValidated = true;
       checkoutState.deliveryDistance = 0;
       showDistanceResult(0, '');
+      updateStepButtons();
       var hidden = document.getElementById('field-address');
       if (hidden) hidden.value = address;
     }
@@ -1645,8 +1657,7 @@
           var suggestVal = document.getElementById('field-addr-suggest') ? document.getElementById('field-addr-suggest').value.trim() : '';
           if (!suggestVal) { showToast('Укажите адрес доставки'); return; }
           if (!checkoutState.addressValidated) {
-            showToast('Выберите точный адрес из подсказок');
-            return;
+            geocodeAndCalcDistance(suggestVal);
           }
           var hiddenAddr = document.getElementById('field-address');
           if (hiddenAddr) hiddenAddr.value = buildDeliveryAddress();
@@ -1742,7 +1753,8 @@
     if (btn2) {
       var ready2 = true;
       if (checkoutState.deliveryType === 'delivery') {
-        if (!checkoutState.addressValidated) ready2 = false;
+        var addrInput = document.getElementById('field-addr-suggest');
+        if (!addrInput || !addrInput.value.trim()) ready2 = false;
         if (!checkoutState.deliveryInterval && !checkoutState.exactTime) ready2 = false;
       } else {
         if (!checkoutState.deliveryInterval) ready2 = false;
