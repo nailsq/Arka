@@ -968,21 +968,10 @@
 
     fetchJSON('/api/products').then(function (products) {
       if (!products || !products.length) return;
-      var recs = products.filter(function (p) {
-        return !cartIds[p.id] && p.in_stock !== 0;
+      var sorted = products.filter(function (p) {
+        return !cartIds[p.id] && p.in_stock !== 0 && !isBouquetCategory(p.category_name);
       });
-      if (!recs.length) return;
-
-      var bouquets = [];
-      var extras = [];
-      recs.forEach(function (p) {
-        if (p.is_bouquet || (p.sizes && p.sizes.length)) {
-          bouquets.push(p);
-        } else {
-          extras.push(p);
-        }
-      });
-      var sorted = extras.concat(bouquets);
+      if (!sorted.length) return;
 
       var el = document.getElementById('cart-recommend');
       if (!el) return;
