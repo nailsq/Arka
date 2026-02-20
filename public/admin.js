@@ -964,15 +964,18 @@
 
       h += '<div class="settings-section">';
       h += '<div class="settings-section-title">Точное время доставки</div>';
+      h += '<div class="form-group"><label class="form-label"><input type="checkbox" id="s-exact-enabled"' + (s.exact_time_enabled !== '0' ? ' checked' : '') + ' style="margin-right:6px">Включить опцию «Точно ко времени» для клиентов</label></div>';
       h += '<div class="form-group"><label class="form-label">Доплата за точное время (руб.)</label>' +
         '<input type="number" class="form-input" id="s-exact-surcharge" value="' + esc(s.exact_time_surcharge || '1000') + '" style="max-width:200px"></div>';
-      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">При оформлении заказа клиент может выбрать «Точно ко времени» вместо интервала. Стоимость доставки автоматически заменяется на сумму выше. Доставка невозможна, если до указанного времени менее 1,5 часа.</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">При оформлении заказа клиент может выбрать «Точно ко времени» вместо интервала. Стоимость доставки автоматически заменяется на сумму выше.</div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
       h += '<div class="settings-section-title">Самовывоз</div>';
       h += '<div class="form-group"><label class="form-label">Адрес самовывоза</label>' +
         '<input type="text" class="form-input" id="s-pickup" value="' + esc(s.pickup_address || '') + '"></div>';
+      h += '<div class="form-group"><label class="form-label">Порог самовывоза (после какого часа самовывоз на сегодня недоступен)</label>' +
+        '<input type="number" class="form-input" id="s-pickup-cutoff" value="' + esc(s.pickup_cutoff_hour || '20') + '" style="max-width:120px"></div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1101,7 +1104,9 @@
       intervals_regular: document.getElementById('s-intervals-regular').value,
       intervals_holiday: document.getElementById('s-intervals-holiday').value,
       holiday_dates: document.getElementById('s-holidays').value,
+      exact_time_enabled: document.getElementById('s-exact-enabled').checked ? '1' : '0',
       exact_time_surcharge: document.getElementById('s-exact-surcharge').value,
+      pickup_cutoff_hour: document.getElementById('s-pickup-cutoff').value,
       delivery_info: document.getElementById('s-delivery-info').value,
       free_service_name: document.getElementById('s-free-service').value,
       social_telegram: document.getElementById('s-social-tg').value,

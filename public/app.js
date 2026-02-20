@@ -580,6 +580,14 @@
     return parseInt(appSettings.cutoff_hour) || 19;
   }
 
+  function getPickupCutoffHour() {
+    return parseInt(appSettings.pickup_cutoff_hour) || 20;
+  }
+
+  function isExactTimeEnabled() {
+    return appSettings.exact_time_enabled !== '0';
+  }
+
   // ============================================================
   // Init: load settings + auth
   // ============================================================
@@ -1289,9 +1297,7 @@
             '<input type="hidden" id="field-address">' +
           '</div>' +
 
-          '<div id="date-cutoff-notice" class="cutoff-notice"' + (isTodayClosed ? '' : ' style="display:none"') + '>' +
-            'Доставка на сегодня уже недоступна (после ' + cutoff + ':00). Вы можете оформить самовывоз или выбрать другую дату.' +
-          '</div>' +
+          '<div id="date-cutoff-notice" class="cutoff-notice" style="display:none"></div>' +
 
           '<div class="form-group"><label id="date-label">Дата доставки</label>' +
           '<input type="date" id="field-date" class="form-input-date" min="' + minDate + '" value="' + defaultDate + '" onchange="onDeliveryDateChange()"></div>' +
@@ -1300,17 +1306,18 @@
           '<div class="radio-group" id="interval-group">' +
           '</div></div>' +
 
+          (isExactTimeEnabled() ?
           '<div class="exact-time-section">' +
             '<label class="checkout-self-btn" id="exact-time-opt" onclick="toggleExactTime()">' +
               '<input type="checkbox" id="exact-time-cb">' +
               '<span class="check-box"></span> Доставка точно ко времени (+' + formatPrice(parseInt(appSettings.exact_time_surcharge) || 1000) + ')' +
             '</label>' +
             '<div id="exact-time-fields" style="display:none">' +
-              '<div style="font-size:12px;color:#888;margin:8px 0 6px">Заказ будет доставлен в интервале +-1,5 часа от указанного времени</div>' +
+              '<div style="font-size:12px;color:#888;margin:8px 0 6px">Заказ будет доставлен в интервале ±1,5 часа от указанного времени</div>' +
               '<input type="time" id="field-exact-time" class="form-input-date" value="12:00" onchange="validateExactTime()">' +
               '<div id="exact-time-warn" class="cutoff-notice" style="display:none"></div>' +
             '</div>' +
-          '</div>' +
+          '</div>' : '') +
 
           '<div class="form-group"><label>Комментарий к заказу</label>' +
           '<textarea id="field-comment" placeholder="Пожелания, особые указания"></textarea></div>' +
@@ -1346,6 +1353,7 @@
     );
 
     updateCheckoutSummary();
+    updateCutoffNotice();
     renderIntervals();
     loadCheckoutAddresses();
     initYmapsSuggest();
@@ -1583,6 +1591,24 @@
     el.innerHTML = h;
   }
 
+  function updateCutoffNotice() {
+    var notice = document.getElementById('date-cutoff-notice');
+    if (!notice) return;
+    var dateField = document.getElementById('field-date');
+    var sNow = saratovNow();
+    var isToday = dateField && dateField.value === sNow.dateStr;
+    var isPickup = checkoutState.deliveryType === 'pickup';
+    var cutoffHr = isPickup ? getPickupCutoffHour() : getCutoffHour();
+    var isClosed = isToday && sNow.hours >= cutoffHr;
+    if (isClosed) {
+      var label = isPickup ? 'Самовывоз' : 'Доставка';
+      notice.textContent = label + ' на сегодня уже недоступна (после ' + cutoffHr + ':00). Выберите другую дату.';
+      notice.style.display = '';
+    } else {
+      notice.style.display = 'none';
+    }
+  }
+
   function renderIntervals() {
     var el = document.getElementById('interval-group');
     if (!el) return;
@@ -1613,16 +1639,7 @@
   }
 
   window.onDeliveryDateChange = function () {
-    var dateField = document.getElementById('field-date');
-    var notice = document.getElementById('date-cutoff-notice');
-    var sNowDc = saratovNow();
-    var todayStr = sNowDc.dateStr;
-    var cutoff = getCutoffHour();
-    var isToday = dateField && dateField.value === todayStr;
-    var isClosed = isToday && sNowDc.hours >= cutoff;
-
-    if (notice) notice.style.display = isClosed ? 'block' : 'none';
-
+    updateCutoffNotice();
     checkoutState.deliveryInterval = '';
     renderIntervals();
     if (checkoutState.exactTime) validateExactTime();
@@ -1642,7 +1659,7 @@
     var timeLabel = document.getElementById('time-label');
     if (timeLabel) timeLabel.textContent = type === 'pickup' ? 'Время готовности' : 'Время доставки';
     var exactSection = document.querySelector('.exact-time-section');
-    if (exactSection) exactSection.style.display = type === 'pickup' ? 'none' : 'block';
+    if (exactSection) exactSection.style.display = type === 'pickup' ? 'none' : '';
     if (type === 'pickup' && checkoutState.exactTime) {
       checkoutState.exactTime = false;
       var cb = document.getElementById('exact-time-cb');
@@ -1652,6 +1669,8 @@
       var etFields = document.getElementById('exact-time-fields');
       if (etFields) etFields.style.display = 'none';
     }
+    updateCutoffNotice();
+    renderIntervals();
     updateCheckoutSummary();
   };
 
