@@ -1653,6 +1653,18 @@ button, select {
   transform: rotate(45deg);
 }
 
+.consent-check {
+  margin: 16px 0 8px;
+}
+.consent-check .checkout-self-btn {
+  padding: 12px 14px;
+  font-size: 13px;
+  background: #fafafa;
+}
+.consent-check a {
+  color: inherit;
+}
+
 .cutoff-notice {
   background: #f5f0e0;
   color: #6b5c00;

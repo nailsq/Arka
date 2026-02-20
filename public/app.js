@@ -1345,6 +1345,13 @@
             '<input type="tel" id="field-rcv-phone" placeholder="+7 (___) ___-__-__" oninput="formatPhoneInput(this)" maxlength="18"></div>' +
           '</div>' +
           '<div id="checkout-summary"></div>' +
+          '<div class="consent-check">' +
+            '<label class="checkout-self-btn" id="consent-btn" onclick="toggleConsent()">' +
+              '<input type="checkbox" id="consent-cb">' +
+              '<span class="check-box"></span> ' +
+              '<span>Я даю согласие на <a href="#" onclick="event.stopPropagation(); navigateTo(\'page-offer\'); return false;" style="text-decoration:underline">обработку персональных данных</a></span>' +
+            '</label>' +
+          '</div>' +
           '<div class="step-btn-row">' +
             '<button type="button" class="step-back-btn" onclick="goToStep(2)">Назад</button>' +
             '<button type="button" class="step-next-btn step-submit-btn" id="checkout-submit" onclick="submitOrder(event)">Оформить заказ</button>' +
@@ -1597,6 +1604,13 @@
     if (fields) fields.style.display = cb.checked ? 'none' : 'block';
   };
 
+  window.toggleConsent = function () {
+    var cb = document.getElementById('consent-cb');
+    cb.checked = !cb.checked;
+    var btn = document.getElementById('consent-btn');
+    if (btn) btn.classList.toggle('checked', cb.checked);
+  };
+
   function updateCheckoutSummary() {
     var el = document.getElementById('checkout-summary');
     if (!el) return;
@@ -1787,6 +1801,13 @@
 
   window.submitOrder = function (event) {
     if (event && event.preventDefault) event.preventDefault();
+
+    var consentCb = document.getElementById('consent-cb');
+    if (!consentCb || !consentCb.checked) {
+      showToast('Подтвердите согласие на обработку персональных данных');
+      return;
+    }
+
     var cart = getCart();
     if (!cart.length) return;
 
