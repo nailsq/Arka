@@ -1168,9 +1168,10 @@
   }
 
   var ymapsLoaded = false;
+  var YMAPS_KEY = '860d165d-0fa8-47b3-87af-b926029b9c20';
   function loadYmaps(cb) {
     if (ymapsLoaded) { if (cb) cb(); return; }
-    var key = appSettings.yandex_maps_key;
+    var key = YMAPS_KEY || appSettings.yandex_maps_key;
     if (!key) { if (cb) cb(); return; }
     var s = document.createElement('script');
     s.src = 'https://api-maps.yandex.ru/2.1/?apikey=' + encodeURIComponent(key) + '&lang=ru_RU&suggest_apikey=' + encodeURIComponent(key);
