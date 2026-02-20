@@ -1,6 +1,15 @@
 (function () {
   'use strict';
 
+  function pluralFlower(n) {
+    var abs = Math.abs(n) % 100;
+    var last = abs % 10;
+    if (abs > 10 && abs < 20) return n + ' цветков';
+    if (last === 1) return n + ' цветок';
+    if (last >= 2 && last <= 4) return n + ' цветка';
+    return n + ' цветков';
+  }
+
   var app = document.getElementById('admin-app');
   var token = localStorage.getItem('arka_admin_token') || '';
   var currentTab = 'orders';
@@ -506,7 +515,7 @@
         h += '<div style="font-weight:600;margin-bottom:8px">Состав заказа</div>';
         o.items.forEach(function (i) {
           var sizeTag = i.size_label ? ' [' + esc(i.size_label) + ']' : '';
-          var fcTag = i.flower_count ? ' (' + i.flower_count + ' цветков)' : '';
+          var fcTag = i.flower_count ? ' (' + pluralFlower(i.flower_count) + ')' : '';
           h += '<div class="order-item-row">' +
             '<span>' + esc(i.product_name || 'Товар') + sizeTag + fcTag + ' x ' + i.quantity + '</span>' +
             '<span><strong>' + fmtPrice(i.price * i.quantity) + '</strong></span>' +

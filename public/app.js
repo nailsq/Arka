@@ -9,6 +9,15 @@
   var selectedCity = null;
   var citiesList = [];
 
+  function pluralFlower(n) {
+    var abs = Math.abs(n) % 100;
+    var last = abs % 10;
+    if (abs > 10 && abs < 20) return n + ' цветков';
+    if (last === 1) return n + ' цветок';
+    if (last >= 2 && last <= 4) return n + ' цветка';
+    return n + ' цветков';
+  }
+
   // ============================================================
   // Telegram Web App
   // ============================================================
@@ -782,7 +791,7 @@
             escapeHtml(s.label) +
           '</button>';
         }).join('');
-        var firstInfo = firstSize.flower_count + ' цветков';
+        var firstInfo = pluralFlower(firstSize.flower_count);
         if (firstSize.dimensions) firstInfo += ' · ' + escapeHtml(firstSize.dimensions);
         sizeHtml =
           '<div class="size-selector" id="size-selector">' +
@@ -1025,7 +1034,7 @@
           escapeHtml(s.label) + '</button>';
       }).join('');
       var sizeInfo = '';
-      if (item.flower_count) sizeInfo += item.flower_count + ' цветков';
+      if (item.flower_count) sizeInfo += pluralFlower(item.flower_count);
       if (item.dimensions) sizeInfo += (sizeInfo ? ' · ' : '') + escapeHtml(item.dimensions);
       sizeSelector = '<div class="cart-size-selector">' +
         '<div class="size-btn-row">' + sizeBtns + '</div>' +
@@ -2229,7 +2238,7 @@
           itemsHtml = '<div class="order-card-items">' +
             o.items.map(function (i) {
               var sizeTag = i.size_label ? ' [' + i.size_label + ']' : '';
-              var fcTag = (!sizeTag && i.flower_count) ? ' (' + i.flower_count + ' цв.)' : (i.flower_count && sizeTag ? ' (' + i.flower_count + ' цв.)' : '');
+              var fcTag = i.flower_count ? ' (' + pluralFlower(i.flower_count) + ')' : '';
               return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + fcTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
             }).join('') + '</div>';
         }
@@ -2355,7 +2364,7 @@
           itemsHtml = '<div class="track-items">' +
             o.items.map(function (i) {
               var sizeTag = i.size_label ? ' [' + i.size_label + ']' : '';
-              var fcTag = i.flower_count ? ' (' + i.flower_count + ' цв.)' : '';
+              var fcTag = i.flower_count ? ' (' + pluralFlower(i.flower_count) + ')' : '';
               return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + fcTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
             }).join('') + '</div>';
         }
@@ -2698,7 +2707,7 @@
     if (priceEl) priceEl.textContent = formatPrice(price);
     var infoEl = document.getElementById('size-info');
     if (infoEl) {
-      var text = fc + ' цветков';
+      var text = pluralFlower(fc);
       if (dims) text += ' · ' + dims;
       infoEl.textContent = text;
     }
@@ -2793,7 +2802,7 @@
       var fcEl = row.querySelector('.cart-size-fc');
       if (fcEl) {
         var fcText = '';
-        if (newFlowerCount) fcText += newFlowerCount + ' цветков';
+        if (newFlowerCount) fcText += pluralFlower(newFlowerCount);
         if (newDims) fcText += (fcText ? ' · ' : '') + newDims;
         fcEl.textContent = fcText;
       }
