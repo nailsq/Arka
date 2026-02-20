@@ -1265,12 +1265,12 @@
         '<div class="checkout-panel active" id="step-1">' +
           '<div class="step-title">Информация о заказчике</div>' +
           '<div class="form-group"><label>Telegram</label>' +
-          '<input type="text" id="field-tg" placeholder="@username" value="' + escapeHtml(tgUsername) + '"></div>' +
+          '<input type="text" id="field-tg" placeholder="@username" value="' + escapeHtml(tgUsername) + '" oninput="updateStepButtons()"></div>' +
           '<div class="form-group"><label>Контактный телефон</label>' +
-          '<input type="tel" id="field-phone" placeholder="+7 (___) ___-__-__" value="' + escapeHtml(userPhone) + '" oninput="formatPhoneInput(this)" maxlength="18"></div>' +
+          '<input type="tel" id="field-phone" placeholder="+7 (___) ___-__-__" value="' + escapeHtml(userPhone) + '" oninput="formatPhoneInput(this); updateStepButtons()" maxlength="18"></div>' +
           '<div class="form-group"><label>Электронная почта</label>' +
-          '<input type="email" id="field-email" placeholder="mail@example.com" value="' + escapeHtml(userEmail) + '" oninput="filterEmailInput(this)"></div>' +
-          '<button type="button" class="step-next-btn" onclick="goToStep(2)">Далее</button>' +
+          '<input type="email" id="field-email" placeholder="mail@example.com" value="' + escapeHtml(userEmail) + '" oninput="filterEmailInput(this); updateStepButtons()"></div>' +
+          '<button type="button" class="step-next-btn" id="step1-next" onclick="goToStep(2)">Далее</button>' +
         '</div>' +
 
         '<div class="checkout-panel" id="step-2">' +
@@ -1328,7 +1328,7 @@
 
           '<div class="step-btn-row">' +
             '<button type="button" class="step-back-btn" onclick="goToStep(1)">Назад</button>' +
-            '<button type="button" class="step-next-btn" onclick="goToStep(3)">Далее</button>' +
+            '<button type="button" class="step-next-btn" id="step2-next" onclick="goToStep(3)">Далее</button>' +
           '</div>' +
         '</div>' +
 
@@ -1342,9 +1342,9 @@
           '</div>' +
           '<div id="receiver-fields">' +
             '<div class="form-group"><label>Имя получателя</label>' +
-            '<input type="text" id="field-rcv-name" placeholder="Имя получателя"></div>' +
+            '<input type="text" id="field-rcv-name" placeholder="Имя получателя" oninput="updateStepButtons()"></div>' +
             '<div class="form-group"><label>Телефон получателя</label>' +
-            '<input type="tel" id="field-rcv-phone" placeholder="+7 (___) ___-__-__" oninput="formatPhoneInput(this)" maxlength="18"></div>' +
+            '<input type="tel" id="field-rcv-phone" placeholder="+7 (___) ___-__-__" oninput="formatPhoneInput(this); updateStepButtons()" maxlength="18"></div>' +
           '</div>' +
           '<div id="checkout-summary"></div>' +
           '<div class="consent-check">' +
@@ -1367,6 +1367,7 @@
     updateCutoffNotice();
     renderIntervals();
     updateNearestDeliveryHint();
+    updateStepButtons();
     loadCheckoutAddresses();
     initYmapsSuggest();
   }
@@ -1438,6 +1439,7 @@
         if (mapEl) mapEl.style.display = 'none';
         var distEl = document.getElementById('delivery-distance-info');
         if (distEl) distEl.style.display = 'none';
+        updateStepButtons();
       });
     });
   }
@@ -1470,6 +1472,7 @@
         checkoutState.addressValidated = true;
         showDistanceResult(checkoutState.deliveryDistance, originLabel);
         showMiniMap(coords);
+        updateStepButtons();
         var hidden = document.getElementById('field-address');
         if (hidden) hidden.value = address;
       });
@@ -1605,6 +1608,7 @@
     if (btn) btn.classList.toggle('checked', cb.checked);
     var fields = document.getElementById('receiver-fields');
     if (fields) fields.style.display = cb.checked ? 'none' : 'block';
+    updateStepButtons();
   };
 
   window.toggleConsent = function () {
@@ -1612,6 +1616,42 @@
     cb.checked = !cb.checked;
     var btn = document.getElementById('consent-btn');
     if (btn) btn.classList.toggle('checked', cb.checked);
+    updateStepButtons();
+  };
+
+  window.updateStepButtons = function () {
+    var btn1 = document.getElementById('step1-next');
+    if (btn1) {
+      var tg = (document.getElementById('field-tg') || {}).value || '';
+      var phone = (document.getElementById('field-phone') || {}).value || '';
+      var ready1 = tg.trim().length > 0 && phone.replace(/\D/g, '').length >= 11;
+      btn1.classList.toggle('btn-dimmed', !ready1);
+    }
+
+    var btn2 = document.getElementById('step2-next');
+    if (btn2) {
+      var ready2 = true;
+      if (checkoutState.deliveryType === 'delivery') {
+        ready2 = checkoutState.addressValidated;
+      }
+      var dateField = document.getElementById('field-date');
+      if (!dateField || !dateField.value) ready2 = false;
+      btn2.classList.toggle('btn-dimmed', !ready2);
+    }
+
+    var btn3 = document.getElementById('checkout-submit');
+    if (btn3) {
+      var consentOk = document.getElementById('consent-cb') && document.getElementById('consent-cb').checked;
+      var selfRcv = document.getElementById('self-receiver-cb') && document.getElementById('self-receiver-cb').checked;
+      var rcvReady = true;
+      if (!selfRcv) {
+        var rcvName = (document.getElementById('field-rcv-name') || {}).value || '';
+        var rcvPhone = (document.getElementById('field-rcv-phone') || {}).value || '';
+        rcvReady = rcvName.trim().length > 0 && rcvPhone.replace(/\D/g, '').length >= 11;
+      }
+      var ready3 = consentOk && rcvReady;
+      btn3.classList.toggle('btn-dimmed', !ready3);
+    }
   };
 
   function updateCheckoutSummary() {

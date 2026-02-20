@@ -1609,6 +1609,15 @@ button, select {
   color: #fff;
 }
 
+.step-next-btn.btn-dimmed {
+  background: #ccc;
+  color: #888;
+  cursor: default;
+}
+.step-next-btn.btn-dimmed:active {
+  transform: none;
+}
+
 .checkout-self-btn {
   display: flex;
   align-items: center;
