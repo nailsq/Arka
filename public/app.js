@@ -1173,13 +1173,18 @@
   function loadYmaps(cb) {
     if (ymapsLoaded) { if (cb) cb(); return; }
     var key = YMAPS_KEY || appSettings.yandex_maps_key;
-    if (!key) { if (cb) cb(); return; }
+    if (!key) { console.warn('[YMaps] No API key'); if (cb) cb(); return; }
     var s = document.createElement('script');
     s.src = 'https://api-maps.yandex.ru/2.1/?apikey=' + encodeURIComponent(key) + '&lang=ru_RU&suggest_apikey=' + encodeURIComponent(YMAPS_SUGGEST_KEY);
     s.onload = function () {
-      window.ymaps.ready(function () { ymapsLoaded = true; if (cb) cb(); });
+      console.log('[YMaps] Script loaded');
+      window.ymaps.ready(function () {
+        ymapsLoaded = true;
+        console.log('[YMaps] Ready');
+        if (cb) cb();
+      });
     };
-    s.onerror = function () { if (cb) cb(); };
+    s.onerror = function (e) { console.error('[YMaps] Script load error', e); if (cb) cb(); };
     document.head.appendChild(s);
   }
 
@@ -1535,7 +1540,10 @@
         updateStepButtons();
       });
 
-      if (!ymapsLoaded || !window.ymaps) return;
+      if (!ymapsLoaded || !window.ymaps) {
+        console.warn('[YMaps] Not loaded, suggest unavailable');
+        return;
+      }
       try {
         var suggestView = new window.ymaps.SuggestView('field-addr-suggest', {
           results: 5,
@@ -1547,8 +1555,9 @@
           checkoutState.addressValidated = false;
           geocodeAndCalcDistance(item.value);
         });
+        console.log('[YMaps] SuggestView initialized');
       } catch (e) {
-        console.warn('Suggest init failed:', e);
+        console.error('[YMaps] Suggest init failed:', e);
       }
     });
   }
