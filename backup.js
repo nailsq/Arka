@@ -7,7 +7,7 @@ var DB_PATH = path.join(__dirname, 'arka.db');
 var GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 var GITHUB_GIST_ID = process.env.GITHUB_GIST_ID || '';
 var BACKUP_FILE = 'arka_backup.gz.b64';
-var BACKUP_INTERVAL = 5 * 60 * 1000;
+var BACKUP_INTERVAL = 2 * 60 * 1000;
 
 function isEnabled() {
   return !!(GITHUB_TOKEN && GITHUB_GIST_ID);

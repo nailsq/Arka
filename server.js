@@ -183,6 +183,22 @@ async function attachImagesOne(p) {
   return p;
 }
 
+var SIZE_ORDER = { 'XS': 0, 'S': 1, 'M': 2, 'L': 3, 'XL': 4, 'XXL': 5, 'XXXL': 6 };
+
+function sizeSortKey(label) {
+  var upper = (label || '').trim().toUpperCase();
+  return SIZE_ORDER.hasOwnProperty(upper) ? SIZE_ORDER[upper] : 100;
+}
+
+function sortSizes(arr) {
+  return arr.slice().sort(function (a, b) {
+    var ka = sizeSortKey(a.label);
+    var kb = sizeSortKey(b.label);
+    if (ka !== kb) return ka - kb;
+    return (a.sort_order || 0) - (b.sort_order || 0);
+  });
+}
+
 async function attachSizes(products) {
   if (!products || !products.length) return products;
   var ids = products.map(function (p) { return p.id; });
@@ -194,7 +210,7 @@ async function attachSizes(products) {
     map[s.product_id].push(s);
   });
   products.forEach(function (p) {
-    p.sizes = map[p.id] || [];
+    p.sizes = sortSizes(map[p.id] || []);
   });
   return products;
 }
@@ -202,6 +218,7 @@ async function attachSizes(products) {
 async function attachSizesOne(p) {
   if (!p) return p;
   p.sizes = await db.prepare('SELECT * FROM product_sizes WHERE product_id = ? ORDER BY sort_order, id').all(p.id);
+  p.sizes = sortSizes(p.sizes);
   return p;
 }
 
@@ -686,6 +703,7 @@ app.post('/api/admin/products', adminAuth, upload.array('images', 10), async fun
     if (firstImg) {
       await db.prepare('UPDATE products SET image_url = ? WHERE id = ?').run('/api/images/' + firstImg.id, productId);
     }
+    backup.backup();
   }
   res.json({ id: productId });
 });
@@ -727,6 +745,7 @@ app.put('/api/admin/products/:id', adminAuth, upload.array('images', 10), async 
     if (first) {
       await db.prepare('UPDATE products SET image_url = ? WHERE id = ?').run(first.image_url, req.params.id);
     }
+    backup.backup();
   }
   res.json({ ok: true });
 });
@@ -734,6 +753,7 @@ app.put('/api/admin/products/:id', adminAuth, upload.array('images', 10), async 
 app.delete('/api/admin/products/:id', adminAuth, async function (req, res) {
   await db.prepare('DELETE FROM product_images WHERE product_id = ?').run(req.params.id);
   await db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
+  backup.backup();
   res.json({ ok: true });
 });
 
@@ -743,6 +763,7 @@ app.delete('/api/admin/product-images/:imgId', adminAuth, async function (req, r
   await db.prepare('DELETE FROM product_images WHERE id = ?').run(req.params.imgId);
   var first = await db.prepare('SELECT id, image_url FROM product_images WHERE product_id = ? ORDER BY sort_order, id LIMIT 1').get(img.product_id);
   await db.prepare('UPDATE products SET image_url = ? WHERE id = ?').run(first ? first.image_url : '', img.product_id);
+  backup.backup();
   res.json({ ok: true });
 });
 
@@ -752,7 +773,7 @@ app.delete('/api/admin/product-images/:imgId', adminAuth, async function (req, r
 
 app.get('/api/admin/product-sizes/:productId', adminAuth, async function (req, res) {
   var sizes = await db.prepare('SELECT * FROM product_sizes WHERE product_id = ? ORDER BY sort_order, id').all(req.params.productId);
-  res.json(sizes);
+  res.json(sortSizes(sizes));
 });
 
 app.post('/api/admin/product-sizes', adminAuth, async function (req, res) {
@@ -794,6 +815,7 @@ app.post('/api/admin/settings', adminAuth, async function (req, res) {
   for (var i = 0; i < keys.length; i++) {
     await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(keys[i], String(entries[keys[i]]));
   }
+  backup.backup();
   res.json({ ok: true });
 });
 
