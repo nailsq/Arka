@@ -2859,11 +2859,17 @@
   };
 
   window.formatPhoneInput = function (input) {
-    var digits = input.value.replace(/\D/g, '');
-    if (digits.length === 0) { input.value = ''; return; }
+    var raw = input.value;
+    var digits = raw.replace(/\D/g, '');
+    if (digits.length === 0) { input.value = ''; input._prevDC = 0; input._prevFL = 0; return; }
     if (digits[0] === '8') digits = '7' + digits.slice(1);
     if (digits[0] !== '7') digits = '7' + digits;
-    if (digits.length <= 1) { input.value = ''; return; }
+    if (digits.length <= 1) { input.value = ''; input._prevDC = 0; input._prevFL = 0; return; }
+    var prev = input._prevDC || 0;
+    if (prev > 0 && digits.length === prev && raw.length < (input._prevFL || 999)) {
+      digits = digits.slice(0, -1);
+      if (digits.length <= 1) { input.value = ''; input._prevDC = 0; input._prevFL = 0; return; }
+    }
     digits = digits.slice(0, 11);
     var formatted = '+7';
     if (digits.length > 1) formatted += ' (' + digits.slice(1, 4);
@@ -2872,6 +2878,8 @@
     if (digits.length > 7) formatted += '-' + digits.slice(7, 9);
     if (digits.length > 9) formatted += '-' + digits.slice(9, 11);
     input.value = formatted;
+    input._prevDC = digits.length;
+    input._prevFL = formatted.length;
   };
 
   window.filterEmailInput = function (input) {
