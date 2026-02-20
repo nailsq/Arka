@@ -1259,7 +1259,7 @@
           '<div class="form-group"><label>Контактный телефон</label>' +
           '<input type="tel" id="field-phone" placeholder="+7 (___) ___-__-__" value="' + escapeHtml(userPhone) + '" oninput="formatPhoneInput(this)" maxlength="18"></div>' +
           '<div class="form-group"><label>Электронная почта</label>' +
-          '<input type="email" id="field-email" placeholder="mail@example.com" value="' + escapeHtml(userEmail) + '"></div>' +
+          '<input type="email" id="field-email" placeholder="mail@example.com" value="' + escapeHtml(userEmail) + '" oninput="filterEmailInput(this)"></div>' +
           '<button type="button" class="step-next-btn" onclick="goToStep(2)">Далее</button>' +
         '</div>' +
 
@@ -1333,7 +1333,7 @@
             '<div class="form-group"><label>Имя получателя</label>' +
             '<input type="text" id="field-rcv-name" placeholder="Имя получателя"></div>' +
             '<div class="form-group"><label>Телефон получателя</label>' +
-            '<input type="tel" id="field-rcv-phone" placeholder="+7 (___) ___-__-__"></div>' +
+            '<input type="tel" id="field-rcv-phone" placeholder="+7 (___) ___-__-__" oninput="formatPhoneInput(this)" maxlength="18"></div>' +
           '</div>' +
           '<div id="checkout-summary"></div>' +
           '<div class="step-btn-row">' +
@@ -1486,15 +1486,8 @@
           showToast('Заполните Telegram и телефон');
           return;
         }
-        var phoneDigits = phone.replace(/\D/g, '');
-        if (!/^[78]/.test(phoneDigits) || phoneDigits.length !== 11) {
-          showToast('Укажите корректный номер телефона (+7 или +8, 11 цифр)');
-          return;
-        }
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
-          showToast('Укажите корректный адрес электронной почты');
-          return;
-        }
+        if (!validatePhone(phone)) return;
+        if (email && !validateEmail(email)) return;
       }
       if (currentStep === 2) {
         if (checkoutState.deliveryType === 'delivery') {
@@ -1766,6 +1759,7 @@
       showToast('Заполните данные получателя');
       return;
     }
+    if (!isSelf && rcvPhone && !validatePhone(rcvPhone)) return;
 
     var data = {
       user_name: tgVal || phoneVal,
@@ -2703,6 +2697,7 @@
     if (digits.length === 0) { input.value = ''; return; }
     if (digits[0] === '8') digits = '7' + digits.slice(1);
     if (digits[0] !== '7') digits = '7' + digits;
+    digits = digits.slice(0, 11);
     var formatted = '+7';
     if (digits.length > 1) formatted += ' (' + digits.slice(1, 4);
     if (digits.length >= 4) formatted += ')';
@@ -2711,6 +2706,43 @@
     if (digits.length > 9) formatted += '-' + digits.slice(9, 11);
     input.value = formatted;
   };
+
+  window.filterEmailInput = function (input) {
+    input.value = input.value.replace(/[^a-zA-Z0-9@._-]/g, '');
+  };
+
+  function validatePhone(phone) {
+    var digits = phone.replace(/\D/g, '');
+    if (digits.length !== 11) {
+      showToast('Номер телефона должен содержать 11 цифр');
+      return false;
+    }
+    if (!/^[78]/.test(digits)) {
+      showToast('Номер должен начинаться с +7 или 8');
+      return false;
+    }
+    return true;
+  }
+
+  function validateEmail(email) {
+    if (!/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
+      showToast('Почта должна содержать только латиницу, @ и домен');
+      return false;
+    }
+    var allowedDomains = [
+      'gmail.com', 'mail.ru', 'yandex.ru', 'ya.ru', 'inbox.ru',
+      'list.ru', 'bk.ru', 'internet.ru', 'outlook.com', 'hotmail.com',
+      'icloud.com', 'rambler.ru', 'yahoo.com', 'protonmail.com',
+      'proton.me', 'live.com', 'me.com'
+    ];
+    var domain = email.split('@')[1].toLowerCase();
+    var isAllowed = allowedDomains.some(function (d) { return domain === d; });
+    if (!isAllowed) {
+      showToast('Укажите почту на известном сервисе (gmail.com, mail.ru, yandex.ru и т.д.)');
+      return false;
+    }
+    return true;
+  }
 
   window.changeCartSize = function (cartIdx, newLabel, newPrice, newFlowerCount, newDims) {
     var cart = getCart();
