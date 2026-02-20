@@ -1135,6 +1135,38 @@
     addressValidated: false
   };
 
+  window.saveCheckoutDraft = function() {
+    try {
+      var draft = {
+        step: currentStep,
+        state: checkoutState,
+        fields: {}
+      };
+      var ids = ['field-tg','field-phone','field-email',
+                 'field-addr-suggest','field-addr-apt','field-addr-note','field-address',
+                 'field-date','field-exact-time','field-comment',
+                 'field-rcv-name','field-rcv-phone'];
+      ids.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) draft.fields[id] = el.value;
+      });
+      var selfCb = document.getElementById('self-receiver-cb');
+      if (selfCb) draft.selfReceiver = selfCb.checked;
+      var consentCb = document.getElementById('consent-cb');
+      if (consentCb) draft.consent = consentCb.checked;
+      sessionStorage.setItem('arka_checkout_draft', JSON.stringify(draft));
+    } catch(e) {}
+  }
+  function loadCheckoutDraft() {
+    try {
+      var s = sessionStorage.getItem('arka_checkout_draft');
+      return s ? JSON.parse(s) : null;
+    } catch(e) { return null; }
+  }
+  function clearCheckoutDraft() {
+    try { sessionStorage.removeItem('arka_checkout_draft'); } catch(e) {}
+  }
+
   var ymapsLoaded = false;
   function loadYmaps(cb) {
     if (ymapsLoaded) { if (cb) cb(); return; }
@@ -1209,18 +1241,32 @@
     var cart = getCart();
     if (!cart.length) { navigateTo('cart'); return; }
 
-    currentStep = 1;
-    checkoutState.deliveryInterval = '';
-    checkoutState.exactTime = false;
-    checkoutState.addressValidated = false;
-    checkoutState.deliveryDistance = 0;
-    checkoutState.deliveryCoords = null;
+    var draft = loadCheckoutDraft();
 
+    if (draft && draft.state) {
+      checkoutState.deliveryType = draft.state.deliveryType || 'delivery';
+      checkoutState.deliveryInterval = draft.state.deliveryInterval || '';
+      checkoutState.exactTime = !!draft.state.exactTime;
+      checkoutState.deliveryDistance = draft.state.deliveryDistance || 0;
+      checkoutState.deliveryCoords = draft.state.deliveryCoords || null;
+      checkoutState.isEngels = !!draft.state.isEngels;
+      checkoutState.addressValidated = !!draft.state.addressValidated;
+    } else {
+      checkoutState.deliveryInterval = '';
+      checkoutState.exactTime = false;
+      checkoutState.addressValidated = false;
+      checkoutState.deliveryDistance = 0;
+      checkoutState.deliveryCoords = null;
+    }
+
+    currentStep = (draft && draft.step) ? draft.step : 1;
+
+    var df = (draft && draft.fields) || {};
     var userName = (dbUser && dbUser.first_name) || (tgUser && tgUser.first_name) || '';
-    var userPhone = (dbUser && dbUser.phone) || '';
-    var userEmail = '';
+    var userPhone = df['field-phone'] || (dbUser && dbUser.phone) || '';
+    var userEmail = df['field-email'] || '';
     var userAddr = (dbUser && dbUser.default_address) || '';
-    var tgUsername = (tgUser && tgUser.username) ? '@' + tgUser.username : '';
+    var tgUsername = df['field-tg'] || ((tgUser && tgUser.username) ? '@' + tgUser.username : '');
 
     var intervals = getIntervals();
     var sNow = saratovNow();
@@ -1229,8 +1275,10 @@
     var holiday = isHolidayToday();
     var pickup = appSettings.pickup_address || 'г. Саратов, 3-й Дегтярный проезд, 21к3';
 
-    checkoutState.deliveryDistance = 0;
-    checkoutState.deliveryCoords = null;
+    if (!draft) {
+      checkoutState.deliveryDistance = 0;
+      checkoutState.deliveryCoords = null;
+    }
     _miniMap = null;
 
     var todayStr = sNow.dateStr;
@@ -1293,9 +1341,9 @@
             '<div id="ymaps-minimap" style="width:100%;height:180px;border-radius:10px;overflow:hidden;margin:8px 0;display:none"></div>' +
             '<div id="delivery-distance-info" style="font-size:13px;margin:6px 0;display:none"></div>' +
             '<div class="form-group"><label>Квартира / офис</label>' +
-            '<input type="text" id="field-addr-apt" placeholder="Квартира, подъезд, этаж"></div>' +
+            '<input type="text" id="field-addr-apt" placeholder="Квартира, подъезд, этаж" oninput="saveCheckoutDraft()"></div>' +
             '<div class="form-group"><label>Дополнение к адресу</label>' +
-            '<input type="text" id="field-addr-note" placeholder="Код домофона, ориентиры и т.д."></div>' +
+            '<input type="text" id="field-addr-note" placeholder="Код домофона, ориентиры и т.д." oninput="saveCheckoutDraft()"></div>' +
             '<input type="hidden" id="field-address">' +
           '</div>' +
 
@@ -1324,7 +1372,7 @@
           '</div>' : '') +
 
           '<div class="form-group"><label>Комментарий к заказу</label>' +
-          '<textarea id="field-comment" placeholder="Пожелания, особые указания"></textarea></div>' +
+          '<textarea id="field-comment" placeholder="Пожелания, особые указания" oninput="saveCheckoutDraft()"></textarea></div>' +
 
           '<div class="step-btn-row">' +
             '<button type="button" class="step-back-btn" onclick="goToStep(1)">Назад</button>' +
@@ -1363,13 +1411,65 @@
       '</div>'
     );
 
+    if (draft && draft.fields) {
+      var restoreIds = ['field-addr-suggest','field-addr-apt','field-addr-note','field-address',
+                        'field-date','field-comment','field-rcv-name','field-rcv-phone'];
+      restoreIds.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && df[id] !== undefined) el.value = df[id];
+      });
+      if (checkoutState.deliveryType === 'pickup') {
+        setDeliveryType('pickup');
+      }
+      if (draft.selfReceiver) {
+        var selfCb = document.getElementById('self-receiver-cb');
+        if (selfCb && !selfCb.checked) toggleSelfReceiver();
+      }
+      if (draft.consent) {
+        var ccb = document.getElementById('consent-cb');
+        if (ccb && !ccb.checked) toggleConsent();
+      }
+      if (checkoutState.exactTime) {
+        var etCb = document.getElementById('exact-time-cb');
+        if (etCb && !etCb.checked) {
+          etCb.checked = true;
+          var etOpt = document.getElementById('exact-time-opt');
+          if (etOpt) etOpt.classList.add('checked');
+          var etFields = document.getElementById('exact-time-fields');
+          if (etFields) etFields.style.display = 'block';
+        }
+        var etInput = document.getElementById('field-exact-time');
+        if (etInput && df['field-exact-time']) etInput.value = df['field-exact-time'];
+      }
+    }
+
     updateCheckoutSummary();
     updateCutoffNotice();
     renderIntervals();
+
+    if (draft && checkoutState.deliveryInterval) {
+      var ivRadios = document.querySelectorAll('#interval-group input[type="radio"]');
+      ivRadios.forEach(function(r) {
+        if (r.value === checkoutState.deliveryInterval) {
+          r.checked = true;
+          r.closest('.radio-option').classList.add('selected');
+        }
+      });
+    }
+
     updateNearestDeliveryHint();
-    updateStepButtons();
     loadCheckoutAddresses();
     initYmapsSuggest();
+
+    if (draft && checkoutState.addressValidated && df['field-addr-suggest'] && checkoutState.deliveryCoords) {
+      loadYmaps(function() {
+        showMiniMap(checkoutState.deliveryCoords);
+        showDistanceResult(checkoutState.deliveryDistance);
+      });
+    }
+
+    if (currentStep > 1) goToStep(currentStep);
+    updateStepButtons();
   }
 
   function loadCheckoutAddresses() {
@@ -1570,6 +1670,7 @@
     }
 
     currentStep = step;
+    saveCheckoutDraft();
 
     var panels = document.querySelectorAll('.checkout-panel');
     panels.forEach(function (p) {
@@ -1663,6 +1764,7 @@
       var ready3 = consentOk && rcvReady;
       btn3.classList.toggle('btn-dimmed', !ready3);
     }
+    saveCheckoutDraft();
   };
 
   function updateCheckoutSummary() {
@@ -1963,6 +2065,7 @@
       }
 
       saveCart([]);
+      clearCheckoutDraft();
       updateCartBadge();
 
       postJSON('/api/payments/create', { order_id: result.order_id }).then(function (pay) {
