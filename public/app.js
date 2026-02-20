@@ -1299,6 +1299,8 @@
             '<input type="hidden" id="field-address">' +
           '</div>' +
 
+          '<div id="nearest-delivery-hint" class="nearest-delivery-hint"></div>' +
+
           '<div id="date-cutoff-notice" class="cutoff-notice" style="display:none"></div>' +
 
           '<div class="form-group"><label id="date-label">Дата доставки</label>' +
@@ -1364,6 +1366,7 @@
     updateCheckoutSummary();
     updateCutoffNotice();
     renderIntervals();
+    updateNearestDeliveryHint();
     loadCheckoutAddresses();
     initYmapsSuggest();
   }
@@ -1676,6 +1679,45 @@
     }).join('');
   }
 
+  function updateNearestDeliveryHint() {
+    var el = document.getElementById('nearest-delivery-hint');
+    if (!el) return;
+    if (checkoutState.deliveryType === 'pickup') {
+      el.style.display = 'none';
+      return;
+    }
+    var sNow = saratovNow();
+    var currentHour = sNow.hours;
+    var currentMin = sNow.minutes;
+    var cutoff = getCutoffHour();
+    var intervals = getIntervals();
+
+    var todayAvailable = [];
+    if (currentHour < cutoff && intervals.length) {
+      intervals.forEach(function (iv) {
+        var parts = iv.split('-');
+        var startH = parseInt(parts[0]);
+        if (currentHour < startH) todayAvailable.push(iv);
+      });
+    }
+
+    var dayNames = ['воскресенье', 'понедельник', 'вторник', 'среду', 'четверг', 'пятницу', 'субботу'];
+
+    if (todayAvailable.length > 0) {
+      el.innerHTML = '<span class="nearest-icon">&#9201;</span> Ближайшая доставка: <b>сегодня, ' + escapeHtml(todayAvailable[0]) + '</b>';
+      el.style.display = '';
+    } else if (intervals.length > 0) {
+      var tmrw = new Date(sNow.year, sNow.month - 1, sNow.day + 1);
+      var dayIdx = tmrw.getDay();
+      var dayName = dayNames[dayIdx];
+      var tmrwStr = String(tmrw.getDate()).padStart(2, '0') + '.' + String(tmrw.getMonth() + 1).padStart(2, '0');
+      el.innerHTML = '<span class="nearest-icon">&#9201;</span> Ближайшая доставка: <b>' + dayName + ' ' + tmrwStr + ', ' + escapeHtml(intervals[0]) + '</b>';
+      el.style.display = '';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
   window.onDeliveryDateChange = function () {
     updateCutoffNotice();
     checkoutState.deliveryInterval = '';
@@ -1709,6 +1751,7 @@
     }
     updateCutoffNotice();
     renderIntervals();
+    updateNearestDeliveryHint();
     updateCheckoutSummary();
   };
 

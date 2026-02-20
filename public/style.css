@@ -1653,6 +1653,19 @@ button, select {
   transform: rotate(45deg);
 }
 
+.nearest-delivery-hint {
+  background: #f0f7f0;
+  color: #2d6a2d;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+.nearest-delivery-hint .nearest-icon {
+  margin-right: 4px;
+}
+
 .consent-check {
   margin: 16px 0 8px;
 }
