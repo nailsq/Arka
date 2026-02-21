@@ -1966,10 +1966,16 @@
         }
       }
       var displayIv = iv.replace('-', ' — ');
+      var nightLabel = '';
+      if (isNight && selectedDate) {
+        var dp = selectedDate.split('-');
+        var nextDay = new Date(parseInt(dp[0]), parseInt(dp[1]) - 1, parseInt(dp[2]) + 1);
+        nightLabel = ' (ночь на ' + String(nextDay.getDate()).padStart(2, '0') + '.' + String(nextDay.getMonth() + 1).padStart(2, '0') + ')';
+      }
       return '<label class="radio-option' + (disabled ? '" style="opacity:0.3;pointer-events:none"' : '"') +
         ' onclick="setDeliveryInterval(\'' + escapeHtml(iv) + '\')">' +
         '<input type="radio" name="interval" value="' + escapeHtml(iv) + '"' + (disabled ? ' disabled' : '') + '>' +
-        '<span class="radio-dot"></span> ' + escapeHtml(displayIv) +
+        '<span class="radio-dot"></span> ' + escapeHtml(displayIv) + nightLabel +
         (disabled ? ' (недоступен)' : '') + '</label>';
     }).join('');
   }
@@ -2005,14 +2011,34 @@
     var dayNames = ['воскресенье', 'понедельник', 'вторник', 'среду', 'четверг', 'пятницу', 'субботу'];
 
     if (todayAvailable.length > 0) {
-      el.innerHTML = 'Ближайшая доставка: <b>сегодня, ' + escapeHtml(todayAvailable[0].replace('-', ' — ')) + '</b>';
+      var nearIv = todayAvailable[0];
+      var nearParts = nearIv.split('-');
+      var nearStartH = parseInt(nearParts[0]);
+      var nearEndH = parseInt(nearParts[1]);
+      var nearNight = nearEndH <= nearStartH;
+      var nearNightLabel = '';
+      if (nearNight) {
+        var nextD = new Date(sNow.year, sNow.month - 1, sNow.day + 1);
+        nearNightLabel = ' (ночь на ' + String(nextD.getDate()).padStart(2, '0') + '.' + String(nextD.getMonth() + 1).padStart(2, '0') + ')';
+      }
+      el.innerHTML = 'Ближайшая доставка: <b>сегодня, ' + escapeHtml(nearIv.replace('-', ' — ')) + nearNightLabel + '</b>';
       el.style.display = '';
     } else if (intervals.length > 0) {
       var tmrw = new Date(sNow.year, sNow.month - 1, sNow.day + 1);
       var dayIdx = tmrw.getDay();
       var dayName = dayNames[dayIdx];
       var tmrwStr = String(tmrw.getDate()).padStart(2, '0') + '.' + String(tmrw.getMonth() + 1).padStart(2, '0');
-      el.innerHTML = 'Ближайшая доставка: <b>' + dayName + ' ' + tmrwStr + ', ' + escapeHtml(intervals[0].replace('-', ' — ')) + '</b>';
+      var tmrwIv = intervals[0];
+      var tmrwIvParts = tmrwIv.split('-');
+      var tmrwStartH = parseInt(tmrwIvParts[0]);
+      var tmrwEndH = parseInt(tmrwIvParts[1]);
+      var tmrwNight = tmrwEndH <= tmrwStartH;
+      var tmrwNightLabel = '';
+      if (tmrwNight) {
+        var tmrwNext = new Date(sNow.year, sNow.month - 1, sNow.day + 2);
+        tmrwNightLabel = ' (ночь на ' + String(tmrwNext.getDate()).padStart(2, '0') + '.' + String(tmrwNext.getMonth() + 1).padStart(2, '0') + ')';
+      }
+      el.innerHTML = 'Ближайшая доставка: <b>' + dayName + ' ' + tmrwStr + ', ' + escapeHtml(tmrwIv.replace('-', ' — ')) + tmrwNightLabel + '</b>';
       el.style.display = '';
     } else {
       el.style.display = 'none';
