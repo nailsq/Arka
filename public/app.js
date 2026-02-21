@@ -1148,6 +1148,7 @@
     deliveryType: 'delivery',
     deliveryZoneKey: '',
     deliveryInterval: '',
+    pickupTime: '',
     exactTime: false,
     deliveryDistance: 0,
     deliveryCoords: null,
@@ -1350,6 +1351,7 @@
     if (draft && draft.state) {
       checkoutState.deliveryType = draft.state.deliveryType || 'delivery';
       checkoutState.deliveryInterval = draft.state.deliveryInterval || '';
+      checkoutState.pickupTime = draft.state.pickupTime || '';
       checkoutState.exactTime = !!draft.state.exactTime;
       checkoutState.deliveryDistance = draft.state.deliveryDistance || 0;
       checkoutState.deliveryCoords = draft.state.deliveryCoords || null;
@@ -1357,6 +1359,7 @@
       checkoutState.addressValidated = !!draft.state.addressValidated;
     } else {
       checkoutState.deliveryInterval = '';
+      checkoutState.pickupTime = '';
       checkoutState.exactTime = false;
       checkoutState.addressValidated = false;
       checkoutState.deliveryDistance = 0;
@@ -1807,13 +1810,20 @@
           showToast('Доставка на сегодня недоступна. Выберите другую дату или самовывоз.');
           return;
         }
-        if (!checkoutState.deliveryInterval && !checkoutState.exactTime) {
-          showToast(checkoutState.deliveryType === 'pickup' ? 'Выберите время готовности' : 'Выберите время доставки (интервал или точное время)');
-          return;
-        }
-        if (checkoutState.exactTime && !validateExactTime()) {
-          showToast('Выберите корректное время доставки');
-          return;
+        if (checkoutState.deliveryType === 'pickup') {
+          if (!checkoutState.pickupTime || !validatePickupTime()) {
+            showToast('Выберите корректное время самовывоза');
+            return;
+          }
+        } else {
+          if (!checkoutState.deliveryInterval && !checkoutState.exactTime) {
+            showToast('Выберите время доставки (интервал или точное время)');
+            return;
+          }
+          if (checkoutState.exactTime && !validateExactTime()) {
+            showToast('Выберите корректное время доставки');
+            return;
+          }
         }
       }
     }
@@ -1896,7 +1906,7 @@
         if (!checkoutState.deliveryInterval && !checkoutState.exactTime) ready2 = false;
         if (isDeliveryTooFar()) ready2 = false;
       } else {
-        if (!checkoutState.deliveryInterval) ready2 = false;
+        if (!checkoutState.pickupTime) ready2 = false;
       }
       var dateField = document.getElementById('field-date');
       if (!dateField || !dateField.value) ready2 = false;
@@ -1964,17 +1974,46 @@
     var todayStr = sNowIv.dateStr;
     var isToday = selectedDate === todayStr;
     var currentHour = sNowIv.hours;
+    var currentMin = sNowIv.minutes;
     var isPickup = checkoutState.deliveryType === 'pickup';
-    var cutoff = isPickup ? getPickupCutoffHour() : getCutoffHour();
 
+    if (isPickup) {
+      var pickupCutoffH = 20;
+      var pickupCutoffM = 30;
+      if (isToday && (currentHour > pickupCutoffH || (currentHour === pickupCutoffH && currentMin >= pickupCutoffM))) {
+        el.innerHTML = '<div class="cutoff-hint">На сегодня самовывоз недоступен. Выберите другую дату.</div>';
+        return;
+      }
+      var minTime = '10:00';
+      if (isToday) {
+        var minH = currentHour + 1;
+        var minM = currentMin + 30;
+        if (minM >= 60) { minH++; minM -= 60; }
+        if (minH < 10) minH = 10;
+        minTime = String(minH).padStart(2, '0') + ':' + String(minM).padStart(2, '0');
+      }
+      var pickupVal = checkoutState.pickupTime || minTime;
+      if (pickupVal < minTime) pickupVal = minTime;
+      if (pickupVal > '21:00') pickupVal = '21:00';
+      el.innerHTML =
+        '<div style="font-size:13px;color:#666;margin-bottom:8px">Самовывоз с 10:00 до 21:00. Минимум за 1,5 часа до выбранного времени.</div>' +
+        '<input type="time" id="field-pickup-time" class="form-input-date" value="' + pickupVal + '" min="' + minTime + '" max="21:00" onchange="onPickupTimeChange()">' +
+        '<div id="pickup-time-warn" class="cutoff-notice" style="display:none"></div>';
+      checkoutState.pickupTime = pickupVal;
+      checkoutState.deliveryInterval = 'Самовывоз к ' + pickupVal;
+      setTimeout(function () { validatePickupTime(); }, 50);
+      return;
+    }
+
+    var cutoff = getCutoffHour();
     if (isToday && currentHour >= cutoff) {
-      el.innerHTML = '<div class="cutoff-hint">На сегодня все интервалы недоступны. Выберите другую дату' + (isPickup ? '.' : ' или самовывоз.') + '</div>';
+      el.innerHTML = '<div class="cutoff-hint">На сегодня все интервалы недоступны. Выберите другую дату или самовывоз.</div>';
       return;
     }
 
     var split = getIntervalsSplit();
     var dayIntervals = split.day;
-    var nightIntervals = isPickup ? [] : split.night;
+    var nightIntervals = split.night;
     var nextDayStr = '';
     if (nightIntervals.length && selectedDate) {
       var dp = selectedDate.split('-');
@@ -1985,13 +2024,9 @@
     function buildOption(iv, isNight) {
       var parts = iv.split('-');
       var startH = parseInt(parts[0]);
-      var endH = parseInt(parts[1]);
       var disabled = false;
       if (isToday) {
         disabled = currentHour >= startH;
-      }
-      if (isPickup && (startH < 10 || endH > 21)) {
-        disabled = true;
       }
       var displayIv = iv.replace('-', ' — ');
       var nightBadge = isNight && nextDayStr
@@ -2066,12 +2101,58 @@
     }
   }
 
+  function validatePickupTime() {
+    var input = document.getElementById('field-pickup-time');
+    var warn = document.getElementById('pickup-time-warn');
+    if (!input) return true;
+    var val = input.value;
+    if (!val) { checkoutState.deliveryInterval = ''; updateStepButtons(); return false; }
+
+    var sNow = saratovNow();
+    var dateField = document.getElementById('field-date');
+    var isToday = dateField && dateField.value === sNow.dateStr;
+
+    if (val < '10:00' || val > '21:00') {
+      if (warn) { warn.textContent = 'Самовывоз доступен с 10:00 до 21:00'; warn.style.display = ''; }
+      checkoutState.deliveryInterval = '';
+      updateStepButtons();
+      return false;
+    }
+
+    if (isToday) {
+      var valParts = val.split(':');
+      var valH = parseInt(valParts[0]);
+      var valM = parseInt(valParts[1]);
+      var valMin = valH * 60 + valM;
+      var nowMin = sNow.hours * 60 + sNow.minutes;
+      if (valMin - nowMin < 90) {
+        if (warn) { warn.textContent = 'До выбранного времени должно быть не менее 1,5 часа'; warn.style.display = ''; }
+        checkoutState.deliveryInterval = '';
+        updateStepButtons();
+        return false;
+      }
+    }
+
+    if (warn) warn.style.display = 'none';
+    checkoutState.pickupTime = val;
+    checkoutState.deliveryInterval = 'Самовывоз к ' + val;
+    updateStepButtons();
+    return true;
+  }
+
+  window.onPickupTimeChange = function () {
+    validatePickupTime();
+    saveCheckoutDraft();
+  };
+
   window.onDeliveryDateChange = function () {
     updateCutoffNotice();
     checkoutState.deliveryInterval = '';
+    checkoutState.pickupTime = '';
     renderIntervals();
     if (checkoutState.exactTime) validateExactTime();
     updateStepButtons();
+    saveCheckoutDraft();
   };
 
   window.setDeliveryType = function (type) {
@@ -2098,11 +2179,14 @@
       var etFields = document.getElementById('exact-time-fields');
       if (etFields) etFields.style.display = 'none';
     }
+    checkoutState.deliveryInterval = '';
+    checkoutState.pickupTime = '';
     updateCutoffNotice();
     renderIntervals();
     updateNearestDeliveryHint();
     updateCheckoutSummary();
     updateStepButtons();
+    saveCheckoutDraft();
   };
 
   window.setZone = function (zoneKey) {
@@ -2238,7 +2322,9 @@
       delivery_distance: checkoutState.deliveryDistance || 0,
       delivery_interval: checkoutState.exactTime
         ? ('Точно ко времени: ' + (document.getElementById('field-exact-time') ? document.getElementById('field-exact-time').value : ''))
-        : (checkoutState.deliveryType === 'delivery' ? checkoutState.deliveryInterval : ''),
+        : (checkoutState.deliveryType === 'pickup'
+          ? (checkoutState.pickupTime ? 'Самовывоз к ' + checkoutState.pickupTime : '')
+          : checkoutState.deliveryInterval),
       delivery_date: dateVal,
       exact_time: checkoutState.exactTime ? (document.getElementById('field-exact-time') ? document.getElementById('field-exact-time').value : '') : '',
       comment: document.getElementById('field-comment') ? document.getElementById('field-comment').value.trim() : '',
