@@ -1143,6 +1143,7 @@
 
       var ivReg = [];
       try { ivReg = JSON.parse(s.intervals_regular || '[]'); } catch (e) {}
+      console.log('[LoadSettings] intervals_regular from server:', s.intervals_regular, '→ parsed:', JSON.stringify(ivReg));
       if (!ivReg.length) ivReg = ['10:00-13:00', '13:00-16:00', '16:00-19:00', '19:00-22:00'];
       var regDay = [], regNight = [];
       ivReg.forEach(function (iv) {
@@ -1244,15 +1245,20 @@
     list.appendChild(row);
   };
 
-  function collectIntervalsFrom(listId) {
-    var rows = document.querySelectorAll('#' + listId + ' .pf-size-row');
+  function collectIntervalsRaw(listId) {
+    var list = document.getElementById(listId);
+    if (!list) { console.warn('[Intervals] List not found: #' + listId); return []; }
+    var rows = list.querySelectorAll('.pf-size-row');
     var intervals = [];
     rows.forEach(function (row) {
-      var from = row.querySelector('.iv-from').value || '';
-      var to = row.querySelector('.iv-to').value || '';
-      if (from && to) intervals.push(from + '-' + to);
+      var fromEl = row.querySelector('.iv-from');
+      var toEl = row.querySelector('.iv-to');
+      if (fromEl && toEl && fromEl.value && toEl.value) {
+        intervals.push(fromEl.value + '-' + toEl.value);
+      }
     });
-    return JSON.stringify(intervals);
+    console.log('[Intervals] Collected from #' + listId + ':', JSON.stringify(intervals));
+    return intervals;
   }
 
   var _freeServiceImgData = null;
@@ -1279,15 +1285,17 @@
   function collectAllIntervals() {
     var hiddenReg = document.getElementById('s-intervals-regular');
     if (hiddenReg) {
-      var regDay = JSON.parse(collectIntervalsFrom('s-intervals-list-regular-day') || '[]');
-      var regNight = JSON.parse(collectIntervalsFrom('s-intervals-list-regular-night') || '[]');
-      hiddenReg.value = JSON.stringify(regDay.concat(regNight));
+      var regAll = collectIntervalsRaw('s-intervals-list-regular-day')
+        .concat(collectIntervalsRaw('s-intervals-list-regular-night'));
+      hiddenReg.value = JSON.stringify(regAll);
+      console.log('[Intervals] Regular combined:', hiddenReg.value);
     }
     var hiddenHol = document.getElementById('s-intervals-holiday');
     if (hiddenHol) {
-      var holDay = JSON.parse(collectIntervalsFrom('s-intervals-list-holiday-day') || '[]');
-      var holNight = JSON.parse(collectIntervalsFrom('s-intervals-list-holiday-night') || '[]');
-      hiddenHol.value = JSON.stringify(holDay.concat(holNight));
+      var holAll = collectIntervalsRaw('s-intervals-list-holiday-day')
+        .concat(collectIntervalsRaw('s-intervals-list-holiday-night'));
+      hiddenHol.value = JSON.stringify(holAll);
+      console.log('[Intervals] Holiday combined:', hiddenHol.value);
     }
   }
 
@@ -1328,6 +1336,9 @@
       social_instagram: document.getElementById('s-social-ig').value,
       social_vk: document.getElementById('s-social-vk').value
     };
+
+    console.log('[SaveSettings] intervals_regular:', data.intervals_regular);
+    console.log('[SaveSettings] intervals_holiday:', data.intervals_holiday);
 
     api('POST', '/api/admin/settings', data).then(function () {
       adminToast('Настройки сохранены', 'success');
