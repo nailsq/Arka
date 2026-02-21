@@ -21,6 +21,7 @@ var TOCHKA_API_URL = process.env.TOCHKA_API_URL || 'https://enter.tochka.com/san
 var TOCHKA_JWT = process.env.TOCHKA_JWT || 'sandbox.jwt.token';
 var TOCHKA_CUSTOMER_CODE = process.env.TOCHKA_CUSTOMER_CODE || '';
 var TOCHKA_MERCHANT_ID = process.env.TOCHKA_MERCHANT_ID || '';
+var TOCHKA_CLIENT_ID = process.env.TOCHKA_CLIENT_ID || '';
 
 var adminTokens = new Set();
 
@@ -39,6 +40,7 @@ var upload = multer({
 var https = require('https');
 
 app.use(express.json());
+app.use(express.text({ type: 'text/plain' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 function sendTelegramMessage(chatId, text) {
@@ -617,79 +619,77 @@ app.get('/api/payments/tochka-success/:orderId', async function (req, res) {
   var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
   if (!order) return res.status(404).send('Заказ не найден');
 
+  if (!order.is_paid) {
+    await db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run('Оплачен', orderId);
+    console.log('[Tochka] Order #' + orderId + ' marked as paid via redirect');
+
+    if (BOT_TOKEN && order.user_id) {
+      try {
+        var u = await db.prepare('SELECT telegram_id FROM users WHERE id = ?').get(order.user_id);
+        if (u && u.telegram_id) {
+          sendTelegramMessage(u.telegram_id, 'Ваш заказ №' + orderId + ' успешно оплачен! Сумма: ' + order.total_amount + ' ₽');
+        }
+      } catch (e) {}
+    }
+  }
+
   res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата</title><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff;color:#000}div{text-align:center;padding:40px;max-width:400px}h2{margin-bottom:16px}p{color:#555;margin-bottom:24px}a{display:inline-block;padding:14px 28px;background:#000;color:#fff;text-decoration:none;border-radius:10px;font-size:15px}</style></head><body><div><h2>Спасибо за оплату!</h2><p>Заказ №' + orderId + ' оплачен. Мы свяжемся с вами для подтверждения.</p><a href="/">Вернуться в магазин</a></div></body></html>');
 });
 
 app.post('/api/payments/webhook', async function (req, res) {
   var body = req.body;
-  console.log('[Webhook] Received payment webhook:', JSON.stringify(body).substring(0, 500));
+  console.log('[Webhook] Received, content-type:', req.headers['content-type'], ', body type:', typeof body);
 
-  if (PAYMENT_PROVIDER === 'tochka') {
-    try {
-      var jwtPayload = null;
+  try {
+    var jwtPayload = null;
 
-      if (body.token || body.jwt) {
-        var tokenStr = body.token || body.jwt;
-        var parts = tokenStr.split('.');
-        if (parts.length === 3) {
-          var payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          jwtPayload = JSON.parse(Buffer.from(payloadB64, 'base64').toString('utf-8'));
-        }
-      }
+    var tokenStr = (typeof body === 'string') ? body.trim() : '';
 
-      if (!jwtPayload && body.Data) {
-        jwtPayload = body.Data;
-      }
-      if (!jwtPayload && body.data) {
-        jwtPayload = body.data;
-      }
-      if (!jwtPayload) {
-        jwtPayload = body;
-      }
+    if (!tokenStr && body && typeof body === 'object') {
+      tokenStr = body.token || body.jwt || '';
+    }
 
-      console.log('[Webhook] Parsed payload:', JSON.stringify(jwtPayload).substring(0, 500));
+    if (tokenStr && tokenStr.split('.').length === 3) {
+      var parts = tokenStr.split('.');
+      var payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      jwtPayload = JSON.parse(Buffer.from(payloadB64, 'base64').toString('utf-8'));
+      console.log('[Webhook] Decoded JWT payload:', JSON.stringify(jwtPayload).substring(0, 500));
+    }
 
+    if (!jwtPayload && typeof body === 'object') {
+      jwtPayload = body.Data || body.data || body;
+    }
+
+    if (jwtPayload) {
       var opId = jwtPayload.operationId || jwtPayload.OperationId || jwtPayload.operation_id || '';
       var status = jwtPayload.status || jwtPayload.Status || '';
+
+      console.log('[Webhook] operationId=' + opId + ', status=' + status);
 
       if (opId && (status === 'APPROVED' || status === 'approved')) {
         var order = await db.prepare('SELECT * FROM orders WHERE payment_id = ?').get(String(opId));
         if (order && !order.is_paid) {
           await db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
             .run('Оплачен', order.id);
-          console.log('[Webhook] Order #' + order.id + ' marked as paid via Tochka webhook');
+          console.log('[Webhook] Order #' + order.id + ' marked as paid');
 
           if (BOT_TOKEN && order.user_id) {
             try {
               var u = await db.prepare('SELECT telegram_id FROM users WHERE id = ?').get(order.user_id);
               if (u && u.telegram_id) {
-                var msg = 'Ваш заказ №' + order.id + ' успешно оплачен! Сумма: ' + order.total_amount + ' ₽';
-                fetch('https://api.telegram.org/bot' + BOT_TOKEN + '/sendMessage', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ chat_id: u.telegram_id, text: msg })
-                }).catch(function () {});
+                sendTelegramMessage(u.telegram_id, 'Ваш заказ №' + order.id + ' успешно оплачен! Сумма: ' + order.total_amount + ' ₽');
               }
             } catch (e) {}
           }
         }
       }
-    } catch (err) {
-      console.error('[Webhook] Error processing Tochka webhook:', err.message);
     }
-    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[Webhook] Error:', err.message);
   }
 
-  var paymentId = body.payment_id || body.PaymentId || '';
-  if (paymentId) {
-    var order = await db.prepare('SELECT * FROM orders WHERE payment_id = ?').get(String(paymentId));
-    if (order && !order.is_paid) {
-      await db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-        .run('Оплачен', order.id);
-    }
-  }
-
-  res.json({ ok: true });
+  res.status(200).send('OK');
 });
 
 // ============================================================
@@ -1139,7 +1139,37 @@ async function start() {
   app.listen(PORT, function () {
     console.log('Server running on http://localhost:' + PORT);
     backup.startPeriodicBackup();
+
+    if (PAYMENT_PROVIDER === 'tochka' && TOCHKA_CLIENT_ID && TOCHKA_JWT && PUBLIC_URL) {
+      setTimeout(function () { registerTochkaWebhook(); }, 5000);
+    }
   });
+}
+
+async function registerTochkaWebhook() {
+  try {
+    var webhookUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://') + '/api/payments/webhook';
+    var url = TOCHKA_API_URL + '/webhook/v1.0/' + TOCHKA_CLIENT_ID;
+
+    console.log('[Tochka] Registering webhook: ' + webhookUrl);
+
+    var response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + TOCHKA_JWT,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        url: webhookUrl,
+        webhooksList: ['acquiringInternetPayment']
+      })
+    });
+
+    var result = await response.text();
+    console.log('[Tochka] Webhook registration status=' + response.status + ', response: ' + result.substring(0, 300));
+  } catch (err) {
+    console.error('[Tochka] Webhook registration error:', err.message);
+  }
 }
 
 start().catch(function (err) {
