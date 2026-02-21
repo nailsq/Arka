@@ -1952,11 +1952,30 @@
       return;
     }
 
-    el.innerHTML = intervals.map(function (iv) {
+    var dayIntervals = [];
+    var nightIntervals = [];
+    var nextDayStr = '';
+    intervals.forEach(function (iv) {
       var parts = iv.split('-');
       var startH = parseInt(parts[0]);
       var endH = parseInt(parts[1]);
       var isNight = endH <= startH;
+      if (isNight) {
+        nightIntervals.push(iv);
+        if (!nextDayStr && selectedDate) {
+          var dp = selectedDate.split('-');
+          var nextDay = new Date(parseInt(dp[0]), parseInt(dp[1]) - 1, parseInt(dp[2]) + 1);
+          nextDayStr = String(nextDay.getDate()).padStart(2, '0') + '.' + String(nextDay.getMonth() + 1).padStart(2, '0');
+        }
+      } else {
+        dayIntervals.push(iv);
+      }
+    });
+
+    function buildOption(iv, isNight) {
+      var parts = iv.split('-');
+      var startH = parseInt(parts[0]);
+      var endH = parseInt(parts[1]);
       var disabled = false;
       if (isToday) {
         if (isNight) {
@@ -1966,18 +1985,24 @@
         }
       }
       var displayIv = iv.replace('-', ' — ');
-      var nightLabel = '';
-      if (isNight && selectedDate) {
-        var dp = selectedDate.split('-');
-        var nextDay = new Date(parseInt(dp[0]), parseInt(dp[1]) - 1, parseInt(dp[2]) + 1);
-        nightLabel = ' (ночь на ' + String(nextDay.getDate()).padStart(2, '0') + '.' + String(nextDay.getMonth() + 1).padStart(2, '0') + ')';
-      }
-      return '<label class="radio-option' + (disabled ? '" style="opacity:0.3;pointer-events:none"' : '"') +
+      var nightBadge = isNight && nextDayStr
+        ? '<span class="night-date-badge">' + nextDayStr + '</span>'
+        : '';
+      return '<label class="radio-option' + (isNight ? ' radio-option-night' : '') +
+        (disabled ? '" style="opacity:0.3;pointer-events:none"' : '"') +
         ' onclick="setDeliveryInterval(\'' + escapeHtml(iv) + '\')">' +
         '<input type="radio" name="interval" value="' + escapeHtml(iv) + '"' + (disabled ? ' disabled' : '') + '>' +
-        '<span class="radio-dot"></span> ' + escapeHtml(displayIv) + nightLabel +
-        (disabled ? ' (недоступен)' : '') + '</label>';
-    }).join('');
+        '<span class="radio-dot"></span> ' + escapeHtml(displayIv) +
+        (disabled ? ' (недоступен)' : '') + nightBadge + '</label>';
+    }
+
+    var html = dayIntervals.map(function (iv) { return buildOption(iv, false); }).join('');
+    if (nightIntervals.length > 0) {
+      html += '<div class="night-intervals-divider"><span class="night-icon">&#9790;</span> Ночная доставка' +
+        (nextDayStr ? ' (на ' + nextDayStr + ')' : '') + '</div>';
+      html += nightIntervals.map(function (iv) { return buildOption(iv, true); }).join('');
+    }
+    el.innerHTML = html;
   }
 
   function updateNearestDeliveryHint() {
