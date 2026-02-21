@@ -2225,7 +2225,7 @@
       '<div style="margin-bottom:16px;font-size:14px;">' +
         '<p>Сумма к оплате: ' + formatPrice(totalAmount) + '</p>' +
       '</div>' +
-      '<a href="' + escapeHtml(paymentUrl) + '" target="_blank" class="nav-btn nav-btn--filled" style="display:block;text-align:center;margin-bottom:16px;">Оплатить через СБП</a>' +
+      '<a href="' + escapeHtml(paymentUrl) + '" target="_blank" class="nav-btn nav-btn--filled" style="display:block;text-align:center;margin-bottom:16px;">Оплатить</a>' +
       '<button class="nav-btn" onclick="navigateTo(\'home\')">На главную</button>' +
       '<div style="margin-top:16px;font-size:12px;">' +
         '<p>После оплаты статус заказа обновится автоматически.</p>' +

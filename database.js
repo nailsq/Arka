@@ -184,6 +184,14 @@ async function init() {
   addColumnIfMissing('product_sizes', 'dimensions', "TEXT DEFAULT ''");
   addColumnIfMissing('orders', 'delivery_distance', 'REAL DEFAULT 0');
   addColumnIfMissing('admin_users', 'can_delete_orders', 'INTEGER DEFAULT 0');
+
+  var cityCount = getDb().prepare('SELECT COUNT(*) as cnt FROM cities').get();
+  if (!cityCount || cityCount.cnt === 0) {
+    getDb().exec("INSERT INTO cities (name, is_active) VALUES ('Саратов', 1)");
+    getDb().exec("INSERT INTO cities (name, is_active) VALUES ('Энгельс', 1)");
+    console.log('Migration: added default cities (Саратов, Энгельс)');
+  }
+
   console.log('Database initialized.');
 }
 
