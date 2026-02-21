@@ -10,7 +10,7 @@ function getDb() {
   if (!localDb) {
     localDb = new Database(DB_PATH);
     localDb.pragma('journal_mode = WAL');
-    localDb.pragma('foreign_keys = ON');
+    localDb.pragma('foreign_keys = OFF');
   }
   return localDb;
 }
