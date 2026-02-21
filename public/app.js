@@ -586,6 +586,26 @@
     catch (e) { return []; }
   }
 
+  function getIntervalsSplit() {
+    var isHoliday = isHolidayToday();
+    var dayKey = isHoliday ? 'intervals_holiday_day' : 'intervals_regular_day';
+    var nightKey = isHoliday ? 'intervals_holiday_night' : 'intervals_regular_night';
+    var day = [], night = [];
+
+    if (appSettings[dayKey]) {
+      try { day = JSON.parse(appSettings[dayKey]); } catch (e) {}
+      try { night = JSON.parse(appSettings[nightKey] || '[]'); } catch (e) {}
+    } else {
+      var all = getIntervals();
+      all.forEach(function (iv) {
+        var p = iv.split('-');
+        var sH = parseInt(p[0]); var eH = parseInt(p[1]);
+        (eH <= sH ? night : day).push(iv);
+      });
+    }
+    return { day: day, night: night };
+  }
+
   function getCutoffHour() {
     return parseInt(appSettings.cutoff_hour) || 19;
   }
@@ -1945,44 +1965,28 @@
     var isToday = selectedDate === todayStr;
     var currentHour = sNowIv.hours;
     var cutoff = getCutoffHour();
-    var intervals = getIntervals();
 
     if (isToday && currentHour >= cutoff) {
       el.innerHTML = '<div class="cutoff-hint">На сегодня все интервалы недоступны. Выберите другую дату или самовывоз.</div>';
       return;
     }
 
-    var dayIntervals = [];
-    var nightIntervals = [];
+    var split = getIntervalsSplit();
+    var dayIntervals = split.day;
+    var nightIntervals = split.night;
     var nextDayStr = '';
-    intervals.forEach(function (iv) {
-      var parts = iv.split('-');
-      var startH = parseInt(parts[0]);
-      var endH = parseInt(parts[1]);
-      var isNight = endH <= startH;
-      if (isNight) {
-        nightIntervals.push(iv);
-        if (!nextDayStr && selectedDate) {
-          var dp = selectedDate.split('-');
-          var nextDay = new Date(parseInt(dp[0]), parseInt(dp[1]) - 1, parseInt(dp[2]) + 1);
-          nextDayStr = String(nextDay.getDate()).padStart(2, '0') + '.' + String(nextDay.getMonth() + 1).padStart(2, '0');
-        }
-      } else {
-        dayIntervals.push(iv);
-      }
-    });
+    if (nightIntervals.length && selectedDate) {
+      var dp = selectedDate.split('-');
+      var nextDay = new Date(parseInt(dp[0]), parseInt(dp[1]) - 1, parseInt(dp[2]) + 1);
+      nextDayStr = String(nextDay.getDate()).padStart(2, '0') + '.' + String(nextDay.getMonth() + 1).padStart(2, '0');
+    }
 
     function buildOption(iv, isNight) {
       var parts = iv.split('-');
       var startH = parseInt(parts[0]);
-      var endH = parseInt(parts[1]);
       var disabled = false;
       if (isToday) {
-        if (isNight) {
-          disabled = currentHour >= startH || currentHour < endH;
-        } else {
-          disabled = currentHour >= startH;
-        }
+        disabled = currentHour >= startH;
       }
       var displayIv = iv.replace('-', ' — ');
       var nightBadge = isNight && nextDayStr
@@ -2014,22 +2018,17 @@
     }
     var sNow = saratovNow();
     var currentHour = sNow.hours;
-    var currentMin = sNow.minutes;
     var cutoff = getCutoffHour();
-    var intervals = getIntervals();
+    var split = getIntervalsSplit();
+    var allIntervals = split.day.concat(split.night);
+    var nightSet = {};
+    split.night.forEach(function (iv) { nightSet[iv] = true; });
 
     var todayAvailable = [];
-    if (currentHour < cutoff && intervals.length) {
-      intervals.forEach(function (iv) {
-        var parts = iv.split('-');
-        var startH = parseInt(parts[0]);
-        var endH = parseInt(parts[1]);
-        var isNight = endH <= startH;
-        if (isNight) {
-          if (currentHour < startH && !(currentHour < endH)) todayAvailable.push(iv);
-        } else {
-          if (currentHour < startH) todayAvailable.push(iv);
-        }
+    if (currentHour < cutoff && allIntervals.length) {
+      allIntervals.forEach(function (iv) {
+        var startH = parseInt(iv.split('-')[0]);
+        if (currentHour < startH) todayAvailable.push(iv);
       });
     }
 
@@ -2037,33 +2036,25 @@
 
     if (todayAvailable.length > 0) {
       var nearIv = todayAvailable[0];
-      var nearParts = nearIv.split('-');
-      var nearStartH = parseInt(nearParts[0]);
-      var nearEndH = parseInt(nearParts[1]);
-      var nearNight = nearEndH <= nearStartH;
       var nearNightLabel = '';
-      if (nearNight) {
+      if (nightSet[nearIv]) {
         var nextD = new Date(sNow.year, sNow.month - 1, sNow.day + 1);
         nearNightLabel = ' (ночь на ' + String(nextD.getDate()).padStart(2, '0') + '.' + String(nextD.getMonth() + 1).padStart(2, '0') + ')';
       }
       el.innerHTML = 'Ближайшая доставка: <b>сегодня, ' + escapeHtml(nearIv.replace('-', ' — ')) + nearNightLabel + '</b>';
       el.style.display = '';
-    } else if (intervals.length > 0) {
+    } else if (allIntervals.length > 0) {
       var tmrw = new Date(sNow.year, sNow.month - 1, sNow.day + 1);
       var dayIdx = tmrw.getDay();
       var dayName = dayNames[dayIdx];
       var tmrwStr = String(tmrw.getDate()).padStart(2, '0') + '.' + String(tmrw.getMonth() + 1).padStart(2, '0');
-      var tmrwIv = intervals[0];
-      var tmrwIvParts = tmrwIv.split('-');
-      var tmrwStartH = parseInt(tmrwIvParts[0]);
-      var tmrwEndH = parseInt(tmrwIvParts[1]);
-      var tmrwNight = tmrwEndH <= tmrwStartH;
+      var firstIv = split.day.length > 0 ? split.day[0] : split.night[0];
       var tmrwNightLabel = '';
-      if (tmrwNight) {
+      if (nightSet[firstIv]) {
         var tmrwNext = new Date(sNow.year, sNow.month - 1, sNow.day + 2);
         tmrwNightLabel = ' (ночь на ' + String(tmrwNext.getDate()).padStart(2, '0') + '.' + String(tmrwNext.getMonth() + 1).padStart(2, '0') + ')';
       }
-      el.innerHTML = 'Ближайшая доставка: <b>' + dayName + ' ' + tmrwStr + ', ' + escapeHtml(tmrwIv.replace('-', ' — ')) + tmrwNightLabel + '</b>';
+      el.innerHTML = 'Ближайшая доставка: <b>' + dayName + ' ' + tmrwStr + ', ' + escapeHtml(firstIv.replace('-', ' — ')) + tmrwNightLabel + '</b>';
       el.style.display = '';
     } else {
       el.style.display = 'none';

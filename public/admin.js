@@ -1064,6 +1064,8 @@
         '<div id="s-intervals-list-regular-night"></div>' +
         '<button type="button" class="btn btn-sm" onclick="addInterval(\'regular-night\', true)" style="margin-top:8px">+ Добавить ночной</button></div>';
       h += '<input type="hidden" id="s-intervals-regular">';
+      h += '<input type="hidden" id="s-intervals-regular-day">';
+      h += '<input type="hidden" id="s-intervals-regular-night">';
 
       h += '<div class="form-group"><label class="form-label">Праздничные интервалы — дневные</label>' +
         '<div id="s-intervals-list-holiday-day"></div>' +
@@ -1072,6 +1074,8 @@
         '<div id="s-intervals-list-holiday-night"></div>' +
         '<button type="button" class="btn btn-sm" onclick="addInterval(\'holiday-night\', true)" style="margin-top:8px">+ Добавить ночной</button></div>';
       h += '<input type="hidden" id="s-intervals-holiday">';
+      h += '<input type="hidden" id="s-intervals-holiday-day">';
+      h += '<input type="hidden" id="s-intervals-holiday-night">';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1141,26 +1145,39 @@
       if (!tiersEng.length) tiersEng = [{ max_km: 5, price: 350 }, { max_km: 10, price: 500 }, { max_km: 20, price: 800 }, { max_km: 999, price: 1500 }];
       renderDeliveryTiers(tiersEng, 'engels');
 
-      var ivReg = [];
-      try { ivReg = JSON.parse(s.intervals_regular || '[]'); } catch (e) {}
-      console.log('[LoadSettings] intervals_regular from server:', s.intervals_regular, '→ parsed:', JSON.stringify(ivReg));
-      if (!ivReg.length) ivReg = ['10:00-13:00', '13:00-16:00', '16:00-19:00', '19:00-22:00'];
       var regDay = [], regNight = [];
-      ivReg.forEach(function (iv) {
-        var p = iv.split('-'); var sH = parseInt(p[0]); var eH = parseInt(p[1]);
-        (eH <= sH ? regNight : regDay).push(iv);
-      });
+      if (s.intervals_regular_day) {
+        try { regDay = JSON.parse(s.intervals_regular_day); } catch (e) {}
+        try { regNight = JSON.parse(s.intervals_regular_night || '[]'); } catch (e) {}
+      } else {
+        var ivReg = [];
+        try { ivReg = JSON.parse(s.intervals_regular || '[]'); } catch (e) {}
+        if (!ivReg.length) ivReg = ['10:00-13:00', '13:00-16:00', '16:00-19:00', '19:00-22:00'];
+        ivReg.forEach(function (iv) {
+          var p = iv.split('-'); var sH = parseInt(p[0]); var eH = parseInt(p[1]);
+          (eH <= sH ? regNight : regDay).push(iv);
+        });
+      }
+      if (!regDay.length && !regNight.length) regDay = ['10:00-13:00', '13:00-16:00', '16:00-19:00', '19:00-22:00'];
+      console.log('[LoadSettings] regular day:', JSON.stringify(regDay), 'night:', JSON.stringify(regNight));
       renderIntervals(regDay, 'regular-day');
       renderIntervals(regNight, 'regular-night');
 
-      var ivHol = [];
-      try { ivHol = JSON.parse(s.intervals_holiday || '[]'); } catch (e) {}
-      if (!ivHol.length) ivHol = ['10:00-13:00', '13:00-16:00', '16:00-19:00', '19:00-22:00'];
       var holDay = [], holNight = [];
-      ivHol.forEach(function (iv) {
-        var p = iv.split('-'); var sH = parseInt(p[0]); var eH = parseInt(p[1]);
-        (eH <= sH ? holNight : holDay).push(iv);
-      });
+      if (s.intervals_holiday_day) {
+        try { holDay = JSON.parse(s.intervals_holiday_day); } catch (e) {}
+        try { holNight = JSON.parse(s.intervals_holiday_night || '[]'); } catch (e) {}
+      } else {
+        var ivHol = [];
+        try { ivHol = JSON.parse(s.intervals_holiday || '[]'); } catch (e) {}
+        if (!ivHol.length) ivHol = ['10:00-13:00', '13:00-16:00', '16:00-19:00', '19:00-22:00'];
+        ivHol.forEach(function (iv) {
+          var p = iv.split('-'); var sH = parseInt(p[0]); var eH = parseInt(p[1]);
+          (eH <= sH ? holNight : holDay).push(iv);
+        });
+      }
+      if (!holDay.length && !holNight.length) holDay = ['10:00-13:00', '13:00-16:00', '16:00-19:00', '19:00-22:00'];
+      console.log('[LoadSettings] holiday day:', JSON.stringify(holDay), 'night:', JSON.stringify(holNight));
       renderIntervals(holDay, 'holiday-day');
       renderIntervals(holNight, 'holiday-night');
     });
@@ -1283,20 +1300,27 @@
   };
 
   function collectAllIntervals() {
+    var regDay = collectIntervalsRaw('s-intervals-list-regular-day');
+    var regNight = collectIntervalsRaw('s-intervals-list-regular-night');
+    var holDay = collectIntervalsRaw('s-intervals-list-holiday-day');
+    var holNight = collectIntervalsRaw('s-intervals-list-holiday-night');
+
     var hiddenReg = document.getElementById('s-intervals-regular');
-    if (hiddenReg) {
-      var regAll = collectIntervalsRaw('s-intervals-list-regular-day')
-        .concat(collectIntervalsRaw('s-intervals-list-regular-night'));
-      hiddenReg.value = JSON.stringify(regAll);
-      console.log('[Intervals] Regular combined:', hiddenReg.value);
-    }
+    if (hiddenReg) hiddenReg.value = JSON.stringify(regDay.concat(regNight));
     var hiddenHol = document.getElementById('s-intervals-holiday');
-    if (hiddenHol) {
-      var holAll = collectIntervalsRaw('s-intervals-list-holiday-day')
-        .concat(collectIntervalsRaw('s-intervals-list-holiday-night'));
-      hiddenHol.value = JSON.stringify(holAll);
-      console.log('[Intervals] Holiday combined:', hiddenHol.value);
-    }
+    if (hiddenHol) hiddenHol.value = JSON.stringify(holDay.concat(holNight));
+
+    var hiddenRegDay = document.getElementById('s-intervals-regular-day');
+    if (hiddenRegDay) hiddenRegDay.value = JSON.stringify(regDay);
+    var hiddenRegNight = document.getElementById('s-intervals-regular-night');
+    if (hiddenRegNight) hiddenRegNight.value = JSON.stringify(regNight);
+    var hiddenHolDay = document.getElementById('s-intervals-holiday-day');
+    if (hiddenHolDay) hiddenHolDay.value = JSON.stringify(holDay);
+    var hiddenHolNight = document.getElementById('s-intervals-holiday-night');
+    if (hiddenHolNight) hiddenHolNight.value = JSON.stringify(holNight);
+
+    console.log('[Intervals] Regular day:', JSON.stringify(regDay), 'night:', JSON.stringify(regNight));
+    console.log('[Intervals] Holiday day:', JSON.stringify(holDay), 'night:', JSON.stringify(holNight));
   }
 
   function collectDeliveryTiers() {
@@ -1324,7 +1348,11 @@
       pickup_address: document.getElementById('s-pickup').value,
       cutoff_hour: document.getElementById('s-cutoff').value,
       intervals_regular: document.getElementById('s-intervals-regular').value,
+      intervals_regular_day: document.getElementById('s-intervals-regular-day').value,
+      intervals_regular_night: document.getElementById('s-intervals-regular-night').value,
       intervals_holiday: document.getElementById('s-intervals-holiday').value,
+      intervals_holiday_day: document.getElementById('s-intervals-holiday-day').value,
+      intervals_holiday_night: document.getElementById('s-intervals-holiday-night').value,
       holiday_dates: document.getElementById('s-holidays').value,
       exact_time_enabled: document.getElementById('s-exact-enabled').checked ? '1' : '0',
       exact_time_surcharge: document.getElementById('s-exact-surcharge').value,
