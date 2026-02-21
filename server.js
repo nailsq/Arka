@@ -508,15 +508,18 @@ app.post('/api/payments/create', async function (req, res) {
         'SELECT oi.*, p.name as product_name FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?'
       ).all(orderId);
 
-      var receiptItems = orderItems.map(function (item) {
-        return {
-          name: item.product_name || 'Товар',
-          quantity: item.quantity,
-          amount: item.price,
-          paymentMethod: 'full_payment',
-          paymentObject: 'goods',
-          vatType: 'none'
-        };
+      var receiptItems = [];
+      orderItems.forEach(function (item) {
+        if (item.price > 0) {
+          receiptItems.push({
+            name: item.product_name || 'Товар',
+            quantity: item.quantity,
+            amount: item.price,
+            paymentMethod: 'full_payment',
+            paymentObject: 'goods',
+            vatType: 'none'
+          });
+        }
       });
 
       if (order.delivery_cost && order.delivery_cost > 0) {
@@ -530,7 +533,8 @@ app.post('/api/payments/create', async function (req, res) {
         });
       }
 
-      var redirectUrl = PUBLIC_URL + '/api/payments/tochka-success/' + orderId;
+      var basePublicUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://');
+      var redirectUrl = basePublicUrl + '/api/payments/tochka-success/' + orderId;
 
       var tochkaBody = {
         Data: {
