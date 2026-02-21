@@ -14,6 +14,7 @@
   var token = localStorage.getItem('arka_admin_token') || '';
   var currentTab = 'orders';
   var isSuperAdmin = false;
+  var canDeleteOrders = false;
   var currentTelegramId = localStorage.getItem('arka_admin_tg_id') || '';
 
   var ORDER_STATUSES_DELIVERY = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен', 'Выполнен'];
@@ -1100,6 +1101,23 @@
       h += '<button type="submit" class="btn btn-success" style="margin-top:8px">Сохранить настройки</button>';
       h += '</div></form>';
 
+      if (isSuperAdmin || canDeleteOrders) {
+        h += '<div class="card" style="margin-top:24px"><div class="settings-section">';
+        h += '<div class="settings-section-title">Очистка старых заказов</div>';
+        h += '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Удаляет завершённые заказы (статус «Выполнен» или «Доставлен») старше указанного периода. Действие необратимо.</div>';
+        h += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">';
+        h += '<label class="form-label" style="margin-bottom:0">Удалить старше</label>';
+        h += '<select class="form-input" id="cleanup-months" style="width:auto;min-width:140px">';
+        h += '<option value="3">3 месяцев</option>';
+        h += '<option value="6" selected>6 месяцев</option>';
+        h += '<option value="12">12 месяцев</option>';
+        h += '</select>';
+        h += '<button type="button" class="btn btn-danger" onclick="cleanupOldOrders()">Очистить</button>';
+        h += '</div>';
+        h += '<div id="cleanup-result" style="margin-top:8px;font-size:13px"></div>';
+        h += '</div></div>';
+      }
+
       el.innerHTML = h;
 
       var tiersSar = [];
@@ -1222,6 +1240,24 @@
     });
   };
 
+  window.cleanupOldOrders = function () {
+    var sel = document.getElementById('cleanup-months');
+    var months = sel ? sel.value : '6';
+    if (!confirm('Вы уверены? Будут удалены все завершённые заказы старше ' + months + ' мес. Это действие необратимо!')) return;
+    var resultEl = document.getElementById('cleanup-result');
+    if (resultEl) resultEl.innerHTML = '<span style="color:var(--text-secondary)">Удаление...</span>';
+    api('POST', '/api/admin/orders/cleanup', { months: parseInt(months) }).then(function (r) {
+      if (r.error) {
+        if (resultEl) resultEl.innerHTML = '<span style="color:#c00">' + esc(r.error) + '</span>';
+      } else {
+        if (resultEl) resultEl.innerHTML = '<span style="color:#2d6a2d">Удалено заказов: ' + r.deleted + '</span>';
+        adminToast('Удалено заказов: ' + r.deleted, 'success');
+      }
+    }).catch(function () {
+      if (resultEl) resultEl.innerHTML = '<span style="color:#c00">Ошибка при очистке</span>';
+    });
+  };
+
   // ============================================================
   // Admins management (super admin only)
   // ============================================================
@@ -1237,7 +1273,8 @@
       var h = '<div class="card">';
       h += '<div class="card-header"><span class="card-title">Администраторы</span></div>';
       h += '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">' +
-        'Добавляйте администраторов по их Telegram username. Они получат доступ к админ-панели при входе через Telegram.</div>';
+        'Добавляйте администраторов по их Telegram username. Они получат доступ к админ-панели при входе через Telegram.<br>' +
+        '<b>Чистка</b> — разрешение на удаление старых заказов (раздел в Настройках). По умолчанию выключено.</div>';
 
       h += '<form onsubmit="addAdmin(event)" class="admin-add-form">' +
         '<div class="form-group" style="flex:1;margin-bottom:0">' +
@@ -1252,6 +1289,9 @@
       } else {
         h += '<div class="admin-list">';
         admins.forEach(function (a) {
+          var deleteToggle = a.can_delete_orders
+            ? '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#e8d5f5;color:#5b2d8e;border-color:#d4b3e8;margin-right:6px" onclick="toggleAdminDeletePerm(' + a.id + ',0)">Чистка ✓</button>'
+            : '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#f5f5f5;color:#999;border-color:#e0e0e0;margin-right:6px" onclick="toggleAdminDeletePerm(' + a.id + ',1)">Чистка</button>';
           h += '<div class="admin-list-item" id="admin-row-' + a.id + '">' +
             '<div class="admin-list-info">' +
               '<div class="admin-list-username">@' + esc(a.telegram_username) + '</div>' +
@@ -1260,7 +1300,10 @@
                 'Добавлен ' + fmtDate(a.created_at) +
               '</div>' +
             '</div>' +
-            '<button class="btn btn-sm btn-danger" onclick="removeAdmin(' + a.id + ',\'' + esc(a.telegram_username) + '\')">Удалить</button>' +
+            '<div style="display:flex;align-items:center">' +
+              deleteToggle +
+              '<button class="btn btn-sm btn-danger" onclick="removeAdmin(' + a.id + ',\'' + esc(a.telegram_username) + '\')">Удалить</button>' +
+            '</div>' +
           '</div>';
         });
         h += '</div>';
@@ -1288,6 +1331,13 @@
       }
     }).catch(function () {
       adminToast('Ошибка при добавлении', 'error');
+    });
+  };
+
+  window.toggleAdminDeletePerm = function (id, newValue) {
+    api('PUT', '/api/admin/admins/' + id + '/permissions', { can_delete_orders: newValue }).then(function () {
+      adminToast(newValue ? 'Право на чистку заказов выдано' : 'Право на чистку заказов отозвано', 'success');
+      loadAdmins();
     });
   };
 
@@ -1566,7 +1616,9 @@
         token = data.token;
         localStorage.setItem('arka_admin_token', token);
         isSuperAdmin = !!data.is_super_admin;
+        canDeleteOrders = !!data.can_delete_orders;
         localStorage.setItem('arka_admin_is_super', isSuperAdmin ? '1' : '0');
+        localStorage.setItem('arka_admin_can_delete', canDeleteOrders ? '1' : '0');
         window.history.replaceState({}, '', '/admin.html');
         showDashboard();
       } else {
@@ -1579,6 +1631,7 @@
   }
 
   isSuperAdmin = localStorage.getItem('arka_admin_is_super') === '1';
+  canDeleteOrders = localStorage.getItem('arka_admin_can_delete') === '1';
 
   if (token) {
     api('GET', '/api/admin/orders').then(function () {

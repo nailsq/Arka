@@ -579,9 +579,17 @@ app.post('/api/admin/telegram-login', async function (req, res) {
       await db.prepare('UPDATE admin_users SET telegram_id = ? WHERE id = ?').run(String(telegramId), row.id);
     }
   }
+  var canDelete = false;
+  if (!isSuperAdmin(telegramId)) {
+    var clean2 = (username || '').replace(/^@/, '').toLowerCase();
+    var adminRow = await db.prepare('SELECT can_delete_orders FROM admin_users WHERE telegram_id = ? OR LOWER(telegram_username) = ?').get(String(telegramId), clean2);
+    if (adminRow) canDelete = !!adminRow.can_delete_orders;
+  } else {
+    canDelete = true;
+  }
   var token = crypto.randomBytes(32).toString('hex');
   adminTokens.add(token);
-  res.json({ token: token, is_super_admin: isSuperAdmin(telegramId) });
+  res.json({ token: token, is_super_admin: isSuperAdmin(telegramId), can_delete_orders: canDelete });
 });
 
 app.get('/api/user/is-admin', async function (req, res) {
@@ -888,6 +896,53 @@ app.delete('/api/admin/admins/:id', adminAuth, async function (req, res) {
   }
   await db.prepare('DELETE FROM admin_users WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
+});
+
+app.put('/api/admin/admins/:id/permissions', adminAuth, async function (req, res) {
+  var telegramId = req.headers['x-telegram-id'] || '';
+  if (!isSuperAdmin(telegramId)) {
+    return res.status(403).json({ error: 'Super admin only' });
+  }
+  var canDelete = parseInt(req.body.can_delete_orders) ? 1 : 0;
+  await db.prepare('UPDATE admin_users SET can_delete_orders = ? WHERE id = ?').run(canDelete, req.params.id);
+  res.json({ ok: true });
+});
+
+app.post('/api/admin/orders/cleanup', adminAuth, async function (req, res) {
+  var telegramId = req.headers['x-telegram-id'] || '';
+  var months = parseInt(req.body.months) || 6;
+  if (months < 1) months = 1;
+
+  var allowed = false;
+  if (isSuperAdmin(telegramId)) {
+    allowed = true;
+  } else {
+    var adminRow = await db.prepare(
+      'SELECT can_delete_orders FROM admin_users WHERE telegram_id = ?'
+    ).get(String(telegramId));
+    if (adminRow && adminRow.can_delete_orders) allowed = true;
+  }
+  if (!allowed) {
+    return res.status(403).json({ error: 'Нет прав на удаление заказов' });
+  }
+
+  var cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - months);
+  var cutoffStr = cutoff.toISOString();
+
+  var completedStatuses = ['Выполнен', 'Доставлен'];
+  var oldOrders = await db.prepare(
+    "SELECT id FROM orders WHERE status IN ('" + completedStatuses.join("','") + "') AND created_at < ?"
+  ).all(cutoffStr);
+
+  var deletedCount = 0;
+  for (var i = 0; i < oldOrders.length; i++) {
+    await db.prepare('DELETE FROM order_items WHERE order_id = ?').run(oldOrders[i].id);
+    await db.prepare('DELETE FROM orders WHERE id = ?').run(oldOrders[i].id);
+    deletedCount++;
+  }
+
+  res.json({ ok: true, deleted: deletedCount });
 });
 
 // ============================================================

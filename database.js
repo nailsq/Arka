@@ -183,6 +183,7 @@ async function init() {
   addColumnIfMissing('products', 'is_recommended', 'INTEGER DEFAULT 0');
   addColumnIfMissing('product_sizes', 'dimensions', "TEXT DEFAULT ''");
   addColumnIfMissing('orders', 'delivery_distance', 'REAL DEFAULT 0');
+  addColumnIfMissing('admin_users', 'can_delete_orders', 'INTEGER DEFAULT 0');
   console.log('Database initialized.');
 }
 
