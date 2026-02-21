@@ -1055,12 +1055,17 @@
 
       h += '<div class="settings-section">';
       h += '<div class="settings-section-title">Время и интервалы</div>';
-      h += '<div class="form-group"><label class="form-label">Вечерний порог (после какого часа вечерний интервал недоступен сегодня)</label>' +
+      h += '<div class="form-group"><label class="form-label">Вечерний порог (после какого часа все интервалы на сегодня недоступны)</label>' +
         '<input type="number" class="form-input" id="s-cutoff" value="' + esc(s.cutoff_hour || '19') + '" style="max-width:120px"></div>';
-      h += '<div class="form-group"><label class="form-label">Обычные интервалы (JSON)</label>' +
-        '<textarea class="form-textarea" id="s-intervals-regular">' + esc(s.intervals_regular || '[]') + '</textarea></div>';
-      h += '<div class="form-group"><label class="form-label">Праздничные интервалы (JSON)</label>' +
-        '<textarea class="form-textarea" id="s-intervals-holiday">' + esc(s.intervals_holiday || '[]') + '</textarea></div>';
+      h += '<div class="form-group"><label class="form-label">Обычные интервалы</label>' +
+        '<div id="s-intervals-list-regular"></div>' +
+        '<button type="button" class="btn btn-sm" onclick="addInterval(\'regular\')" style="margin-top:8px">+ Добавить интервал</button>' +
+        '<input type="hidden" id="s-intervals-regular"></div>';
+      h += '<div class="form-group"><label class="form-label">Праздничные интервалы</label>' +
+        '<div id="s-intervals-list-holiday"></div>' +
+        '<button type="button" class="btn btn-sm" onclick="addInterval(\'holiday\')" style="margin-top:8px">+ Добавить интервал</button>' +
+        '<input type="hidden" id="s-intervals-holiday"></div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Формат: ЧЧ:ММ — ЧЧ:ММ. Для ночных интервалов (через полночь) укажите начало больше конца, напр. 22:00 — 01:00.</div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1129,6 +1134,16 @@
       try { tiersEng = JSON.parse(s.delivery_distance_tiers_engels || '[]'); } catch (e) {}
       if (!tiersEng.length) tiersEng = [{ max_km: 5, price: 350 }, { max_km: 10, price: 500 }, { max_km: 20, price: 800 }, { max_km: 999, price: 1500 }];
       renderDeliveryTiers(tiersEng, 'engels');
+
+      var ivReg = [];
+      try { ivReg = JSON.parse(s.intervals_regular || '[]'); } catch (e) {}
+      if (!ivReg.length) ivReg = ['10:00-13:00', '13:00-16:00', '16:00-19:00', '19:00-22:00'];
+      renderIntervals(ivReg, 'regular');
+
+      var ivHol = [];
+      try { ivHol = JSON.parse(s.intervals_holiday || '[]'); } catch (e) {}
+      if (!ivHol.length) ivHol = ['10:00-13:00', '13:00-16:00', '16:00-19:00', '19:00-22:00'];
+      renderIntervals(ivHol, 'holiday');
     });
   }
 
@@ -1177,6 +1192,49 @@
     return JSON.stringify(tiers);
   }
 
+  function renderIntervals(intervals, type) {
+    var list = document.getElementById('s-intervals-list-' + type);
+    if (!list) return;
+    var h = '';
+    intervals.forEach(function (iv) {
+      var parts = iv.split('-');
+      var from = (parts[0] || '10:00').trim();
+      var to = (parts[1] || '13:00').trim();
+      h += '<div class="pf-size-row" style="margin-bottom:6px">' +
+        '<input type="time" class="form-input iv-from" value="' + from + '" style="width:110px"> ' +
+        '<label style="font-size:12px;white-space:nowrap;margin:0 6px">—</label>' +
+        '<input type="time" class="form-input iv-to" value="' + to + '" style="width:110px"> ' +
+        '<button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()" style="flex-shrink:0;margin-left:6px">X</button>' +
+      '</div>';
+    });
+    list.innerHTML = h;
+  }
+
+  window.addInterval = function (type) {
+    var list = document.getElementById('s-intervals-list-' + type);
+    if (!list) return;
+    var row = document.createElement('div');
+    row.className = 'pf-size-row';
+    row.style.marginBottom = '6px';
+    row.innerHTML =
+      '<input type="time" class="form-input iv-from" value="10:00" style="width:110px"> ' +
+      '<label style="font-size:12px;white-space:nowrap;margin:0 6px">—</label>' +
+      '<input type="time" class="form-input iv-to" value="13:00" style="width:110px"> ' +
+      '<button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()" style="flex-shrink:0;margin-left:6px">X</button>';
+    list.appendChild(row);
+  };
+
+  function collectIntervalsFrom(listId) {
+    var rows = document.querySelectorAll('#' + listId + ' .pf-size-row');
+    var intervals = [];
+    rows.forEach(function (row) {
+      var from = row.querySelector('.iv-from').value || '';
+      var to = row.querySelector('.iv-to').value || '';
+      if (from && to) intervals.push(from + '-' + to);
+    });
+    return JSON.stringify(intervals);
+  }
+
   var _freeServiceImgData = null;
 
   window.previewFreeServiceImg = function (input) {
@@ -1198,6 +1256,13 @@
     if (input) input.value = '';
   };
 
+  function collectAllIntervals() {
+    var hiddenReg = document.getElementById('s-intervals-regular');
+    if (hiddenReg) hiddenReg.value = collectIntervalsFrom('s-intervals-list-regular');
+    var hiddenHol = document.getElementById('s-intervals-holiday');
+    if (hiddenHol) hiddenHol.value = collectIntervalsFrom('s-intervals-list-holiday');
+  }
+
   function collectDeliveryTiers() {
     var hiddenSar = document.getElementById('s-delivery-tiers');
     if (hiddenSar) hiddenSar.value = collectTiersFrom('s-tiers-list-saratov');
@@ -1208,6 +1273,7 @@
   window.saveSettings = function (e) {
     e.preventDefault();
     collectDeliveryTiers();
+    collectAllIntervals();
 
     var data = {
       yandex_maps_key: document.getElementById('s-yandex-key').value,
