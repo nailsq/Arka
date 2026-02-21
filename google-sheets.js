@@ -120,7 +120,7 @@ async function ensureAbandonedHeaders(api) {
   try {
     var resp = await api.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: SHEET_ABANDONED + '!A1:F1'
+      range: SHEET_ABANDONED + '!A1:I1'
     });
     if (resp.data.values && resp.data.values.length) return;
   } catch (e) {
@@ -133,7 +133,7 @@ async function ensureAbandonedHeaders(api) {
       });
     } catch (ignore) {}
   }
-  var headers = ['Дата', 'Username', 'Телефон', 'Telegram ID', 'Товары', 'Сумма'];
+  var headers = ['Дата', 'Username', 'Телефон', 'Email', 'Telegram ID', 'Этап', 'Причина', 'Товары', 'Сумма'];
   await api.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
     range: SHEET_ABANDONED + '!A1',
@@ -155,18 +155,23 @@ async function appendAbandonedCart(data) {
       return c.name + ' × ' + c.quantity + ' = ' + (c.price * c.quantity) + ' ₽';
     }).join('\n');
 
+    var stepLabel = data.step_name || ('Шаг ' + (data.step || '?'));
+
     var row = [
       date,
       data.username || '—',
       data.phone || '—',
+      data.email || '—',
       String(data.user_id || ''),
+      stepLabel,
+      data.reason || '—',
       items,
       data.total || 0
     ];
 
     await api.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: SHEET_ABANDONED + '!A:F',
+      range: SHEET_ABANDONED + '!A:I',
       valueInputOption: 'RAW',
       insertDataOption: 'INSERT_ROWS',
       resource: { values: [row] }

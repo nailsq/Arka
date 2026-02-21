@@ -1140,7 +1140,14 @@
   var _inCheckout = false;
   var ABANDON_TIMEOUT = 10 * 60 * 1000;
 
-  function sendAbandonedCart() {
+  var _abandonReason = '';
+
+  function getStepName() {
+    var names = { 1: 'Заказчик', 2: 'Доставка', 3: 'Получатель' };
+    return names[currentStep] || 'Шаг ' + currentStep;
+  }
+
+  function sendAbandonedCart(reason) {
     if (_abandonedSent || !_inCheckout) return;
     var cart = getCart();
     if (!cart.length) return;
@@ -1151,6 +1158,9 @@
     var phone = (dbUser && dbUser.phone) || '';
     var phoneField = document.getElementById('field-phone');
     if (phoneField && phoneField.value.trim()) phone = phoneField.value.trim();
+    var email = '';
+    var emailField = document.getElementById('field-email');
+    if (emailField && emailField.value.trim()) email = emailField.value.trim();
     var items = cart.filter(function (c) { return !c.is_free_service; }).map(function (c) {
       return { name: c.name, quantity: c.quantity, price: c.price };
     });
@@ -1159,8 +1169,12 @@
       user_id: String(userId),
       username: username,
       phone: phone,
+      email: email,
       cart: items,
-      total: total
+      total: total,
+      step: currentStep,
+      step_name: getStepName(),
+      reason: reason || 'Ушёл со страницы'
     })], { type: 'application/json' }));
   }
 
@@ -1168,7 +1182,7 @@
     stopAbandonTimer();
     _inCheckout = true;
     _abandonedSent = false;
-    _abandonedTimer = setTimeout(sendAbandonedCart, ABANDON_TIMEOUT);
+    _abandonedTimer = setTimeout(function () { sendAbandonedCart('Бездействие 10 мин'); }, ABANDON_TIMEOUT);
   }
 
   function stopAbandonTimer() {
@@ -1178,12 +1192,12 @@
   function resetAbandonTimer() {
     if (!_inCheckout) return;
     stopAbandonTimer();
-    _abandonedTimer = setTimeout(sendAbandonedCart, ABANDON_TIMEOUT);
+    _abandonedTimer = setTimeout(function () { sendAbandonedCart('Бездействие 10 мин'); }, ABANDON_TIMEOUT);
   }
 
   document.addEventListener('visibilitychange', function () {
     if (document.hidden && _inCheckout && !_abandonedSent) {
-      sendAbandonedCart();
+      sendAbandonedCart('Свернул/закрыл приложение');
     }
   });
 
@@ -2979,7 +2993,7 @@
   window.navigateTo = function (page, param) {
     if (page !== 'account') stopTrackingPoll();
     if (page !== 'checkout' && _inCheckout) {
-      sendAbandonedCart();
+      sendAbandonedCart('Ушёл на: ' + page);
       _inCheckout = false;
       stopAbandonTimer();
     }
