@@ -370,7 +370,7 @@ app.post('/api/abandoned-cart', async function (req, res) {
   if (!userId) return res.json({ ok: true });
 
   var now = Date.now();
-  if (_recentAbandoned[userId] && now - _recentAbandoned[userId] < 5 * 60 * 1000) {
+  if (_recentAbandoned[userId] && now - _recentAbandoned[userId] < 15 * 60 * 1000) {
     return res.json({ ok: true });
   }
   _recentAbandoned[userId] = now;
@@ -378,23 +378,12 @@ app.post('/api/abandoned-cart', async function (req, res) {
   var cart = body.cart || [];
   if (!cart.length) return res.json({ ok: true });
 
-  var username = body.username ? '@' + body.username : '—';
-  var phone = body.phone || '—';
-  var total = body.total || 0;
-
-  var items = cart.map(function (c) {
-    return '  • ' + c.name + ' × ' + c.quantity + ' — ' + c.price + ' ₽';
-  }).join('\n');
-
-  var msg = '🛒 <b>Брошенная корзина</b>\n\n' +
-    'Пользователь: ' + username + '\n' +
-    'Телефон: ' + phone + '\n' +
-    'ID: ' + userId + '\n\n' +
-    items + '\n\n' +
-    'Итого: <b>' + total + ' ₽</b>';
-
-  ADMIN_TELEGRAM_IDS.forEach(function (id) {
-    sendTelegramMessage(id, msg);
+  gsheets.appendAbandonedCart({
+    user_id: userId,
+    username: body.username ? '@' + body.username : null,
+    phone: body.phone || '',
+    cart: cart,
+    total: body.total || 0
   });
 
   res.json({ ok: true });
