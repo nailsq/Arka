@@ -1964,16 +1964,17 @@
     var todayStr = sNowIv.dateStr;
     var isToday = selectedDate === todayStr;
     var currentHour = sNowIv.hours;
-    var cutoff = getCutoffHour();
+    var isPickup = checkoutState.deliveryType === 'pickup';
+    var cutoff = isPickup ? getPickupCutoffHour() : getCutoffHour();
 
     if (isToday && currentHour >= cutoff) {
-      el.innerHTML = '<div class="cutoff-hint">На сегодня все интервалы недоступны. Выберите другую дату или самовывоз.</div>';
+      el.innerHTML = '<div class="cutoff-hint">На сегодня все интервалы недоступны. Выберите другую дату' + (isPickup ? '.' : ' или самовывоз.') + '</div>';
       return;
     }
 
     var split = getIntervalsSplit();
     var dayIntervals = split.day;
-    var nightIntervals = split.night;
+    var nightIntervals = isPickup ? [] : split.night;
     var nextDayStr = '';
     if (nightIntervals.length && selectedDate) {
       var dp = selectedDate.split('-');
@@ -1984,9 +1985,13 @@
     function buildOption(iv, isNight) {
       var parts = iv.split('-');
       var startH = parseInt(parts[0]);
+      var endH = parseInt(parts[1]);
       var disabled = false;
       if (isToday) {
         disabled = currentHour >= startH;
+      }
+      if (isPickup && (startH < 10 || endH > 21)) {
+        disabled = true;
       }
       var displayIv = iv.replace('-', ' — ');
       var nightBadge = isNight && nextDayStr
