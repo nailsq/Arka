@@ -1057,15 +1057,21 @@
       h += '<div class="settings-section-title">Время и интервалы</div>';
       h += '<div class="form-group"><label class="form-label">Вечерний порог (после какого часа все интервалы на сегодня недоступны)</label>' +
         '<input type="number" class="form-input" id="s-cutoff" value="' + esc(s.cutoff_hour || '19') + '" style="max-width:120px"></div>';
-      h += '<div class="form-group"><label class="form-label">Обычные интервалы</label>' +
-        '<div id="s-intervals-list-regular"></div>' +
-        '<button type="button" class="btn btn-sm" onclick="addInterval(\'regular\')" style="margin-top:8px">+ Добавить интервал</button>' +
-        '<input type="hidden" id="s-intervals-regular"></div>';
-      h += '<div class="form-group"><label class="form-label">Праздничные интервалы</label>' +
-        '<div id="s-intervals-list-holiday"></div>' +
-        '<button type="button" class="btn btn-sm" onclick="addInterval(\'holiday\')" style="margin-top:8px">+ Добавить интервал</button>' +
-        '<input type="hidden" id="s-intervals-holiday"></div>';
-      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Формат: ЧЧ:ММ — ЧЧ:ММ. Для ночных интервалов (через полночь) укажите начало больше конца, напр. 22:00 — 01:00.</div>';
+      h += '<div class="form-group"><label class="form-label">Обычные интервалы — дневные</label>' +
+        '<div id="s-intervals-list-regular-day"></div>' +
+        '<button type="button" class="btn btn-sm" onclick="addInterval(\'regular-day\', false)" style="margin-top:8px">+ Добавить дневной</button></div>';
+      h += '<div class="form-group"><label class="form-label" style="color:#65657a">Обычные интервалы — ночные <span style="font-size:11px;font-weight:400;color:var(--text-secondary)">(доставка переходит на следующий день)</span></label>' +
+        '<div id="s-intervals-list-regular-night"></div>' +
+        '<button type="button" class="btn btn-sm" onclick="addInterval(\'regular-night\', true)" style="margin-top:8px">+ Добавить ночной</button></div>';
+      h += '<input type="hidden" id="s-intervals-regular">';
+
+      h += '<div class="form-group"><label class="form-label">Праздничные интервалы — дневные</label>' +
+        '<div id="s-intervals-list-holiday-day"></div>' +
+        '<button type="button" class="btn btn-sm" onclick="addInterval(\'holiday-day\', false)" style="margin-top:8px">+ Добавить дневной</button></div>';
+      h += '<div class="form-group"><label class="form-label" style="color:#65657a">Праздничные интервалы — ночные <span style="font-size:11px;font-weight:400;color:var(--text-secondary)">(доставка переходит на следующий день)</span></label>' +
+        '<div id="s-intervals-list-holiday-night"></div>' +
+        '<button type="button" class="btn btn-sm" onclick="addInterval(\'holiday-night\', true)" style="margin-top:8px">+ Добавить ночной</button></div>';
+      h += '<input type="hidden" id="s-intervals-holiday">';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1138,12 +1144,24 @@
       var ivReg = [];
       try { ivReg = JSON.parse(s.intervals_regular || '[]'); } catch (e) {}
       if (!ivReg.length) ivReg = ['10:00-13:00', '13:00-16:00', '16:00-19:00', '19:00-22:00'];
-      renderIntervals(ivReg, 'regular');
+      var regDay = [], regNight = [];
+      ivReg.forEach(function (iv) {
+        var p = iv.split('-'); var sH = parseInt(p[0]); var eH = parseInt(p[1]);
+        (eH <= sH ? regNight : regDay).push(iv);
+      });
+      renderIntervals(regDay, 'regular-day');
+      renderIntervals(regNight, 'regular-night');
 
       var ivHol = [];
       try { ivHol = JSON.parse(s.intervals_holiday || '[]'); } catch (e) {}
       if (!ivHol.length) ivHol = ['10:00-13:00', '13:00-16:00', '16:00-19:00', '19:00-22:00'];
-      renderIntervals(ivHol, 'holiday');
+      var holDay = [], holNight = [];
+      ivHol.forEach(function (iv) {
+        var p = iv.split('-'); var sH = parseInt(p[0]); var eH = parseInt(p[1]);
+        (eH <= sH ? holNight : holDay).push(iv);
+      });
+      renderIntervals(holDay, 'holiday-day');
+      renderIntervals(holNight, 'holiday-night');
     });
   }
 
@@ -1210,16 +1228,18 @@
     list.innerHTML = h;
   }
 
-  window.addInterval = function (type) {
+  window.addInterval = function (type, isNight) {
     var list = document.getElementById('s-intervals-list-' + type);
     if (!list) return;
     var row = document.createElement('div');
     row.className = 'pf-size-row';
     row.style.marginBottom = '6px';
+    var defFrom = isNight ? '22:00' : '10:00';
+    var defTo = isNight ? '01:00' : '13:00';
     row.innerHTML =
-      '<input type="time" class="form-input iv-from" value="10:00" style="width:110px"> ' +
+      '<input type="time" class="form-input iv-from" value="' + defFrom + '" style="width:110px"> ' +
       '<label style="font-size:12px;white-space:nowrap;margin:0 6px">—</label>' +
-      '<input type="time" class="form-input iv-to" value="13:00" style="width:110px"> ' +
+      '<input type="time" class="form-input iv-to" value="' + defTo + '" style="width:110px"> ' +
       '<button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()" style="flex-shrink:0;margin-left:6px">X</button>';
     list.appendChild(row);
   };
@@ -1258,9 +1278,17 @@
 
   function collectAllIntervals() {
     var hiddenReg = document.getElementById('s-intervals-regular');
-    if (hiddenReg) hiddenReg.value = collectIntervalsFrom('s-intervals-list-regular');
+    if (hiddenReg) {
+      var regDay = JSON.parse(collectIntervalsFrom('s-intervals-list-regular-day') || '[]');
+      var regNight = JSON.parse(collectIntervalsFrom('s-intervals-list-regular-night') || '[]');
+      hiddenReg.value = JSON.stringify(regDay.concat(regNight));
+    }
     var hiddenHol = document.getElementById('s-intervals-holiday');
-    if (hiddenHol) hiddenHol.value = collectIntervalsFrom('s-intervals-list-holiday');
+    if (hiddenHol) {
+      var holDay = JSON.parse(collectIntervalsFrom('s-intervals-list-holiday-day') || '[]');
+      var holNight = JSON.parse(collectIntervalsFrom('s-intervals-list-holiday-night') || '[]');
+      hiddenHol.value = JSON.stringify(holDay.concat(holNight));
+    }
   }
 
   function collectDeliveryTiers() {
