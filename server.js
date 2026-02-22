@@ -170,7 +170,7 @@ async function notifyAdminsNewOrder(order) {
     }
 
     var adminUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://') + '/admin?order=' + order.id;
-    var btns = [[{ text: '\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0437\u0430\u043a\u0430\u0437', url: adminUrl }]];
+    var btns = [[{ text: '\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0437\u0430\u043a\u0430\u0437', web_app: { url: adminUrl } }]];
 
     for (var a = 0; a < ADMIN_TELEGRAM_IDS.length; a++) {
       await telegramApiCall('sendMessage', {
