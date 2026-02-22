@@ -876,7 +876,8 @@ app.post('/api/admin/orders/:id/status', adminAuth, async function (req, res) {
     }
   } catch (notifErr) {
     console.error('[TG Notify] Status notification error:', notifErr.message);
-  });
+  }
+});
 
 // ============================================================
 // ADMIN: Update order fields
