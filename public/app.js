@@ -614,6 +614,12 @@
     return parseInt(appSettings.pickup_cutoff_hour) || 20;
   }
 
+  var EARLY_MORNING_HOUR = 6;
+
+  function isAfterCutoff(h, cutoff) {
+    return h >= cutoff || h < EARLY_MORNING_HOUR;
+  }
+
   function isExactTimeEnabled() {
     return appSettings.exact_time_enabled !== '0';
   }
@@ -1329,12 +1335,31 @@
     return tiers[tiers.length - 1].price;
   }
 
+  function getNightDeliveryTiers(engels) {
+    var key = engels ? 'night_delivery_tiers_engels' : 'night_delivery_tiers';
+    try { return JSON.parse(appSettings[key] || '[]'); }
+    catch (e) { return []; }
+  }
+
+  function getNightDeliveryCost(km, engels) {
+    var tiers = getNightDeliveryTiers(engels);
+    if (!tiers.length) return getDeliveryCostByDistance(km, engels);
+    tiers.sort(function (a, b) { return a.max_km - b.max_km; });
+    for (var i = 0; i < tiers.length; i++) {
+      if (km <= tiers[i].max_km) return tiers[i].price;
+    }
+    return tiers[tiers.length - 1].price;
+  }
+
   function getDeliveryCost() {
     if (checkoutState.deliveryType === 'pickup') return 0;
     if (checkoutState.exactTime) {
       return parseInt(appSettings.exact_time_surcharge) || 1000;
     }
     if (checkoutState.deliveryDistance > 0) {
+      if (checkoutState.isNightInterval) {
+        return getNightDeliveryCost(checkoutState.deliveryDistance, checkoutState.isEngels);
+      }
       return getDeliveryCostByDistance(checkoutState.deliveryDistance, checkoutState.isEngels);
     }
     return 0;
@@ -1391,8 +1416,8 @@
     var todayStr = sNow.dateStr;
     var tmrw = new Date(sNow.year, sNow.month - 1, sNow.day + 1);
     var tomorrowStr = tmrw.getFullYear() + '-' + String(tmrw.getMonth() + 1).padStart(2, '0') + '-' + String(tmrw.getDate()).padStart(2, '0');
-    var isTodayClosed = currentHour >= cutoff;
-    var minDate = todayStr;
+    var isTodayClosed = isAfterCutoff(currentHour, cutoff);
+    var minDate = isTodayClosed ? tomorrowStr : todayStr;
     var defaultDate = isTodayClosed ? tomorrowStr : todayStr;
 
     render(
@@ -1737,7 +1762,7 @@
           ' — Доставка по этому адресу недоступна (макс. ' + maxKm + ' км)';
         checkoutState.addressValidated = false;
       } else {
-        var cost = getDeliveryCostByDistance(km, checkoutState.isEngels);
+        var cost = checkoutState.isNightInterval ? getNightDeliveryCost(km, checkoutState.isEngels) : getDeliveryCostByDistance(km, checkoutState.isEngels);
         el.innerHTML = 'Расстояние: <b>' + km.toFixed(1) + ' км</b>' + label + ' — Доставка: <b>' + formatPrice(cost) + '</b>';
       }
       el.style.display = '';
@@ -1806,7 +1831,7 @@
         if (!dateVal) { showToast('Укажите дату доставки'); return; }
         var sNowCheck = saratovNow();
         var todayCheck = sNowCheck.dateStr;
-        if (checkoutState.deliveryType === 'delivery' && dateVal === todayCheck && sNowCheck.hours >= getCutoffHour()) {
+        if (checkoutState.deliveryType === 'delivery' && dateVal === todayCheck && isAfterCutoff(sNowCheck.hours, getCutoffHour())) {
           showToast('Доставка на сегодня недоступна. Выберите другую дату или самовывоз.');
           return;
         }
@@ -1875,6 +1900,7 @@
     var fields = document.getElementById('receiver-fields');
     if (fields) fields.style.display = cb.checked ? 'none' : 'block';
     updateStepButtons();
+    updateCheckoutSummary();
   };
 
   window.toggleConsent = function () {
@@ -1955,10 +1981,10 @@
     var isToday = dateField && dateField.value === sNow.dateStr;
     var isPickup = checkoutState.deliveryType === 'pickup';
     var cutoffHr = isPickup ? getPickupCutoffHour() : getCutoffHour();
-    var isClosed = isToday && sNow.hours >= cutoffHr;
+    var isClosed = isToday && isAfterCutoff(sNow.hours, cutoffHr);
     if (isClosed) {
       var label = isPickup ? 'Самовывоз' : 'Доставка';
-      notice.textContent = label + ' на сегодня уже недоступна (после ' + cutoffHr + ':00). Выберите другую дату.';
+      notice.textContent = label + ' на сегодня недоступна. Выберите другую дату.';
       notice.style.display = '';
     } else {
       notice.style.display = 'none';
@@ -2006,13 +2032,13 @@
     }
 
     var cutoff = getCutoffHour();
-    var pastCutoff = isToday && currentHour >= cutoff;
+    var pastCutoff = isToday && isAfterCutoff(currentHour, cutoff);
 
     var split = getIntervalsSplit();
     var dayIntervals = split.day;
     var nightIntervals = split.night;
-    if (pastCutoff && nightIntervals.length === 0) {
-      el.innerHTML = '<div class="cutoff-hint">На сегодня все интервалы недоступны. Выберите другую дату или самовывоз.</div>';
+    if (pastCutoff) {
+      el.innerHTML = '<div class="cutoff-hint">Все интервалы на сегодня недоступны. Выберите другую дату.</div>';
       return;
     }
     var nextDayStr = '';
@@ -2048,11 +2074,7 @@
     }
 
     var html = '';
-    if (pastCutoff) {
-      html += '<div class="cutoff-hint">Дневные интервалы на сегодня недоступны. Доступна ночная доставка.</div>';
-    } else {
-      html = dayIntervals.map(function (iv) { return buildOption(iv, false); }).join('');
-    }
+    html = dayIntervals.map(function (iv) { return buildOption(iv, false); }).join('');
     if (nightIntervals.length > 0) {
       html += '<button type="button" class="night-delivery-btn" id="night-toggle-btn" onclick="toggleNightIntervals()">' +
         'Ночная доставка' + (nextDayStr ? ' на ' + nextDayStr : '') +
@@ -2062,11 +2084,7 @@
       html += '</div>';
     }
     el.innerHTML = html;
-    if (pastCutoff && nightIntervals.length > 0) {
-      var nc = document.getElementById('night-intervals-container');
-      var nb = document.getElementById('night-toggle-btn');
-      if (nc) { nc.style.display = 'block'; }
-      if (nb) { nb.classList.add('active'); }
+    
     }
   }
 
@@ -2092,7 +2110,7 @@
         var isNightIv = !!nightSet[iv];
         if (isNightIv) {
           todayAvailable.push(iv);
-        } else if (currentHour < cutoff && currentHour < startH) {
+        } else if (!isAfterCutoff(currentHour, cutoff) && currentHour < startH) {
           todayAvailable.push(iv);
         }
       });

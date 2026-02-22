@@ -1081,6 +1081,22 @@
       h += '</div>';
 
       h += '<div class="settings-section">';
+      h += '<div class="settings-section-title">Ночная доставка — Саратов</div>';
+      h += '<div id="s-tiers-list-night-saratov"></div>';
+      h += '<button type="button" class="btn btn-sm" onclick="addDeliveryTier(\'night-saratov\')" style="margin-top:8px">+ Добавить зону</button>';
+      h += '<input type="hidden" id="s-night-delivery-tiers">';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Тарифы для ночной доставки. Если пусто — используются дневные тарифы.</div>';
+      h += '</div>';
+
+      h += '<div class="settings-section">';
+      h += '<div class="settings-section-title">Ночная доставка — Энгельс</div>';
+      h += '<div id="s-tiers-list-night-engels"></div>';
+      h += '<button type="button" class="btn btn-sm" onclick="addDeliveryTier(\'night-engels\')" style="margin-top:8px">+ Добавить зону</button>';
+      h += '<input type="hidden" id="s-night-delivery-tiers-engels">';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Тарифы для ночной доставки. Если пусто — используются дневные тарифы.</div>';
+      h += '</div>';
+
+      h += '<div class="settings-section">';
       h += '<div class="settings-section-title">Стоимость доставки по дням</div>';
       h += '<div class="form-row">' +
         '<div class="form-group"><label class="form-label">Будние дни (руб.)</label>' +
@@ -1207,6 +1223,14 @@
       try { tiersEng = JSON.parse(s.delivery_distance_tiers_engels || '[]'); } catch (e) {}
       if (!tiersEng.length) tiersEng = [{ max_km: 5, price: 350 }, { max_km: 10, price: 500 }, { max_km: 20, price: 800 }, { max_km: 999, price: 1500 }];
       renderDeliveryTiers(tiersEng, 'engels');
+
+      var tiersNightSar = [];
+      try { tiersNightSar = JSON.parse(s.night_delivery_tiers || '[]'); } catch (e) {}
+      renderDeliveryTiers(tiersNightSar, 'night-saratov');
+
+      var tiersNightEng = [];
+      try { tiersNightEng = JSON.parse(s.night_delivery_tiers_engels || '[]'); } catch (e) {}
+      renderDeliveryTiers(tiersNightEng, 'night-engels');
 
       var regDay = [], regNight = [];
       if (s.intervals_regular_day) {
@@ -1391,6 +1415,10 @@
     if (hiddenSar) hiddenSar.value = collectTiersFrom('s-tiers-list-saratov');
     var hiddenEng = document.getElementById('s-delivery-tiers-engels');
     if (hiddenEng) hiddenEng.value = collectTiersFrom('s-tiers-list-engels');
+    var hiddenNightSar = document.getElementById('s-night-delivery-tiers');
+    if (hiddenNightSar) hiddenNightSar.value = collectTiersFrom('s-tiers-list-night-saratov');
+    var hiddenNightEng = document.getElementById('s-night-delivery-tiers-engels');
+    if (hiddenNightEng) hiddenNightEng.value = collectTiersFrom('s-tiers-list-night-engels');
   }
 
   window.saveSettings = function (e) {
@@ -1404,6 +1432,8 @@
       engels_coords: document.getElementById('s-engels-coords').value,
       delivery_distance_tiers: document.getElementById('s-delivery-tiers').value,
       delivery_distance_tiers_engels: document.getElementById('s-delivery-tiers-engels').value,
+      night_delivery_tiers: document.getElementById('s-night-delivery-tiers') ? document.getElementById('s-night-delivery-tiers').value : '',
+      night_delivery_tiers_engels: document.getElementById('s-night-delivery-tiers-engels') ? document.getElementById('s-night-delivery-tiers-engels').value : '',
       max_delivery_km_saratov: document.getElementById('s-max-distance-saratov').value,
       max_delivery_km_engels: document.getElementById('s-max-distance-engels').value,
       delivery_regular: document.getElementById('s-delivery-regular').value,
