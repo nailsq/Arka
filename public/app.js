@@ -614,6 +614,12 @@
     return parseInt(appSettings.pickup_cutoff_hour) || 20;
   }
 
+  var EARLY_MORNING_HOUR = 6;
+
+  function isAfterCutoff(currentHour, cutoffHr) {
+    return currentHour >= cutoffHr || currentHour < EARLY_MORNING_HOUR;
+  }
+
   function isExactTimeEnabled() {
     return appSettings.exact_time_enabled !== '0';
   }
@@ -1391,8 +1397,8 @@
     var todayStr = sNow.dateStr;
     var tmrw = new Date(sNow.year, sNow.month - 1, sNow.day + 1);
     var tomorrowStr = tmrw.getFullYear() + '-' + String(tmrw.getMonth() + 1).padStart(2, '0') + '-' + String(tmrw.getDate()).padStart(2, '0');
-    var isTodayClosed = currentHour >= cutoff;
-    var minDate = todayStr;
+    var isTodayClosed = isAfterCutoff(currentHour, cutoff);
+    var minDate = isTodayClosed ? tomorrowStr : todayStr;
     var defaultDate = isTodayClosed ? tomorrowStr : todayStr;
 
     render(
@@ -1806,7 +1812,7 @@
         if (!dateVal) { showToast('Укажите дату доставки'); return; }
         var sNowCheck = saratovNow();
         var todayCheck = sNowCheck.dateStr;
-        if (checkoutState.deliveryType === 'delivery' && dateVal === todayCheck && sNowCheck.hours >= getCutoffHour()) {
+        if (checkoutState.deliveryType === 'delivery' && dateVal === todayCheck && isAfterCutoff(sNowCheck.hours, getCutoffHour())) {
           showToast('Доставка на сегодня недоступна. Выберите другую дату или самовывоз.');
           return;
         }
@@ -1955,10 +1961,10 @@
     var isToday = dateField && dateField.value === sNow.dateStr;
     var isPickup = checkoutState.deliveryType === 'pickup';
     var cutoffHr = isPickup ? getPickupCutoffHour() : getCutoffHour();
-    var isClosed = isToday && sNow.hours >= cutoffHr;
+    var isClosed = isToday && isAfterCutoff(sNow.hours, cutoffHr);
     if (isClosed) {
       var label = isPickup ? 'Самовывоз' : 'Доставка';
-      notice.textContent = label + ' на сегодня уже недоступна (после ' + cutoffHr + ':00). Выберите другую дату.';
+      notice.textContent = label + ' на сегодня недоступна. Выберите другую дату.';
       notice.style.display = '';
     } else {
       notice.style.display = 'none';
@@ -2006,7 +2012,7 @@
     }
 
     var cutoff = getCutoffHour();
-    var pastCutoff = isToday && currentHour >= cutoff;
+    var pastCutoff = isToday && isAfterCutoff(currentHour, cutoff);
 
     var split = getIntervalsSplit();
     var dayIntervals = split.day;
@@ -2093,7 +2099,7 @@
         var isNightIv = !!nightSet[iv];
         if (isNightIv) {
           todayAvailable.push(iv);
-        } else if (currentHour < cutoff && currentHour < startH) {
+        } else if (!isAfterCutoff(currentHour, cutoff) && currentHour < startH) {
           todayAvailable.push(iv);
         }
       });
@@ -2242,8 +2248,6 @@
 
   window.setDeliveryInterval = function (iv) {
     checkoutState.deliveryInterval = iv;
-    var _split = getIntervalsSplit();
-    checkoutState.isNightInterval = _split.night.indexOf(iv) !== -1;
     var opts = document.querySelectorAll('#interval-group .radio-option');
     opts.forEach(function (o) { o.classList.remove('selected'); });
     var radios = document.querySelectorAll('#interval-group input[type="radio"]');
