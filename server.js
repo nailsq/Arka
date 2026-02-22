@@ -111,6 +111,29 @@ async function getAllSettings() {
   rows.forEach(function (r) { result[r.key] = r.value; });
   return result;
 }
+async function buildPaymentNotification(order) {
+  var msg = '<b>Заказ #' + order.id + ' успешно оплачен!</b>\n\n';
+  msg += 'Сумма: ' + order.total_amount + ' руб.\n';
+  if (order.user_name) msg += 'Имя: ' + order.user_name + '\n';
+  msg += '\n';
+
+  if (order.delivery_type === 'pickup') {
+    msg += '<b>Самовывоз</b>\n';
+    var pickupAddr = await getSetting('pickup_address');
+    if (pickupAddr) msg += 'Адрес: ' + pickupAddr + '\n';
+    if (order.delivery_date) msg += 'Дата: ' + order.delivery_date + '\n';
+    if (order.delivery_interval) msg += 'Время: ' + order.delivery_interval + '\n';
+  } else {
+    msg += '<b>Доставка</b>\n';
+    if (order.delivery_address) msg += 'Адрес: ' + order.delivery_address + '\n';
+    if (order.delivery_date) msg += 'Дата: ' + order.delivery_date + '\n';
+    if (order.delivery_interval) msg += 'Время: ' + order.delivery_interval + '\n';
+  }
+
+  msg += '\nСпасибо, что выбрали нас!';
+  return msg;
+}
+
 
 function validateTelegramInitData(initData) {
   if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') return null;
@@ -666,7 +689,8 @@ app.get('/api/payments/tochka-success/:orderId', async function (req, res) {
       try {
         var u = await db.prepare('SELECT telegram_id FROM users WHERE id = ?').get(order.user_id);
         if (u && u.telegram_id) {
-          sendTelegramMessage(u.telegram_id, 'Ваш заказ №' + orderId + ' успешно оплачен! Сумма: ' + order.total_amount + ' ₽');
+          var payMsg = await buildPaymentNotification(order);
+          sendTelegramMessage(u.telegram_id, payMsg);
         }
       } catch (e) {}
     }
@@ -716,7 +740,8 @@ app.post('/api/payments/webhook', async function (req, res) {
             try {
               var u = await db.prepare('SELECT telegram_id FROM users WHERE id = ?').get(order.user_id);
               if (u && u.telegram_id) {
-                sendTelegramMessage(u.telegram_id, 'Ваш заказ №' + order.id + ' успешно оплачен! Сумма: ' + order.total_amount + ' ₽');
+                var payMsg2 = await buildPaymentNotification(order);
+                sendTelegramMessage(u.telegram_id, payMsg2);
               }
             } catch (e) {}
           }
