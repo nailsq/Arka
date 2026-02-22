@@ -89,7 +89,7 @@ function telegramApiCall(method, body) {
 
 var BOT_MAIN_KEYBOARD = JSON.stringify({
   keyboard: [
-    [{ text: '\u041c\u043e\u0438 \u0437\u0430\u043a\u0430\u0437\u044b' }, { text: '\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438' }],
+    [{ text: '\u041c\u043e\u0439 \u0437\u0430\u043a\u0430\u0437' }, { text: '\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438' }],
     [{ text: '\u041e \u043d\u0430\u0441' }]
   ],
   resize_keyboard: true,
@@ -1212,29 +1212,52 @@ app.post('/api/telegram/webhook', async function (req, res) {
         return;
       }
 
-      if (tgText === '\u041c\u043e\u0438 \u0437\u0430\u043a\u0430\u0437\u044b' || tgText === '/orders') {
+      if (tgText === 'Мой заказ' || tgText === '/orders') {
         var ordUser = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(tgChatId));
         if (!ordUser) {
-          await telegramApiCall('sendMessage', { chat_id: tgChatId, text: '\u0423 \u0432\u0430\u0441 \u043f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0437\u0430\u043a\u0430\u0437\u043e\u0432. \u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u043c\u0430\u0433\u0430\u0437\u0438\u043d \u0447\u0435\u0440\u0435\u0437 \u043a\u043d\u043e\u043f\u043a\u0443 \u041a\u0410\u0422\u0410\u041b\u041e\u0413!', reply_markup: BOT_MAIN_KEYBOARD });
+          await telegramApiCall('sendMessage', { chat_id: tgChatId, text: 'У вас нет активных заказов.', reply_markup: BOT_MAIN_KEYBOARD });
           return;
         }
-        var ordList = await db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 5').all(ordUser.id);
-        if (!ordList.length) {
-          await telegramApiCall('sendMessage', { chat_id: tgChatId, text: '\u0423 \u0432\u0430\u0441 \u043f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0437\u0430\u043a\u0430\u0437\u043e\u0432. \u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u043c\u0430\u0433\u0430\u0437\u0438\u043d \u0447\u0435\u0440\u0435\u0437 \u043a\u043d\u043e\u043f\u043a\u0443 \u041a\u0410\u0422\u0410\u041b\u041e\u0413!', reply_markup: BOT_MAIN_KEYBOARD });
+        var activeStatuses = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Готов к выдаче'];
+        var activeOrder = await db.prepare(
+          "SELECT * FROM orders WHERE user_id = ? AND status IN ('" + activeStatuses.join("','") + "') ORDER BY created_at DESC LIMIT 1"
+        ).get(ordUser.id);
+
+        if (!activeOrder) {
+          await telegramApiCall('sendMessage', { chat_id: tgChatId, text: 'У вас нет активных заказов.', reply_markup: BOT_MAIN_KEYBOARD });
           return;
         }
-        var ordMsg = '<b>\u0412\u0430\u0448\u0438 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435 \u0437\u0430\u043a\u0430\u0437\u044b:</b>\n\n';
-        for (var oi = 0; oi < ordList.length; oi++) {
-          var oo = ordList[oi];
-          ordMsg += '\u0417\u0430\u043a\u0430\u0437 #' + oo.id + ' \u2014 ' + oo.total_amount + ' \u0440\u0443\u0431.\n';
-          ordMsg += '\u0421\u0442\u0430\u0442\u0443\u0441: <b>' + (oo.status || '\u041d\u043e\u0432\u044b\u0439') + '</b>\n';
-          if (oo.delivery_date) ordMsg += '\u0414\u0430\u0442\u0430: ' + oo.delivery_date + '\n';
-          ordMsg += '\n';
+
+        var isPickup = activeOrder.delivery_type === 'pickup';
+        var stages;
+        if (isPickup) {
+          stages = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Готов к выдаче'];
+        } else {
+          stages = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен'];
         }
+
+        var currentIdx = stages.indexOf(activeOrder.status);
+        if (currentIdx === -1) currentIdx = 0;
+
+        var ordMsg = '<b>Заказ #' + activeOrder.id + '</b> \u2014 ' + activeOrder.total_amount + ' руб.\n';
+        if (activeOrder.delivery_date) ordMsg += 'Дата: ' + activeOrder.delivery_date + '\n';
+        if (isPickup) { ordMsg += 'Тип: Самовывоз\n'; }
+        else if (activeOrder.delivery_address) { ordMsg += 'Адрес: ' + activeOrder.delivery_address + '\n'; }
+        ordMsg += '\n<b>Этапы выполнения:</b>\n\n';
+
+        for (var si = 0; si < stages.length; si++) {
+          if (si < currentIdx) {
+            ordMsg += '  [+] ' + stages[si] + '\n';
+          } else if (si === currentIdx) {
+            ordMsg += '  [>] ' + stages[si] + '  <--\n';
+          } else {
+            ordMsg += '  [   ] ' + stages[si] + '\n';
+          }
+        }
+
         await telegramApiCall('sendMessage', { chat_id: tgChatId, text: ordMsg, parse_mode: 'HTML', reply_markup: BOT_MAIN_KEYBOARD });
         return;
       }
-
       if (tgText === '\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438') {
         await telegramApiCall('sendMessage', {
           chat_id: tgChatId,
@@ -1421,7 +1444,7 @@ async function registerTelegramBotWebhook() {
     await telegramApiCall('setMyCommands', {
       commands: [
         { command: 'start', description: 'Главное меню' },
-        { command: 'orders', description: 'Мои заказы' },
+        { command: 'orders', description: 'Мой заказ' },
         { command: 'help', description: 'Помощь' }
       ]
     });
