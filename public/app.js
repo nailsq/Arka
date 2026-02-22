@@ -1329,12 +1329,50 @@
     return tiers[tiers.length - 1].price;
   }
 
+  function getNightDeliveryTiers(engels) {
+    var key = engels ? 'night_delivery_tiers_engels' : 'night_delivery_tiers';
+    try { return JSON.parse(appSettings[key] || '[]'); }
+    catch (e) { return []; }
+  }
+
+  function getNightDeliveryCost(km, engels) {
+    var tiers = getNightDeliveryTiers(engels);
+    if (!tiers.length) return getDeliveryCostByDistance(km, engels);
+    tiers.sort(function (a, b) { return a.max_km - b.max_km; });
+    for (var i = 0; i < tiers.length; i++) {
+      if (km <= tiers[i].max_km) return tiers[i].price;
+    }
+    return tiers[tiers.length - 1].price;
+  }
+
+  function getNightDeliveryTiers(engels) {
+    var key = engels ? 'night_delivery_tiers_engels' : 'night_delivery_tiers';
+    try { return JSON.parse(appSettings[key] || '[]'); }
+    catch (e) { return []; }
+  }
+
+  function getNightDeliveryCost(km, engels) {
+    var tiers = getNightDeliveryTiers(engels);
+    if (!tiers.length) return getDeliveryCostByDistance(km, engels);
+    tiers.sort(function (a, b) { return a.max_km - b.max_km; });
+    for (var i = 0; i < tiers.length; i++) {
+      if (km <= tiers[i].max_km) return tiers[i].price;
+    }
+    return tiers[tiers.length - 1].price;
+  }
+
   function getDeliveryCost() {
     if (checkoutState.deliveryType === 'pickup') return 0;
     if (checkoutState.exactTime) {
       return parseInt(appSettings.exact_time_surcharge) || 1000;
     }
     if (checkoutState.deliveryDistance > 0) {
+      if (checkoutState.isNightInterval) {
+        return getNightDeliveryCost(checkoutState.deliveryDistance, checkoutState.isEngels);
+      }
+      if (checkoutState.isNightInterval) {
+        return getNightDeliveryCost(checkoutState.deliveryDistance, checkoutState.isEngels);
+      }
       return getDeliveryCostByDistance(checkoutState.deliveryDistance, checkoutState.isEngels);
     }
     return 0;
@@ -1737,7 +1775,9 @@
           ' — Доставка по этому адресу недоступна (макс. ' + maxKm + ' км)';
         checkoutState.addressValidated = false;
       } else {
-        var cost = checkoutState.isNightInterval ? getNightDeliveryCost(km, checkoutState.isEngels) : getDeliveryCostByDistance(km, checkoutState.isEngels);
+        var cost = checkoutState.isNightInterval
+          ? getNightDeliveryCost(km, checkoutState.isEngels)
+          : getDeliveryCostByDistance(km, checkoutState.isEngels);
         el.innerHTML = 'Расстояние: <b>' + km.toFixed(1) + ' км</b>' + label + ' — Доставка: <b>' + formatPrice(cost) + '</b>';
       }
       el.style.display = '';
@@ -2250,7 +2290,17 @@
     radios.forEach(function (r) {
       if (r.value === iv) r.closest('.radio-option').classList.add('selected');
     });
-    updateStepButtons();
+        updateCheckoutSummary();
+    if (checkoutState.deliveryDistance > 0) {
+      var distEl = document.getElementById('delivery-distance-info');
+      if (distEl && distEl.style.display !== 'none') {
+        var _nc = checkoutState.isNightInterval
+          ? getNightDeliveryCost(checkoutState.deliveryDistance, checkoutState.isEngels)
+          : getDeliveryCostByDistance(checkoutState.deliveryDistance, checkoutState.isEngels);
+        distEl.innerHTML = '\u0420\u0430\u0441\u0441\u0442\u043e\u044f\u043d\u0438\u0435: <b>' + checkoutState.deliveryDistance.toFixed(1) + ' \u043a\u043c</b> \u2014 \u0414\u043e\u0441\u0442\u0430\u0432\u043a\u0430: <b>' + formatPrice(_nc) + '</b>';
+      }
+    }
+updateStepButtons();
   };
 
   window.toggleExactTime = function () {
