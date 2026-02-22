@@ -1329,32 +1329,12 @@
     return tiers[tiers.length - 1].price;
   }
 
-  
-  function getNightDeliveryTiers(engels) {
-    var key = engels ? 'night_delivery_tiers_engels' : 'night_delivery_tiers';
-    try { return JSON.parse(appSettings[key] || '[]'); }
-    catch (e) { return []; }
-  }
-
-  function getNightDeliveryCost(km, engels) {
-    var tiers = getNightDeliveryTiers(engels);
-    if (!tiers.length) return getDeliveryCostByDistance(km, engels);
-    tiers.sort(function (a, b) { return a.max_km - b.max_km; });
-    for (var i = 0; i < tiers.length; i++) {
-      if (km <= tiers[i].max_km) return tiers[i].price;
-    }
-    return tiers[tiers.length - 1].price;
-  }
-
   function getDeliveryCost() {
     if (checkoutState.deliveryType === 'pickup') return 0;
     if (checkoutState.exactTime) {
       return parseInt(appSettings.exact_time_surcharge) || 1000;
     }
     if (checkoutState.deliveryDistance > 0) {
-      if (checkoutState.isNightInterval) {
-        return getNightDeliveryCost(checkoutState.deliveryDistance, checkoutState.isEngels);
-      }
       return getDeliveryCostByDistance(checkoutState.deliveryDistance, checkoutState.isEngels);
     }
     return 0;
@@ -2074,9 +2054,10 @@
       html = dayIntervals.map(function (iv) { return buildOption(iv, false); }).join('');
     }
     if (nightIntervals.length > 0) {
-      html += '<button type="button" class="night-delivery-btn" id="night-toggle-btn" onclick="toggleNightIntervals()">' +
-        'Ночная доставка' + (nextDayStr ? ' на ' + nextDayStr : '') +
-        '</button>';
+      html += '<div class="night-intervals-divider" onclick="toggleNightIntervals()" style="cursor:pointer;user-select:none">' +
+        '<span class="night-icon">&#9790;</span> Ночная доставка' +
+        (nextDayStr ? ' (на ' + nextDayStr + ')' : '') +
+        ' <span id="night-toggle-arrow" style="float:right;transition:transform 0.3s">&#9660;</span></div>';
       html += '<div id="night-intervals-container" style="display:none">';
       html += nightIntervals.map(function (iv) { return buildOption(iv, true); }).join('');
       html += '</div>';
@@ -2084,9 +2065,9 @@
     el.innerHTML = html;
     if (pastCutoff && nightIntervals.length > 0) {
       var nc = document.getElementById('night-intervals-container');
-      var nb = document.getElementById('night-toggle-btn');
+      var na = document.getElementById('night-toggle-arrow');
       if (nc) { nc.style.display = 'block'; }
-      if (nb) { nb.classList.add('active'); }
+      if (na) { na.style.transform = 'rotate(180deg)'; }
     }
   }
 
@@ -2248,14 +2229,14 @@
 
   window.toggleNightIntervals = function () {
     var container = document.getElementById('night-intervals-container');
-    var btn = document.getElementById('night-toggle-btn');
+    var arrow = document.getElementById('night-toggle-arrow');
     if (!container) return;
     if (container.style.display === 'none') {
       container.style.display = 'block';
-      if (btn) btn.classList.add('active');
+      if (arrow) arrow.style.transform = 'rotate(180deg)';
     } else {
       container.style.display = 'none';
-      if (btn) btn.classList.remove('active');
+      if (arrow) arrow.style.transform = '';
     }
   };
 
@@ -2269,7 +2250,6 @@
     radios.forEach(function (r) {
       if (r.value === iv) r.closest('.radio-option').classList.add('selected');
     });
-    updateCheckoutSummary();
     updateStepButtons();
   };
 
