@@ -2054,11 +2054,21 @@
       html = dayIntervals.map(function (iv) { return buildOption(iv, false); }).join('');
     }
     if (nightIntervals.length > 0) {
-      html += '<div class="night-intervals-divider"><span class="night-icon">&#9790;</span> Ночная доставка' +
-        (nextDayStr ? ' (на ' + nextDayStr + ')' : '') + '</div>';
+      html += '<div class="night-intervals-divider" onclick="toggleNightIntervals()" style="cursor:pointer;user-select:none">' +
+        '<span class="night-icon">&#9790;</span> Ночная доставка' +
+        (nextDayStr ? ' (на ' + nextDayStr + ')' : '') +
+        ' <span id="night-toggle-arrow" style="float:right;transition:transform 0.3s">&#9660;</span></div>';
+      html += '<div id="night-intervals-container" style="display:none">';
       html += nightIntervals.map(function (iv) { return buildOption(iv, true); }).join('');
-    }
+      html += '</div>';
+    }   }
     el.innerHTML = html;
+    if (pastCutoff && nightIntervals.length > 0) {
+      var nc = document.getElementById('night-intervals-container');
+      var na = document.getElementById('night-toggle-arrow');
+      if (nc) { nc.style.display = 'block'; }
+      if (na) { na.style.transform = 'rotate(180deg)'; }
+    }
   }
 
   function updateNearestDeliveryHint() {
@@ -2217,6 +2227,19 @@
     updateCheckoutSummary();
   };
 
+  window.toggleNightIntervals = function () {
+    var container = document.getElementById('night-intervals-container');
+    var arrow = document.getElementById('night-toggle-arrow');
+    if (!container) return;
+    if (container.style.display === 'none') {
+      container.style.display = 'block';
+      if (arrow) arrow.style.transform = 'rotate(180deg)';
+    } else {
+      container.style.display = 'none';
+      if (arrow) arrow.style.transform = '';
+    }
+  };
+
   window.setDeliveryInterval = function (iv) {
     checkoutState.deliveryInterval = iv;
     var opts = document.querySelectorAll('#interval-group .radio-option');
@@ -2342,7 +2365,14 @@
         : (checkoutState.deliveryType === 'pickup'
           ? (checkoutState.pickupTime ? 'Самовывоз к ' + checkoutState.pickupTime : '')
           : checkoutState.deliveryInterval),
-      delivery_date: dateVal,
+      delivery_date: (function () {
+        if (checkoutState.isNightInterval && dateVal) {
+          var _dp = dateVal.split('-');
+          var _nd = new Date(parseInt(_dp[0]), parseInt(_dp[1]) - 1, parseInt(_dp[2]) + 1);
+          return _nd.getFullYear() + '-' + String(_nd.getMonth() + 1).padStart(2, '0') + '-' + String(_nd.getDate()).padStart(2, '0');
+        }
+        return dateVal;
+      })(),
       exact_time: checkoutState.exactTime ? (document.getElementById('field-exact-time') ? document.getElementById('field-exact-time').value : '') : '',
       comment: document.getElementById('field-comment') ? document.getElementById('field-comment').value.trim() : '',
       telegram_id: getTelegramId() || '',
