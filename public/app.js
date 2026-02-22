@@ -2061,7 +2061,7 @@
       html += '<div id="night-intervals-container" style="display:none">';
       html += nightIntervals.map(function (iv) { return buildOption(iv, true); }).join('');
       html += '</div>';
-    }   }
+    }
     el.innerHTML = html;
     if (pastCutoff && nightIntervals.length > 0) {
       var nc = document.getElementById('night-intervals-container');
@@ -2242,6 +2242,8 @@
 
   window.setDeliveryInterval = function (iv) {
     checkoutState.deliveryInterval = iv;
+    var _split = getIntervalsSplit();
+    checkoutState.isNightInterval = _split.night.indexOf(iv) !== -1;
     var opts = document.querySelectorAll('#interval-group .radio-option');
     opts.forEach(function (o) { o.classList.remove('selected'); });
     var radios = document.querySelectorAll('#interval-group input[type="radio"]');
