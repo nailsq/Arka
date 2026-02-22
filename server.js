@@ -835,31 +835,26 @@ app.post('/api/admin/orders/:id/status', adminAuth, async function (req, res) {
 
   try {
     var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
-    if (order && order.user_id) {
+    if (order && order.user_id && (newStatus === 'Отправлен' || newStatus === 'Готов к выдаче')) {
       var u = await db.prepare('SELECT telegram_id FROM users WHERE id = ?').get(order.user_id);
       if (u && u.telegram_id) {
-        var statusEmoji = {
-          'Новый': '🆕', 'Оплачен': '✅', 'Собирается': '💐',
-          'Собран': '📦', 'Отправлен': '🚗', 'Доставлен': '🎉',
-          'Готов к выдаче': '🏪', 'Выполнен': '✔️'
-        };
-        var emoji = statusEmoji[newStatus] || '📋';
-        var msg = emoji + ' <b>Заказ #' + order.id + '</b>\n\n' +
-          'Статус: <b>' + newStatus + '</b>\n';
-        if (order.delivery_type === 'pickup') {
-          msg += 'Тип: Самовывоз\n';
-        } else if (order.delivery_address) {
-          msg += 'Адрес: ' + order.delivery_address + '\n';
+        var msg = '';
+        if (newStatus === 'Отправлен') {
+          msg = '<b>Заказ #' + order.id + ' отправлен!</b>\n\n' +
+            'Ваш заказ уже в пути. Ожидайте доставку!';
+          if (order.delivery_address) msg += '\nАдрес: ' + order.delivery_address;
+          if (order.delivery_date) msg += '\nДата: ' + order.delivery_date;
+          if (order.delivery_interval) msg += '\nИнтервал: ' + order.delivery_interval;
+        } else {
+          msg = '<b>Заказ #' + order.id + ' готов!</b>\n\n' +
+            'Ваш заказ готов и ждёт вас. Можете забрать его в магазине.';
         }
-        if (order.delivery_date) msg += 'Дата: ' + order.delivery_date + '\n';
-        msg += 'Сумма: ' + order.total_amount + ' ₽';
         sendTelegramMessage(u.telegram_id, msg);
       }
     }
   } catch (notifErr) {
     console.error('[TG Notify] Status notification error:', notifErr.message);
-  }
-});
+  });
 
 // ============================================================
 // ADMIN: Update order fields
