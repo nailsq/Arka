@@ -1081,19 +1081,19 @@
       h += '</div>';
 
       h += '<div class="settings-section">';
-      h += '<div class="settings-section-title">Ночная доставка — Саратов</div>';
+      h += '<div class="settings-section-title">Ночная доставка — Саратов (от магазина)</div>';
       h += '<div id="s-tiers-list-night-saratov"></div>';
       h += '<button type="button" class="btn btn-sm" onclick="addDeliveryTier(\'night-saratov\')" style="margin-top:8px">+ Добавить зону</button>';
       h += '<input type="hidden" id="s-night-delivery-tiers">';
-      h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Тарифы для ночной доставки. Если пусто — используются дневные тарифы.</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Тарифы ночной доставки по км от магазина. Если пусто — используются дневные тарифы.</div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
-      h += '<div class="settings-section-title">Ночная доставка — Энгельс</div>';
+      h += '<div class="settings-section-title">Ночная доставка — Энгельс (от центра)</div>';
       h += '<div id="s-tiers-list-night-engels"></div>';
       h += '<button type="button" class="btn btn-sm" onclick="addDeliveryTier(\'night-engels\')" style="margin-top:8px">+ Добавить зону</button>';
       h += '<input type="hidden" id="s-night-delivery-tiers-engels">';
-      h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Тарифы для ночной доставки. Если пусто — используются дневные тарифы.</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Тарифы ночной доставки по км от центра Энгельса. Если пусто — используются дневные тарифы.</div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
