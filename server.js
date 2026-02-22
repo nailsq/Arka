@@ -112,19 +112,16 @@ async function getAllSettings() {
   return result;
 }
 async function buildPaymentNotification(order) {
-  var msg = '<b>Заказ #' + order.id + ' успешно оплачен!</b>\n\n';
-  msg += 'Сумма: ' + order.total_amount + ' руб.\n';
-  if (order.user_name) msg += 'Имя: ' + order.user_name + '\n';
-  msg += '\n';
+  var msg = '<b>Заказ #' + order.id + ' оплачен!</b>\n\n';
 
   if (order.delivery_type === 'pickup') {
-    msg += '<b>Самовывоз</b>\n';
+    msg += 'Способ получения: <b>Самовывоз</b>\n';
     var pickupAddr = await getSetting('pickup_address');
     if (pickupAddr) msg += 'Адрес: ' + pickupAddr + '\n';
     if (order.delivery_date) msg += 'Дата: ' + order.delivery_date + '\n';
     if (order.delivery_interval) msg += 'Время: ' + order.delivery_interval + '\n';
   } else {
-    msg += '<b>Доставка</b>\n';
+    msg += 'Способ получения: <b>Доставка</b>\n';
     if (order.delivery_address) msg += 'Адрес: ' + order.delivery_address + '\n';
     if (order.delivery_date) msg += 'Дата: ' + order.delivery_date + '\n';
     if (order.delivery_interval) msg += 'Время: ' + order.delivery_interval + '\n';
