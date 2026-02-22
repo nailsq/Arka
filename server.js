@@ -96,6 +96,17 @@ var BOT_MAIN_KEYBOARD = JSON.stringify({
   is_persistent: true
 });
 
+var BOT_ADMIN_KEYBOARD = JSON.stringify({
+  keyboard: [
+    [{ text: '\u041c\u043e\u0439 \u0437\u0430\u043a\u0430\u0437' }, { text: '\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438' }],
+    [{ text: '\u041e \u043d\u0430\u0441' }],
+    [{ text: '\u041d\u043e\u0432\u044b\u0435 \u0437\u0430\u043a\u0430\u0437\u044b' }, { text: '\u0410\u0434\u043c\u0438\u043d-\u043f\u0430\u043d\u0435\u043b\u044c' }]
+  ],
+  resize_keyboard: true,
+  is_persistent: true
+});
+
+
 // ============================================================
 // HELPERS
 // ============================================================
@@ -1359,6 +1370,35 @@ app.post('/api/telegram/webhook', async function (req, res) {
           text: '<b>\u041f\u043e\u043c\u043e\u0449\u044c</b>\n\n\u041a\u0410\u0422\u0410\u041b\u041e\u0413 \u2014 \u043e\u0442\u043a\u0440\u043e\u0435\u0442\u0441\u044f \u043c\u0430\u0433\u0430\u0437\u0438\u043d\n\u041c\u043e\u0438 \u0437\u0430\u043a\u0430\u0437\u044b \u2014 \u0441\u0442\u0430\u0442\u0443\u0441 \u0437\u0430\u043a\u0430\u0437\u043e\u0432\n\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438 \u2014 \u043d\u0430\u043f\u0438\u0441\u0430\u0442\u044c \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435\n\u041e \u043d\u0430\u0441 \u2014 \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f\n\n\u0418\u043b\u0438 \u043f\u0440\u043e\u0441\u0442\u043e \u043d\u0430\u043f\u0438\u0448\u0438\u0442\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u2014 \u043c\u044b \u043e\u0442\u0432\u0435\u0442\u0438\u043c!',
           parse_mode: 'HTML',
           reply_markup: BOT_MAIN_KEYBOARD
+        });
+        return;
+      }
+
+      if (tgText === 'Новые заказы' && tgIsAdmin) {
+        var pendingOrders = await db.prepare(
+          "SELECT * FROM orders WHERE status IN ('Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Готов к выдаче') ORDER BY created_at DESC LIMIT 10"
+        ).all();
+        if (!pendingOrders.length) {
+          await telegramApiCall('sendMessage', { chat_id: tgChatId, text: 'Активных заказов нет.', reply_markup: BOT_ADMIN_KEYBOARD });
+          return;
+        }
+        var aMsg = '<b>Активные заказы (' + pendingOrders.length + '):</b>\n\n';
+        for (var pi = 0; pi < pendingOrders.length; pi++) {
+          var po = pendingOrders[pi];
+          aMsg += '#' + po.id + ' | ' + (po.user_name || '-') + ' | ' + (po.status || 'Новый') + ' | ' + po.total_amount + ' руб.\n';
+        }
+        await telegramApiCall('sendMessage', { chat_id: tgChatId, text: aMsg, parse_mode: 'HTML', reply_markup: BOT_ADMIN_KEYBOARD });
+        return;
+      }
+
+      if (tgText === 'Админ-панель' && tgIsAdmin) {
+        var panelUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://') + '/admin';
+        await telegramApiCall('sendMessage', {
+          chat_id: tgChatId,
+          text: 'Нажмите кнопку ниже:',
+          reply_markup: JSON.stringify({
+            inline_keyboard: [[{ text: 'Открыть админ-панель', web_app: { url: panelUrl } }]]
+          })
         });
         return;
       }
