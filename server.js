@@ -634,7 +634,7 @@ app.get('/api/payments/tochka-success/:orderId', async function (req, res) {
     }
   }
 
-  res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата</title><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff;color:#000}div{text-align:center;padding:40px;max-width:400px}h2{margin-bottom:16px}p{color:#555;margin-bottom:24px}a{display:inline-block;padding:14px 28px;background:#000;color:#fff;text-decoration:none;border-radius:10px;font-size:15px}</style></head><body><div><h2>Спасибо за оплату!</h2><p>Заказ №' + orderId + ' оплачен. Мы свяжемся с вами для подтверждения.</p><a href="/">Вернуться в магазин</a></div></body></html>');
+  res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата</title><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff;color:#000}div{text-align:center;padding:40px;max-width:400px}h2{margin-bottom:16px}p{color:#555;margin-bottom:24px}a{display:inline-block;padding:14px 28px;background:#000;color:#fff;text-decoration:none;border-radius:10px;font-size:15px}</style></head><body><div><h2>Оплата прошла успешно!</h2><p>Заказ №' + orderId + ' уже в работе. Спасибо, что выбрали нас!</p><a href="/">Вернуться в магазин</a></div></body></html>');
 });
 
 app.post('/api/payments/webhook', async function (req, res) {
