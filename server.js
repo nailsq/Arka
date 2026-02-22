@@ -131,6 +131,62 @@ async function buildPaymentNotification(order) {
   return msg;
 }
 
+async function notifyAdminsNewOrder(order) {
+  if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') return;
+  try {
+    var items = await db.prepare(
+      'SELECT oi.*, p.name as product_name FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?'
+    ).all(order.id);
+
+    var msg = '<b>\u041d\u043e\u0432\u044b\u0439 \u043e\u043f\u043b\u0430\u0447\u0435\u043d\u043d\u044b\u0439 \u0437\u0430\u043a\u0430\u0437 #' + order.id + '</b>\n\n';
+    msg += '\u041a\u043b\u0438\u0435\u043d\u0442: ' + (order.user_name || '-') + '\n';
+    msg += '\u0422\u0435\u043b\u0435\u0444\u043e\u043d: ' + (order.user_phone || '-') + '\n';
+    if (order.delivery_type === 'pickup') {
+      msg += '\u0422\u0438\u043f: \u0421\u0430\u043c\u043e\u0432\u044b\u0432\u043e\u0437\n';
+    } else {
+      msg += '\u0422\u0438\u043f: \u0414\u043e\u0441\u0442\u0430\u0432\u043a\u0430\n';
+      if (order.delivery_address) msg += '\u0410\u0434\u0440\u0435\u0441: ' + order.delivery_address + '\n';
+    }
+    if (order.delivery_date) msg += '\u0414\u0430\u0442\u0430: ' + order.delivery_date + '\n';
+    if (order.delivery_interval) msg += '\u0412\u0440\u0435\u043c\u044f: ' + order.delivery_interval + '\n';
+    msg += '\u0421\u0443\u043c\u043c\u0430: ' + order.total_amount + ' \u0440\u0443\u0431.\n';
+
+    if (items.length) {
+      msg += '\n\u0422\u043e\u0432\u0430\u0440\u044b:\n';
+      for (var i = 0; i < items.length; i++) {
+        msg += '  ' + (items[i].product_name || '\u0422\u043e\u0432\u0430\u0440') + ' x' + items[i].quantity + ' \u2014 ' + items[i].price + ' \u0440\u0443\u0431.\n';
+      }
+    }
+
+    var adminUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://') + '/admin?order=' + order.id;
+    var btns = [[{ text: '\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0437\u0430\u043a\u0430\u0437', url: adminUrl }]];
+
+    for (var a = 0; a < ADMIN_TELEGRAM_IDS.length; a++) {
+      await telegramApiCall('sendMessage', {
+        chat_id: ADMIN_TELEGRAM_IDS[a],
+        text: msg,
+        parse_mode: 'HTML',
+        reply_markup: JSON.stringify({ inline_keyboard: btns })
+      });
+    }
+
+    var dbAdmins = await db.prepare('SELECT telegram_id FROM admin_users WHERE telegram_id IS NOT NULL').all();
+    for (var d = 0; d < dbAdmins.length; d++) {
+      if (!ADMIN_TELEGRAM_IDS.includes(dbAdmins[d].telegram_id)) {
+        await telegramApiCall('sendMessage', {
+          chat_id: dbAdmins[d].telegram_id,
+          text: msg,
+          parse_mode: 'HTML',
+          reply_markup: JSON.stringify({ inline_keyboard: btns })
+        });
+      }
+    }
+    console.log('[TG Bot] Admin notification sent for order #' + order.id);
+  } catch (err) {
+    console.error('[TG Bot] Admin notification error:', err.message);
+  }
+}
+
 
 function validateTelegramInitData(initData) {
   if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') return null;
@@ -690,6 +746,7 @@ app.get('/api/payments/tochka-success/:orderId', async function (req, res) {
           sendTelegramMessage(u.telegram_id, payMsg);
         }
       } catch (e) {}
+    notifyAdminsNewOrder(order);
     }
   }
 
@@ -741,6 +798,7 @@ app.post('/api/payments/webhook', async function (req, res) {
                 sendTelegramMessage(u.telegram_id, payMsg2);
               }
             } catch (e) {}
+          notifyAdminsNewOrder(order);
           }
         }
       }

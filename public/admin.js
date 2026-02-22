@@ -211,6 +211,14 @@
     updateActiveTab();
     render('<div id="tab-content"><div class="empty-state">Загрузка...</div></div>');
     loadTab();
+    (function checkDeepLink() {
+      var params = new URLSearchParams(window.location.search);
+      var orderId = params.get('order');
+      if (orderId) {
+        setTimeout(function () { viewOrder(parseInt(orderId)); }, 600);
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    })();
     startOrderPolling();
   }
 
