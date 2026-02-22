@@ -59,6 +59,44 @@ function sendTelegramMessage(chatId, text) {
 }
 
 // ============================================================
+// TELEGRAM BOT: API helpers
+// ============================================================
+
+var adminReplyState = {};
+
+function telegramApiCall(method, body) {
+  return new Promise(function (resolve, reject) {
+    if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') return resolve(null);
+    var data = JSON.stringify(body);
+    var options = {
+      hostname: 'api.telegram.org',
+      path: '/bot' + BOT_TOKEN + '/' + method,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
+    };
+    var req = https.request(options, function (res) {
+      var chunks = [];
+      res.on('data', function (c) { chunks.push(c); });
+      res.on('end', function () {
+        try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch (e) { resolve(null); }
+      });
+    });
+    req.on('error', function (err) { console.error('[TG API] Error:', err.message); resolve(null); });
+    req.write(data);
+    req.end();
+  });
+}
+
+var BOT_MAIN_KEYBOARD = JSON.stringify({
+  keyboard: [
+    [{ text: '\u041c\u043e\u0438 \u0437\u0430\u043a\u0430\u0437\u044b' }, { text: '\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438' }],
+    [{ text: '\u041e \u043d\u0430\u0441' }]
+  ],
+  resize_keyboard: true,
+  is_persistent: true
+});
+
+// ============================================================
 // HELPERS
 // ============================================================
 
@@ -1129,6 +1167,170 @@ app.post('/api/admin/orders/cleanup', adminAuth, async function (req, res) {
 });
 
 // ============================================================
+// TELEGRAM BOT: Webhook handler
+// ============================================================
+
+app.post('/api/telegram/webhook', async function (req, res) {
+  res.json({ ok: true });
+
+  try {
+    var update = req.body;
+
+    if (update.callback_query) {
+      var cbq = update.callback_query;
+      var cbChatId = cbq.from.id;
+      var cbData = cbq.data;
+
+      await telegramApiCall('answerCallbackQuery', { callback_query_id: cbq.id });
+
+      if (cbData.indexOf('reply_') === 0) {
+        var targetChatId = cbData.replace('reply_', '');
+        adminReplyState[String(cbChatId)] = targetChatId;
+        await telegramApiCall('sendMessage', {
+          chat_id: cbChatId,
+          text: '\u041d\u0430\u043f\u0438\u0448\u0438\u0442\u0435 \u043e\u0442\u0432\u0435\u0442 \u2014 \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0435\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0431\u0443\u0434\u0435\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e \u043a\u043b\u0438\u0435\u043d\u0442\u0443.\n\n\u0414\u043b\u044f \u043e\u0442\u043c\u0435\u043d\u044b: /cancel'
+        });
+      }
+      return;
+    }
+
+    if (update.message) {
+      var tgMsg = update.message;
+      var tgChatId = tgMsg.chat.id;
+      var tgText = tgMsg.text || '';
+      var tgFirstName = (tgMsg.from && tgMsg.from.first_name) || '';
+      var tgUsername = (tgMsg.from && tgMsg.from.username) || '';
+      var tgIsAdmin = await isAdminUser(String(tgChatId), tgUsername);
+
+      if (tgText === '/start') {
+        await telegramApiCall('sendMessage', {
+          chat_id: tgChatId,
+          text: '<b>\u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u043e\u0432\u0430\u0442\u044c \u0432 ARKA STUDIO FLOWERS!</b>\n\n\u0417\u0434\u0435\u0441\u044c \u0432\u044b \u043c\u043e\u0436\u0435\u0442\u0435 \u0437\u0430\u043a\u0430\u0437\u0430\u0442\u044c \u043a\u0440\u0430\u0441\u0438\u0432\u044b\u0435 \u0431\u0443\u043a\u0435\u0442\u044b \u0438 \u0446\u0432\u0435\u0442\u043e\u0447\u043d\u044b\u0435 \u043a\u043e\u043c\u043f\u043e\u0437\u0438\u0446\u0438\u0438.\n\n\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439\u0442\u0435 \u043a\u043d\u043e\u043f\u043a\u0438 \u043d\u0438\u0436\u0435 \u0438\u043b\u0438 \u043d\u0430\u0436\u043c\u0438\u0442\u0435 \u041a\u0410\u0422\u0410\u041b\u041e\u0413 \u0434\u043b\u044f \u043e\u0442\u043a\u0440\u044b\u0442\u0438\u044f \u043c\u0430\u0433\u0430\u0437\u0438\u043d\u0430.',
+          parse_mode: 'HTML',
+          reply_markup: BOT_MAIN_KEYBOARD
+        });
+        return;
+      }
+
+      if (tgText === '\u041c\u043e\u0438 \u0437\u0430\u043a\u0430\u0437\u044b' || tgText === '/orders') {
+        var ordUser = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(tgChatId));
+        if (!ordUser) {
+          await telegramApiCall('sendMessage', { chat_id: tgChatId, text: '\u0423 \u0432\u0430\u0441 \u043f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0437\u0430\u043a\u0430\u0437\u043e\u0432. \u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u043c\u0430\u0433\u0430\u0437\u0438\u043d \u0447\u0435\u0440\u0435\u0437 \u043a\u043d\u043e\u043f\u043a\u0443 \u041a\u0410\u0422\u0410\u041b\u041e\u0413!', reply_markup: BOT_MAIN_KEYBOARD });
+          return;
+        }
+        var ordList = await db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 5').all(ordUser.id);
+        if (!ordList.length) {
+          await telegramApiCall('sendMessage', { chat_id: tgChatId, text: '\u0423 \u0432\u0430\u0441 \u043f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0437\u0430\u043a\u0430\u0437\u043e\u0432. \u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u043c\u0430\u0433\u0430\u0437\u0438\u043d \u0447\u0435\u0440\u0435\u0437 \u043a\u043d\u043e\u043f\u043a\u0443 \u041a\u0410\u0422\u0410\u041b\u041e\u0413!', reply_markup: BOT_MAIN_KEYBOARD });
+          return;
+        }
+        var ordMsg = '<b>\u0412\u0430\u0448\u0438 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435 \u0437\u0430\u043a\u0430\u0437\u044b:</b>\n\n';
+        for (var oi = 0; oi < ordList.length; oi++) {
+          var oo = ordList[oi];
+          ordMsg += '\u0417\u0430\u043a\u0430\u0437 #' + oo.id + ' \u2014 ' + oo.total_amount + ' \u0440\u0443\u0431.\n';
+          ordMsg += '\u0421\u0442\u0430\u0442\u0443\u0441: <b>' + (oo.status || '\u041d\u043e\u0432\u044b\u0439') + '</b>\n';
+          if (oo.delivery_date) ordMsg += '\u0414\u0430\u0442\u0430: ' + oo.delivery_date + '\n';
+          ordMsg += '\n';
+        }
+        await telegramApiCall('sendMessage', { chat_id: tgChatId, text: ordMsg, parse_mode: 'HTML', reply_markup: BOT_MAIN_KEYBOARD });
+        return;
+      }
+
+      if (tgText === '\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438') {
+        await telegramApiCall('sendMessage', {
+          chat_id: tgChatId,
+          text: '<b>\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438</b>\n\n\u041d\u0430\u043f\u0438\u0448\u0438\u0442\u0435 \u0432\u0430\u0448\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u043f\u0440\u044f\u043c\u043e \u0441\u044e\u0434\u0430 \u2014 \u043c\u044b \u043f\u043e\u043b\u0443\u0447\u0438\u043c \u0435\u0433\u043e \u0438 \u043e\u0442\u0432\u0435\u0442\u0438\u043c \u0432\u0430\u043c!',
+          parse_mode: 'HTML',
+          reply_markup: BOT_MAIN_KEYBOARD
+        });
+        return;
+      }
+
+      if (tgText === '\u041e \u043d\u0430\u0441') {
+        var aboutText = await getSetting('about_text');
+        if (!aboutText) {
+          aboutText = '<b>ARKA STUDIO FLOWERS</b>\n\n\u041c\u044b \u0441\u043e\u0437\u0434\u0430\u0451\u043c \u043a\u0440\u0430\u0441\u0438\u0432\u044b\u0435 \u0431\u0443\u043a\u0435\u0442\u044b \u0438 \u0446\u0432\u0435\u0442\u043e\u0447\u043d\u044b\u0435 \u043a\u043e\u043c\u043f\u043e\u0437\u0438\u0446\u0438\u0438.\n\n\u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u041a\u0410\u0422\u0410\u041b\u041e\u0413, \u0447\u0442\u043e\u0431\u044b \u043f\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u0442\u044c \u043d\u0430\u0448\u0438 \u0440\u0430\u0431\u043e\u0442\u044b!';
+        }
+        await telegramApiCall('sendMessage', { chat_id: tgChatId, text: aboutText, parse_mode: 'HTML', reply_markup: BOT_MAIN_KEYBOARD });
+        return;
+      }
+
+      if (tgText === '/help') {
+        await telegramApiCall('sendMessage', {
+          chat_id: tgChatId,
+          text: '<b>\u041f\u043e\u043c\u043e\u0449\u044c</b>\n\n\u041a\u0410\u0422\u0410\u041b\u041e\u0413 \u2014 \u043e\u0442\u043a\u0440\u043e\u0435\u0442\u0441\u044f \u043c\u0430\u0433\u0430\u0437\u0438\u043d\n\u041c\u043e\u0438 \u0437\u0430\u043a\u0430\u0437\u044b \u2014 \u0441\u0442\u0430\u0442\u0443\u0441 \u0437\u0430\u043a\u0430\u0437\u043e\u0432\n\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438 \u2014 \u043d\u0430\u043f\u0438\u0441\u0430\u0442\u044c \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435\n\u041e \u043d\u0430\u0441 \u2014 \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f\n\n\u0418\u043b\u0438 \u043f\u0440\u043e\u0441\u0442\u043e \u043d\u0430\u043f\u0438\u0448\u0438\u0442\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u2014 \u043c\u044b \u043e\u0442\u0432\u0435\u0442\u0438\u043c!',
+          parse_mode: 'HTML',
+          reply_markup: BOT_MAIN_KEYBOARD
+        });
+        return;
+      }
+
+      if (tgText === '/cancel' && tgIsAdmin) {
+        delete adminReplyState[String(tgChatId)];
+        await telegramApiCall('sendMessage', { chat_id: tgChatId, text: '\u0420\u0435\u0436\u0438\u043c \u043e\u0442\u0432\u0435\u0442\u0430 \u043e\u0442\u043c\u0435\u043d\u0451\u043d.' });
+        return;
+      }
+
+      if (tgIsAdmin && adminReplyState[String(tgChatId)]) {
+        var replyTargetId = adminReplyState[String(tgChatId)];
+        delete adminReplyState[String(tgChatId)];
+        await telegramApiCall('sendMessage', {
+          chat_id: replyTargetId,
+          text: '<b>\u041e\u0442\u0432\u0435\u0442 \u043e\u0442 ARKA STUDIO:</b>\n\n' + tgText,
+          parse_mode: 'HTML'
+        });
+        await telegramApiCall('sendMessage', {
+          chat_id: tgChatId,
+          text: '\u0421\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e \u043a\u043b\u0438\u0435\u043d\u0442\u0443!'
+        });
+        return;
+      }
+
+      if (!tgIsAdmin && tgText && tgText[0] !== '/') {
+        var displayName = tgFirstName;
+        if (tgUsername) displayName += ' (@' + tgUsername + ')';
+
+        var adminNotif = '<b>\u041d\u043e\u0432\u043e\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435</b>\n' +
+          '\u041e\u0442: ' + displayName + '\n' +
+          'ID: <code>' + tgChatId + '</code>\n\n' +
+          tgText;
+
+        var replyBtns = [[{ text: '\u041e\u0442\u0432\u0435\u0442\u0438\u0442\u044c', callback_data: 'reply_' + tgChatId }]];
+
+        for (var ai = 0; ai < ADMIN_TELEGRAM_IDS.length; ai++) {
+          await telegramApiCall('sendMessage', {
+            chat_id: ADMIN_TELEGRAM_IDS[ai],
+            text: adminNotif,
+            parse_mode: 'HTML',
+            reply_markup: JSON.stringify({ inline_keyboard: replyBtns })
+          });
+        }
+
+        var dbAdmins = await db.prepare('SELECT telegram_id FROM admin_users WHERE telegram_id IS NOT NULL').all();
+        for (var di = 0; di < dbAdmins.length; di++) {
+          if (!ADMIN_TELEGRAM_IDS.includes(dbAdmins[di].telegram_id)) {
+            await telegramApiCall('sendMessage', {
+              chat_id: dbAdmins[di].telegram_id,
+              text: adminNotif,
+              parse_mode: 'HTML',
+              reply_markup: JSON.stringify({ inline_keyboard: replyBtns })
+            });
+          }
+        }
+
+        await telegramApiCall('sendMessage', {
+          chat_id: tgChatId,
+          text: '\u0412\u0430\u0448\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u043f\u043e\u043b\u0443\u0447\u0435\u043d\u043e! \u041c\u044b \u043e\u0442\u0432\u0435\u0442\u0438\u043c \u0432\u0430\u043c \u0432 \u0431\u043b\u0438\u0436\u0430\u0439\u0448\u0435\u0435 \u0432\u0440\u0435\u043c\u044f.',
+          reply_markup: BOT_MAIN_KEYBOARD
+        });
+        return;
+      }
+    }
+  } catch (err) {
+    console.error('[TG Bot] Webhook error:', err.message);
+  }
+});
+
+// ============================================================
 // SERVE ADMIN PAGE
 // ============================================================
 
@@ -1175,6 +1377,10 @@ async function start() {
     if (PAYMENT_PROVIDER === 'tochka' && TOCHKA_CLIENT_ID && TOCHKA_JWT && PUBLIC_URL) {
       setTimeout(function () { registerTochkaWebhook(); }, 5000);
     }
+
+    if (BOT_TOKEN && BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE' && PUBLIC_URL) {
+      setTimeout(function () { registerTelegramBotWebhook(); }, 3000);
+    }
   });
 }
 
@@ -1201,6 +1407,27 @@ async function registerTochkaWebhook() {
     console.log('[Tochka] Webhook registration status=' + response.status + ', response: ' + result.substring(0, 300));
   } catch (err) {
     console.error('[Tochka] Webhook registration error:', err.message);
+  }
+}
+
+async function registerTelegramBotWebhook() {
+  try {
+    var webhookUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://') + '/api/telegram/webhook';
+    console.log('[TG Bot] Setting webhook: ' + webhookUrl);
+
+    var result = await telegramApiCall('setWebhook', { url: webhookUrl });
+    console.log('[TG Bot] Webhook result:', JSON.stringify(result));
+
+    await telegramApiCall('setMyCommands', {
+      commands: [
+        { command: 'start', description: 'Главное меню' },
+        { command: 'orders', description: 'Мои заказы' },
+        { command: 'help', description: 'Помощь' }
+      ]
+    });
+    console.log('[TG Bot] Commands set');
+  } catch (err) {
+    console.error('[TG Bot] Setup error:', err.message);
   }
 }
 
