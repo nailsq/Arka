@@ -614,12 +614,6 @@
     return parseInt(appSettings.pickup_cutoff_hour) || 20;
   }
 
-  var EARLY_MORNING_HOUR = 6;
-
-  function isAfterCutoff(currentHour, cutoffHr) {
-    return currentHour >= cutoffHr || currentHour < EARLY_MORNING_HOUR;
-  }
-
   function isExactTimeEnabled() {
     return appSettings.exact_time_enabled !== '0';
   }
@@ -1397,8 +1391,8 @@
     var todayStr = sNow.dateStr;
     var tmrw = new Date(sNow.year, sNow.month - 1, sNow.day + 1);
     var tomorrowStr = tmrw.getFullYear() + '-' + String(tmrw.getMonth() + 1).padStart(2, '0') + '-' + String(tmrw.getDate()).padStart(2, '0');
-    var isTodayClosed = isAfterCutoff(currentHour, cutoff);
-    var minDate = isTodayClosed ? tomorrowStr : todayStr;
+    var isTodayClosed = currentHour >= cutoff;
+    var minDate = todayStr;
     var defaultDate = isTodayClosed ? tomorrowStr : todayStr;
 
     render(
@@ -1812,7 +1806,7 @@
         if (!dateVal) { showToast('Укажите дату доставки'); return; }
         var sNowCheck = saratovNow();
         var todayCheck = sNowCheck.dateStr;
-        if (checkoutState.deliveryType === 'delivery' && dateVal === todayCheck && isAfterCutoff(sNowCheck.hours, getCutoffHour())) {
+        if (checkoutState.deliveryType === 'delivery' && dateVal === todayCheck && sNowCheck.hours >= getCutoffHour()) {
           showToast('Доставка на сегодня недоступна. Выберите другую дату или самовывоз.');
           return;
         }
@@ -1961,10 +1955,10 @@
     var isToday = dateField && dateField.value === sNow.dateStr;
     var isPickup = checkoutState.deliveryType === 'pickup';
     var cutoffHr = isPickup ? getPickupCutoffHour() : getCutoffHour();
-    var isClosed = isToday && isAfterCutoff(sNow.hours, cutoffHr);
+    var isClosed = isToday && sNow.hours >= cutoffHr;
     if (isClosed) {
       var label = isPickup ? 'Самовывоз' : 'Доставка';
-      notice.textContent = label + ' на сегодня недоступна. Выберите другую дату.';
+      notice.textContent = label + ' на сегодня уже недоступна (после ' + cutoffHr + ':00). Выберите другую дату.';
       notice.style.display = '';
     } else {
       notice.style.display = 'none';
@@ -2012,7 +2006,7 @@
     }
 
     var cutoff = getCutoffHour();
-    var pastCutoff = isToday && isAfterCutoff(currentHour, cutoff);
+    var pastCutoff = isToday && currentHour >= cutoff;
 
     var split = getIntervalsSplit();
     var dayIntervals = split.day;
@@ -2060,10 +2054,9 @@
       html = dayIntervals.map(function (iv) { return buildOption(iv, false); }).join('');
     }
     if (nightIntervals.length > 0) {
-      html += '<div class="night-intervals-divider" onclick="toggleNightIntervals()" style="cursor:pointer;user-select:none">' +
-        '<span class="night-icon">&#9790;</span> Ночная доставка' +
-        (nextDayStr ? ' (на ' + nextDayStr + ')' : '') +
-        ' <span id="night-toggle-arrow" style="float:right;transition:transform 0.3s">&#9660;</span></div>';
+      html += '<button type="button" class="night-delivery-btn" id="night-toggle-btn" onclick="toggleNightIntervals()">' +
+        'Ночная доставка' + (nextDayStr ? ' на ' + nextDayStr : '') +
+        '</button>';
       html += '<div id="night-intervals-container" style="display:none">';
       html += nightIntervals.map(function (iv) { return buildOption(iv, true); }).join('');
       html += '</div>';
@@ -2071,9 +2064,9 @@
     el.innerHTML = html;
     if (pastCutoff && nightIntervals.length > 0) {
       var nc = document.getElementById('night-intervals-container');
-      var na = document.getElementById('night-toggle-arrow');
+      var nb = document.getElementById('night-toggle-btn');
       if (nc) { nc.style.display = 'block'; }
-      if (na) { na.style.transform = 'rotate(180deg)'; }
+      if (nb) { nb.classList.add('active'); }
     }
   }
 
@@ -2099,7 +2092,7 @@
         var isNightIv = !!nightSet[iv];
         if (isNightIv) {
           todayAvailable.push(iv);
-        } else if (!isAfterCutoff(currentHour, cutoff) && currentHour < startH) {
+        } else if (currentHour < cutoff && currentHour < startH) {
           todayAvailable.push(iv);
         }
       });
@@ -2235,14 +2228,14 @@
 
   window.toggleNightIntervals = function () {
     var container = document.getElementById('night-intervals-container');
-    var arrow = document.getElementById('night-toggle-arrow');
+    var btn = document.getElementById('night-toggle-btn');
     if (!container) return;
     if (container.style.display === 'none') {
       container.style.display = 'block';
-      if (arrow) arrow.style.transform = 'rotate(180deg)';
+      if (btn) btn.classList.add('active');
     } else {
       container.style.display = 'none';
-      if (arrow) arrow.style.transform = '';
+      if (btn) btn.classList.remove('active');
     }
   };
 
