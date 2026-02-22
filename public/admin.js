@@ -474,6 +474,54 @@
     loadOrders();
   };
 
+  function editableField(label, fieldName, value, type) {
+    type = type || 'text';
+    var displayVal = esc(value || '');
+    var inputType = type === 'textarea' ? 'textarea' : 'input';
+    var inputTag = inputType === 'textarea'
+      ? '<textarea class="edit-field-input" data-field="' + fieldName + '" style="display:none">' + displayVal + '</textarea>'
+      : '<input type="' + type + '" class="edit-field-input" data-field="' + fieldName + '" value="' + displayVal + '" style="display:none">';
+    var spanClass = 'detail-value detail-value-editable';
+    return '<div class="detail-item' + (type === 'textarea' ? '" style="grid-column:1/-1' : '') + '">' +
+      '<span class="detail-label">' + label + '</span>' +
+      '<span class="' + spanClass + '" data-display-for="' + fieldName + '" onclick="startEditField(this, \'' + fieldName + '\')">' + (displayVal || '—') + '</span>' +
+      inputTag +
+    '</div>';
+  }
+
+  function readonlyField(label, value, fullRow) {
+    return '<div class="detail-item' + (fullRow ? '" style="grid-column:1/-1' : '') + '">' +
+      '<span class="detail-label">' + label + '</span>' +
+      '<span class="detail-value">' + value + '</span></div>';
+  }
+
+  window.startEditField = function (spanEl, fieldName) {
+    var input = spanEl.parentElement.querySelector('.edit-field-input[data-field="' + fieldName + '"]');
+    if (!input) return;
+    spanEl.style.display = 'none';
+    input.style.display = '';
+    input.focus();
+    var saveBtn = document.getElementById('order-save-btn');
+    if (saveBtn) saveBtn.style.display = '';
+  };
+
+  window.saveOrderFields = function (orderId) {
+    var inputs = document.querySelectorAll('.edit-field-input');
+    var body = {};
+    var changed = false;
+    inputs.forEach(function (inp) {
+      if (inp.style.display !== 'none') {
+        body[inp.getAttribute('data-field')] = inp.value;
+        changed = true;
+      }
+    });
+    if (!changed) { adminToast('Нет изменений', 'info'); return; }
+    api('PUT', '/api/admin/orders/' + orderId, body).then(function () {
+      adminToast('Сохранено', 'success');
+      viewOrder(orderId);
+    });
+  };
+
   window.viewOrder = function (id) {
     api('GET', '/api/admin/orders').then(function (orders) {
       var o = orders.find(function (x) { return x.id === id; });
@@ -485,31 +533,29 @@
       h += '<div class="card-header"><span class="card-title">Заказ N ' + o.id + '</span>' + statusBadge(o.status) + '</div>';
 
       h += '<div class="order-detail-grid">';
-      h += '<div class="detail-item"><span class="detail-label">Дата</span><span class="detail-value">' + fmtDate(o.created_at) + '</span></div>';
-      h += '<div class="detail-item"><span class="detail-label">Клиент</span><span class="detail-value">' + esc(o.user_name) + '</span></div>';
-      h += '<div class="detail-item"><span class="detail-label">Телефон</span><span class="detail-value"><a href="tel:' + esc(o.user_phone) + '" class="detail-link">' + esc(o.user_phone) + '</a></span></div>';
-      if (o.user_telegram) {
-        var tgLink = o.user_telegram.startsWith('@') ? 'https://t.me/' + o.user_telegram.slice(1) : 'https://t.me/' + o.user_telegram;
-        h += '<div class="detail-item"><span class="detail-label">Telegram</span><span class="detail-value"><a href="' + esc(tgLink) + '" target="_blank" class="detail-link">' + esc(o.user_telegram) + '</a></span></div>';
-      }
-      if (o.user_email) h += '<div class="detail-item"><span class="detail-label">Email</span><span class="detail-value"><a href="mailto:' + esc(o.user_email) + '" class="detail-link">' + esc(o.user_email) + '</a></span></div>';
-      if (o.receiver_name) h += '<div class="detail-item"><span class="detail-label">Получатель</span><span class="detail-value">' + esc(o.receiver_name) + '</span></div>';
-      if (o.receiver_phone) h += '<div class="detail-item"><span class="detail-label">Тел. получателя</span><span class="detail-value"><a href="tel:' + esc(o.receiver_phone) + '" class="detail-link">' + esc(o.receiver_phone) + '</a></span></div>';
-      h += '<div class="detail-item"><span class="detail-label">Способ</span><span class="detail-value">' + (o.delivery_type === 'pickup' ? 'Самовывоз' : 'Доставка') + '</span></div>';
+      h += readonlyField('Дата', fmtDate(o.created_at));
+      h += editableField('Клиент', 'user_name', o.user_name);
+      h += editableField('Телефон', 'user_phone', o.user_phone, 'tel');
+      h += editableField('Telegram', 'user_telegram', o.user_telegram);
+      h += editableField('Email', 'user_email', o.user_email, 'email');
+      h += editableField('Получатель', 'receiver_name', o.receiver_name);
+      h += editableField('Тел. получателя', 'receiver_phone', o.receiver_phone, 'tel');
+      h += readonlyField('Способ', o.delivery_type === 'pickup' ? 'Самовывоз' : 'Доставка');
       if (o.delivery_type !== 'pickup') {
-        h += '<div class="detail-item"><span class="detail-label">Зона</span><span class="detail-value">' + esc(o.delivery_zone) + '</span></div>';
-        h += '<div class="detail-item"><span class="detail-label">Адрес</span><span class="detail-value"><a href="https://yandex.ru/maps/?text=' + encodeURIComponent(o.delivery_address) + '" target="_blank" class="detail-link">' + esc(o.delivery_address) + '</a></span></div>';
-        if (o.delivery_date) h += '<div class="detail-item"><span class="detail-label">Дата доставки</span><span class="detail-value">' + esc(o.delivery_date) + '</span></div>';
-        h += '<div class="detail-item"><span class="detail-label">Интервал</span><span class="detail-value">' + esc(o.delivery_interval || '—') + '</span></div>';
-        if (o.exact_time) h += '<div class="detail-item"><span class="detail-label">Точное время</span><span class="detail-value">' + esc(o.exact_time) + '</span></div>';
-        h += '<div class="detail-item"><span class="detail-label">Доставка</span><span class="detail-value">' + fmtPrice(o.delivery_cost) + '</span></div>';
+        h += editableField('Адрес', 'delivery_address', o.delivery_address);
+        h += editableField('Дата доставки', 'delivery_date', o.delivery_date, 'date');
+        h += editableField('Интервал', 'delivery_interval', o.delivery_interval);
+        if (o.exact_time) h += editableField('Точное время', 'exact_time', o.exact_time);
+        h += readonlyField('Доставка', fmtPrice(o.delivery_cost));
+      } else {
+        if (o.delivery_date) h += editableField('Дата готовности', 'delivery_date', o.delivery_date, 'date');
       }
-      h += '<div class="detail-item"><span class="detail-label">Итого</span><span class="detail-value"><strong>' + fmtPrice(o.total_amount) + '</strong></span></div>';
-      h += '<div class="detail-item"><span class="detail-label">Оплата</span><span class="detail-value">' + (o.is_paid ? 'Оплачен ' + fmtDate(o.paid_at) : 'Не оплачен') + '</span></div>';
-      if (o.comment) {
-        h += '<div class="detail-item" style="grid-column:1/-1"><span class="detail-label">Комментарий</span><span class="detail-value">' + esc(o.comment) + '</span></div>';
-      }
+      h += readonlyField('Итого', '<strong>' + fmtPrice(o.total_amount) + '</strong>');
+      h += readonlyField('Оплата', o.is_paid ? 'Оплачен ' + fmtDate(o.paid_at) : 'Не оплачен');
+      h += editableField('Комментарий', 'comment', o.comment, 'textarea');
       h += '</div>';
+
+      h += '<button class="btn btn-primary" id="order-save-btn" style="display:none;margin-bottom:20px;width:100%" onclick="saveOrderFields(' + o.id + ')">Сохранить изменения</button>';
 
       if (o.items && o.items.length) {
         h += '<div class="order-items-list">';

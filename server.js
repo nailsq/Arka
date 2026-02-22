@@ -824,6 +824,38 @@ app.post('/api/admin/orders/:id/status', adminAuth, async function (req, res) {
 });
 
 // ============================================================
+// ADMIN: Update order fields
+// ============================================================
+
+app.put('/api/admin/orders/:id', adminAuth, async function (req, res) {
+  var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+
+  var b = req.body;
+  var fields = [];
+  var params = [];
+  var allowedFields = {
+    comment: 'TEXT', user_name: 'TEXT', user_phone: 'TEXT', user_email: 'TEXT',
+    user_telegram: 'TEXT', receiver_name: 'TEXT', receiver_phone: 'TEXT',
+    delivery_address: 'TEXT', delivery_date: 'TEXT', delivery_interval: 'TEXT',
+    exact_time: 'TEXT', delivery_cost: 'INT', delivery_type: 'TEXT'
+  };
+
+  Object.keys(allowedFields).forEach(function (key) {
+    if (b[key] !== undefined) {
+      fields.push(key + ' = ?');
+      params.push(allowedFields[key] === 'INT' ? parseInt(b[key]) || 0 : String(b[key]));
+    }
+  });
+
+  if (!fields.length) return res.status(400).json({ error: 'No fields to update' });
+
+  params.push(req.params.id);
+  await db.prepare('UPDATE orders SET ' + fields.join(', ') + ' WHERE id = ?').run.apply(null, params);
+  res.json({ ok: true });
+});
+
+// ============================================================
 // ADMIN: Categories CRUD
 // ============================================================
 

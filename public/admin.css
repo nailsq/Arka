@@ -833,6 +833,37 @@ button { cursor: pointer; }
   color: var(--text);
 }
 
+.detail-value-editable {
+  cursor: pointer;
+  border-bottom: 1px dashed var(--text-secondary);
+  transition: background 0.15s;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.detail-value-editable:hover {
+  background: var(--hover);
+}
+
+.edit-field-input {
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.edit-field-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+textarea.edit-field-input {
+  min-height: 60px;
+  resize: vertical;
+}
+
 .detail-link {
   color: var(--primary);
   text-decoration: none;

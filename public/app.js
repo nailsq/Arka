@@ -2026,7 +2026,11 @@
       var startH = parseInt(parts[0]);
       var disabled = false;
       if (isToday) {
-        disabled = currentHour >= startH;
+        if (isNight && startH < 12) {
+          disabled = false;
+        } else {
+          disabled = currentHour >= startH;
+        }
       }
       var displayIv = iv.replace('-', ' — ');
       var nightBadge = isNight && nextDayStr
@@ -2068,7 +2072,12 @@
     if (currentHour < cutoff && allIntervals.length) {
       allIntervals.forEach(function (iv) {
         var startH = parseInt(iv.split('-')[0]);
-        if (currentHour < startH) todayAvailable.push(iv);
+        var isNightIv = !!nightSet[iv];
+        if (isNightIv && startH < 12) {
+          todayAvailable.push(iv);
+        } else if (currentHour < startH) {
+          todayAvailable.push(iv);
+        }
       });
     }
 
