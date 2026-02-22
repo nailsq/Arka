@@ -1138,6 +1138,15 @@
       h += '</div>';
 
       h += '<div class="settings-section">';
+      h += '<div class="settings-section-title">Комментарий к заказу</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Заголовок и подсказка в поле комментария при оформлении заказа.</div>';
+      h += '<div class="form-group"><label class="form-label">Заголовок</label>' +
+        '<input type="text" class="form-input" id="s-comment-label" value="' + esc(s.comment_label || '') + '" placeholder="Комментарий к заказу"></div>';
+      h += '<div class="form-group"><label class="form-label">Подсказка (placeholder)</label>' +
+        '<input type="text" class="form-input" id="s-comment-placeholder" value="' + esc(s.comment_placeholder || '') + '" placeholder="Пожелания, особые указания"></div>';
+      h += '</div>';
+
+      h += '<div class="settings-section">';
       h += '<div class="settings-section-title">Бесплатная позиция к букету</div>';
       h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">При добавлении букета в корзину автоматически добавляется бесплатная позиция (0 р.). Количество = количеству букетов. Оставьте пустым, чтобы отключить.</div>';
       h += '<div class="form-group"><label class="form-label">Название</label>' +

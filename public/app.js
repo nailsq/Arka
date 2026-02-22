@@ -2006,14 +2006,15 @@
     }
 
     var cutoff = getCutoffHour();
-    if (isToday && currentHour >= cutoff) {
-      el.innerHTML = '<div class="cutoff-hint">На сегодня все интервалы недоступны. Выберите другую дату или самовывоз.</div>';
-      return;
-    }
+    var pastCutoff = isToday && currentHour >= cutoff;
 
     var split = getIntervalsSplit();
     var dayIntervals = split.day;
     var nightIntervals = split.night;
+    if (pastCutoff && nightIntervals.length === 0) {
+      el.innerHTML = '<div class="cutoff-hint">На сегодня все интервалы недоступны. Выберите другую дату или самовывоз.</div>';
+      return;
+    }
     var nextDayStr = '';
     if (nightIntervals.length && selectedDate) {
       var dp = selectedDate.split('-');
@@ -2025,10 +2026,12 @@
       var parts = iv.split('-');
       var startH = parseInt(parts[0]);
       var disabled = false;
-      if (isToday) {
-        if (isNight && startH < 12) {
-          disabled = false;
-        } else {
+      if (isNight) {
+        disabled = false;
+      } else {
+        if (pastCutoff) {
+          disabled = true;
+        } else if (isToday) {
           disabled = currentHour >= startH;
         }
       }
@@ -2044,7 +2047,12 @@
         (disabled ? ' (недоступен)' : '') + nightBadge + '</label>';
     }
 
-    var html = dayIntervals.map(function (iv) { return buildOption(iv, false); }).join('');
+    var html = '';
+    if (pastCutoff) {
+      html += '<div class="cutoff-hint">Дневные интервалы на сегодня недоступны. Доступна ночная доставка.</div>';
+    } else {
+      html = dayIntervals.map(function (iv) { return buildOption(iv, false); }).join('');
+    }
     if (nightIntervals.length > 0) {
       html += '<div class="night-intervals-divider"><span class="night-icon">&#9790;</span> Ночная доставка' +
         (nextDayStr ? ' (на ' + nextDayStr + ')' : '') + '</div>';
@@ -2069,13 +2077,13 @@
     split.night.forEach(function (iv) { nightSet[iv] = true; });
 
     var todayAvailable = [];
-    if (currentHour < cutoff && allIntervals.length) {
+    if (allIntervals.length) {
       allIntervals.forEach(function (iv) {
         var startH = parseInt(iv.split('-')[0]);
         var isNightIv = !!nightSet[iv];
-        if (isNightIv && startH < 12) {
+        if (isNightIv) {
           todayAvailable.push(iv);
-        } else if (currentHour < startH) {
+        } else if (currentHour < cutoff && currentHour < startH) {
           todayAvailable.push(iv);
         }
       });
