@@ -2106,9 +2106,11 @@
       allIntervals.forEach(function (iv) {
         var startH = parseInt(iv.split('-')[0]);
         var isNightIv = !!nightSet[iv];
-        if (isNightIv) {
+        if (isAfterCutoff(currentHour, cutoff)) {
+          // past cutoff - nothing available today
+        } else if (isNightIv) {
           todayAvailable.push(iv);
-        } else if (!isAfterCutoff(currentHour, cutoff) && currentHour < startH) {
+        } else if (currentHour < startH) {
           todayAvailable.push(iv);
         }
       });
