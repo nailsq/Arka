@@ -2084,8 +2084,6 @@
       html += '</div>';
     }
     el.innerHTML = html;
-    
-    }
   }
 
   function updateNearestDeliveryHint() {
