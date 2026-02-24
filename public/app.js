@@ -275,19 +275,6 @@
     return item.product_id + '_' + (item.size_label || '');
   }
 
-  function compactSizesForCart(sizes) {
-    if (!sizes || !sizes.length) return [];
-    return sizes.map(function (s) {
-      return {
-        id: s.id,
-        label: s.label,
-        price: s.price,
-        flower_count: s.flower_count,
-        dimensions: s.dimensions || ''
-      };
-    });
-  }
-
   function updateCartQty(productId, sizeLabel, delta) {
     var cart = getCart();
     var key = productId + '_' + (sizeLabel || '');
@@ -992,7 +979,7 @@
       cart = getCart();
       cart.forEach(function (item) {
         if (sizeMap[item.product_id]) {
-          item.available_sizes = compactSizesForCart(sizeMap[item.product_id]);
+          item.available_sizes = sizeMap[item.product_id];
           updated = true;
         }
       });
@@ -3410,7 +3397,7 @@
     return true;
   }
 
-  window.changeCartSize = function (cartIdx, newLabel, newPrice, newFlowerCount, newDims) {
+  window.changeCartSize = function (cartIdx, newLabel, newPrice, newFlowerCount, newDims, newImageUrl) {
     var cart = getCart();
     var item = cart[cartIdx];
     if (!item) return;
@@ -3434,6 +3421,7 @@
     item.price = newPrice;
     item.flower_count = newFlowerCount;
     item.dimensions = newDims || '';
+    if (newImageUrl) item.image_url = newImageUrl;
     saveCart(cart);
 
     var row = document.getElementById('cart-row-' + cartIdx);
@@ -3444,6 +3432,10 @@
       });
       var priceEl = document.getElementById('price-val-' + cartIdx);
       if (priceEl) priceEl.textContent = formatPrice(newPrice);
+      if (newImageUrl) {
+        var imgEl = row.querySelector('.cart-item-img');
+        if (imgEl && imgEl.tagName === 'IMG') imgEl.src = newImageUrl;
+      }
       var fcEl = row.querySelector('.cart-size-fc');
       if (fcEl) {
         var fcText = '';
