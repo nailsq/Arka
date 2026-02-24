@@ -77,7 +77,17 @@
         return;
       }
       var single = card.querySelector('.product-card-img-wrap .product-card-img');
-      if (single && single.tagName === 'IMG') single.src = imageUrl;
+      if (single && single.tagName === 'IMG') {
+        single.src = imageUrl;
+      } else if (single) {
+        single.outerHTML = '<img src="' + imageUrl + '" alt="" class="product-card-img">';
+      } else {
+        var wrap = card.querySelector('.product-card-img-wrap');
+        if (wrap) {
+          var ph = wrap.querySelector('.no-image');
+          if (ph) ph.outerHTML = '<img src="' + imageUrl + '" alt="" class="product-card-img">';
+        }
+      }
     });
   }
 
@@ -87,7 +97,14 @@
     preload(imageUrl).then(function (ok) {
       if (!ok || token !== detailToken) return;
       var single = document.querySelector('.product-detail-img-wrap .product-detail-img');
-      if (single && single.tagName === 'IMG') single.src = imageUrl;
+      if (single && single.tagName === 'IMG') {
+        single.src = imageUrl;
+      } else if (single) {
+        single.outerHTML = '<img src="' + imageUrl + '" alt="" class="product-detail-img">';
+      } else {
+        var ph = document.querySelector('.product-detail-img-wrap .no-image');
+        if (ph) ph.outerHTML = '<img src="' + imageUrl + '" alt="" class="product-detail-img">';
+      }
       var firstSlide = document.querySelector('#gallery-track .gallery-slide:first-child .product-detail-img');
       if (firstSlide && firstSlide.tagName === 'IMG') {
         firstSlide.src = imageUrl;
