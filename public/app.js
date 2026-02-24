@@ -878,6 +878,19 @@
           detailActions +
         '</div>';
 
+      // Link each size button with its own image and keep only dimensions in size-info.
+      if (p.sizes && p.sizes.length) {
+        var sizeBtnsNodes = document.querySelectorAll('#size-selector .size-btn');
+        sizeBtnsNodes.forEach(function (node, idx) {
+          var s = p.sizes[idx] || {};
+          if (s.image_url) node.setAttribute('data-img', s.image_url);
+          node.setAttribute('data-dims', s.dimensions || '');
+        });
+        var firstInfoEl = document.getElementById('size-info');
+        if (firstInfoEl) firstInfoEl.textContent = p.sizes[0].dimensions || '';
+        if (p.sizes[0].image_url) setDetailImageBySize(p.sizes[0].image_url);
+      }
+
       window._currentProduct = p;
 
       if (images.length > 1) {
@@ -3397,7 +3410,7 @@
     return true;
   }
 
-  window.changeCartSize = function (cartIdx, newLabel, newPrice, newFlowerCount, newDims, newImageUrl) {
+  window.changeCartSize = function (cartIdx, newLabel, newPrice, newFlowerCount, newDims) {
     var cart = getCart();
     var item = cart[cartIdx];
     if (!item) return;
@@ -3421,7 +3434,6 @@
     item.price = newPrice;
     item.flower_count = newFlowerCount;
     item.dimensions = newDims || '';
-    if (newImageUrl) item.image_url = newImageUrl;
     saveCart(cart);
 
     var row = document.getElementById('cart-row-' + cartIdx);
@@ -3432,10 +3444,6 @@
       });
       var priceEl = document.getElementById('price-val-' + cartIdx);
       if (priceEl) priceEl.textContent = formatPrice(newPrice);
-      if (newImageUrl) {
-        var imgEl = row.querySelector('.cart-item-img');
-        if (imgEl && imgEl.tagName === 'IMG') imgEl.src = newImageUrl;
-      }
       var fcEl = row.querySelector('.cart-size-fc');
       if (fcEl) {
         var fcText = '';
