@@ -760,24 +760,12 @@ app.get('/api/payments/tochka-success/:orderId', async function (req, res) {
   var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
   if (!order) return res.status(404).send('Заказ не найден');
 
-  if (!order.is_paid) {
-    await db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .run('Оплачен', orderId);
-    console.log('[Tochka] Order #' + orderId + ' marked as paid via redirect');
-
-    if (BOT_TOKEN && order.user_id) {
-      try {
-        var u = await db.prepare('SELECT telegram_id FROM users WHERE id = ?').get(order.user_id);
-        if (u && u.telegram_id) {
-          var payMsg = await buildPaymentNotification(order);
-          sendTelegramMessage(u.telegram_id, payMsg);
-        }
-      } catch (e) {}
-    notifyAdminsNewOrder(order);
-    }
+  if (order.is_paid) {
+    return res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата</title><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff;color:#000}div{text-align:center;padding:40px;max-width:420px}h2{margin-bottom:16px;color:#2e7d32}p{color:#555;margin-bottom:24px}a{display:inline-block;padding:14px 28px;background:#000;color:#fff;text-decoration:none;border-radius:10px;font-size:15px}</style></head><body><div><h2>✅ Оплата подтверждена!</h2><p>Заказ №' + orderId + ' уже в работе. Спасибо, что выбрали нас!</p><a href="/">Вернуться в магазин</a></div></body></html>');
   }
 
-  res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата</title><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff;color:#000}div{text-align:center;padding:40px;max-width:400px}h2{margin-bottom:16px;color:#2e7d32}p{color:#555;margin-bottom:24px}a{display:inline-block;padding:14px 28px;background:#000;color:#fff;text-decoration:none;border-radius:10px;font-size:15px}</style></head><body><div><h2>✅ Оплата прошла успешно!</h2><p>Заказ №' + orderId + ' уже в работе. Спасибо, что выбрали нас!</p><a href="/">Вернуться в магазин</a></div></body></html>');
+  console.log('[Tochka] Redirect for order #' + orderId + ', waiting webhook confirmation');
+  return res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата</title><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff;color:#000}div{text-align:center;padding:40px;max-width:460px}h2{margin-bottom:16px;color:#1a73e8}p{color:#555;margin-bottom:24px;line-height:1.5}a{display:inline-block;padding:14px 28px;background:#000;color:#fff;text-decoration:none;border-radius:10px;font-size:15px}</style></head><body><div><h2>Оплата обрабатывается</h2><p>Мы получили возврат от платёжной страницы и ждём подтверждение банка.<br>Обычно это занимает несколько секунд.</p><a href="/">Обновить статус заказа</a></div></body></html>');
 });
 
 app.post('/api/payments/webhook', async function (req, res) {
