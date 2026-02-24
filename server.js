@@ -39,7 +39,7 @@ var upload = multer({
 
 var https = require('https');
 
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
 app.use(express.text({ type: 'text/plain' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -1136,32 +1136,16 @@ app.post('/api/admin/product-sizes', adminAuth, async function (req, res) {
   }
   var maxSort = await db.prepare('SELECT COALESCE(MAX(sort_order),0) as ms FROM product_sizes WHERE product_id = ?').get(b.product_id);
   var info = await db.prepare(
-    'INSERT INTO product_sizes (product_id, label, flower_count, price, sort_order, dimensions, image_url) VALUES (?,?,?,?,?,?,?)'
-  ).run(
-    b.product_id,
-    b.label,
-    parseInt(b.flower_count) || 0,
-    parseInt(b.price),
-    (maxSort ? maxSort.ms : 0) + 1,
-    b.dimensions || '',
-    b.image_url || ''
-  );
+    'INSERT INTO product_sizes (product_id, label, flower_count, price, sort_order, dimensions) VALUES (?,?,?,?,?,?)'
+  ).run(b.product_id, b.label, parseInt(b.flower_count) || 0, parseInt(b.price), (maxSort ? maxSort.ms : 0) + 1, b.dimensions || '');
   res.json({ id: info.lastInsertRowid });
 });
 
 app.put('/api/admin/product-sizes/:id', adminAuth, async function (req, res) {
   var b = req.body;
   await db.prepare(
-    'UPDATE product_sizes SET label=?, flower_count=?, price=?, sort_order=?, dimensions=?, image_url=? WHERE id=?'
-  ).run(
-    b.label,
-    parseInt(b.flower_count) || 0,
-    parseInt(b.price),
-    parseInt(b.sort_order) || 0,
-    b.dimensions || '',
-    b.image_url || '',
-    req.params.id
-  );
+    'UPDATE product_sizes SET label=?, flower_count=?, price=?, sort_order=?, dimensions=? WHERE id=?'
+  ).run(b.label, parseInt(b.flower_count) || 0, parseInt(b.price), parseInt(b.sort_order) || 0, b.dimensions || '', req.params.id);
   res.json({ ok: true });
 });
 
