@@ -39,9 +39,22 @@ var upload = multer({
 
 var https = require('https');
 
-app.use(express.json());
-app.use(express.text({ type: 'text/plain' }));
+var BODY_LIMIT = '5mb';
+app.use(express.json({ limit: BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: BODY_LIMIT }));
+app.use(express.text({ type: 'text/plain', limit: BODY_LIMIT }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use(function (err, req, res, next) {
+  if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+    console.warn('[HTTP 413] Payload too large:', req.method, req.originalUrl || req.url);
+    return res.status(413).json({ error: 'Payload too large' });
+  }
+  if (err && err instanceof SyntaxError && err.status === 400 && Object.prototype.hasOwnProperty.call(err, 'body')) {
+    return res.status(400).json({ error: 'Invalid JSON payload' });
+  }
+  return next(err);
+});
 
 function sendTelegramMessage(chatId, text) {
   if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE' || !chatId) return;

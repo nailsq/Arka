@@ -1,6 +1,6 @@
 @echo off
 setlocal
-cd /d C:\Users\Пользователь\arka-flowers
+cd /d C:\dev\arcaflowers
 
 REM Avoid SSH host-key prompt/known_hosts issues on Windows with Cyrillic profile path
 set "GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=NUL"
