@@ -1816,7 +1816,28 @@ button, select {
   background: #fff;
 }
 
-
+.night-delivery-btn {
+  display: block;
+  width: 100%;
+  margin: 14px 0 8px;
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: #2c2c3a;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: center;
+  letter-spacing: 0.3px;
+  transition: background 0.2s, transform 0.1s;
+}
+.night-delivery-btn:active {
+  transform: scale(0.98);
+}
+.night-delivery-btn.active {
+  background: #444460;
+}
 
 .radio-option.radio-option-night .night-date-badge {
   display: inline-block;
@@ -2876,27 +2897,38 @@ button, select {
   color: #000 !important;
 }
 
-.night-delivery-btn {
-  display: block;
-  width: 100%;
-  margin: 16px 0 10px;
-  padding: 14px 20px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #555;
-  background: #f0f0f3;
-  border: 1px solid #ddd;
-  border-radius: 12px;
-  cursor: pointer;
-  text-align: center;
-  letter-spacing: 0.3px;
-  transition: background 0.2s, border-color 0.2s;
-}
-.night-delivery-btn:active {
-  background: #e4e4ea;
-}
-.night-delivery-btn.active {
-  background: #e8e8ee;
-  border-color: #bbb;
-  color: #333;
+/* ==================== iOS / Safari Fixes ==================== */
+@supports (-webkit-touch-callout: none) {
+  html, body {
+    min-height: -webkit-fill-available;
+  }
+
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    font-size: 16px;
+  }
+
+  .form-input-date {
+    font-size: 16px;
+  }
+
+  .modal-overlay {
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  #tab-bar {
+    position: -webkit-sticky;
+    position: sticky;
+  }
+
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .product-card,
+  .radio-option,
+  .checkbox-option {
+    -webkit-tap-highlight-color: transparent;
+  }
 }

@@ -14,14 +14,12 @@ node server.js
 Or double-click `setup.bat` for automatic setup and launch.
 
 **App:** http://localhost:3000
-**Admin:** http://localhost:3000/admin (login: admin / admin123)
+**Admin:** http://localhost:3000/admin (access via Telegram admin auth)
 
 ## Configuration (.env)
 
 ```
 PORT=3000
-ADMIN_LOGIN=admin
-ADMIN_PASSWORD=admin123
 BOT_TOKEN=YOUR_BOT_TOKEN_HERE
 PAYMENT_PROVIDER=test
 PUBLIC_URL=http://localhost:3000
@@ -65,7 +63,7 @@ arka-flowers/
 - POST /api/payments/webhook
 
 ### Admin (requires X-Admin-Token header)
-- POST /api/admin/login
+- POST /api/admin/telegram-login
 - POST /api/admin/logout
 - GET  /api/admin/orders?status=
 - POST /api/admin/orders/:id/status

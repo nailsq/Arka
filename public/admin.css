@@ -1531,6 +1531,14 @@ textarea.edit-field-input {
     display: none;
   }
 
+  .data-table tbody td:nth-child(3):last-child {
+    display: flex;
+    width: 100%;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+
   .data-table tbody td:nth-child(4) {
     font-size: 15px;
     font-weight: 700;
@@ -1965,5 +1973,36 @@ textarea.edit-field-input {
   .pf-size-row .form-input {
     flex: 1;
     min-width: 60px;
+  }
+}
+
+/* ==================== iOS / Safari Fixes ==================== */
+@supports (-webkit-touch-callout: none) {
+  html, body {
+    min-height: -webkit-fill-available;
+  }
+
+  #main-wrap {
+    padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .modal-card {
+    max-height: -webkit-fill-available;
+    padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mobile-bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  #admin-toast-container {
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .form-input,
+  .form-select,
+  .form-textarea {
+    font-size: 16px;
+    border-radius: 8px;
   }
 }

@@ -586,6 +586,41 @@
     catch (e) { return []; }
   }
 
+  function getNightDateContext() {
+    var dateEl = document.getElementById('field-date');
+    var raw = (dateEl && dateEl.value) ? dateEl.value : saratovNow().dateStr;
+    var p = String(raw).split('-');
+    if (p.length !== 3) return null;
+    var y = parseInt(p[0]);
+    var m = parseInt(p[1]);
+    var d = parseInt(p[2]);
+    var dt = new Date(y, m - 1, d);
+    if (isNaN(dt.getTime())) return null;
+    var jsDay = dt.getDay(); // 0..6
+    var isoDay = jsDay === 0 ? 7 : jsDay; // 1..7 Mon..Sun
+    var week = Math.floor((d - 1) / 7) + 1;
+    return { monthKey: p[0] + '-' + p[1], week: week, isoDay: isoDay };
+  }
+
+  function isNightDisabledForSelectedDate() {
+    var ctx = getNightDateContext();
+    if (!ctx) return false;
+    try {
+      var calendar = JSON.parse(appSettings.night_disabled_calendar || '{}');
+      if (calendar && typeof calendar === 'object') {
+        var monthCfg = calendar[ctx.monthKey] || {};
+        var weekCfg = monthCfg[String(ctx.week)] || [];
+        if (Array.isArray(weekCfg) && weekCfg.indexOf(ctx.isoDay) >= 0) return true;
+      }
+    } catch (e) {}
+    // Backward compatibility for old setting
+    try {
+      var oldWeekdays = JSON.parse(appSettings.night_disabled_weekdays || '[]');
+      if (Array.isArray(oldWeekdays) && oldWeekdays.indexOf(ctx.isoDay) >= 0) return true;
+    } catch (e2) {}
+    return false;
+  }
+
   function getIntervalsSplit() {
     var isHoliday = isHolidayToday();
     var dayKey = isHoliday ? 'intervals_holiday_day' : 'intervals_regular_day';
@@ -602,6 +637,9 @@
         var sH = parseInt(p[0]); var eH = parseInt(p[1]);
         (eH <= sH ? night : day).push(iv);
       });
+    }
+    if (isNightDisabledForSelectedDate()) {
+      night = [];
     }
     return { day: day, night: night };
   }
@@ -1329,50 +1367,12 @@
     return tiers[tiers.length - 1].price;
   }
 
-  function getNightDeliveryTiers(engels) {
-    var key = engels ? 'night_delivery_tiers_engels' : 'night_delivery_tiers';
-    try { return JSON.parse(appSettings[key] || '[]'); }
-    catch (e) { return []; }
-  }
-
-  function getNightDeliveryCost(km, engels) {
-    var tiers = getNightDeliveryTiers(engels);
-    if (!tiers.length) return getDeliveryCostByDistance(km, engels);
-    tiers.sort(function (a, b) { return a.max_km - b.max_km; });
-    for (var i = 0; i < tiers.length; i++) {
-      if (km <= tiers[i].max_km) return tiers[i].price;
-    }
-    return tiers[tiers.length - 1].price;
-  }
-
-  function getNightDeliveryTiers(engels) {
-    var key = engels ? 'night_delivery_tiers_engels' : 'night_delivery_tiers';
-    try { return JSON.parse(appSettings[key] || '[]'); }
-    catch (e) { return []; }
-  }
-
-  function getNightDeliveryCost(km, engels) {
-    var tiers = getNightDeliveryTiers(engels);
-    if (!tiers.length) return getDeliveryCostByDistance(km, engels);
-    tiers.sort(function (a, b) { return a.max_km - b.max_km; });
-    for (var i = 0; i < tiers.length; i++) {
-      if (km <= tiers[i].max_km) return tiers[i].price;
-    }
-    return tiers[tiers.length - 1].price;
-  }
-
   function getDeliveryCost() {
     if (checkoutState.deliveryType === 'pickup') return 0;
     if (checkoutState.exactTime) {
       return parseInt(appSettings.exact_time_surcharge) || 1000;
     }
     if (checkoutState.deliveryDistance > 0) {
-      if (checkoutState.isNightInterval) {
-        return getNightDeliveryCost(checkoutState.deliveryDistance, checkoutState.isEngels);
-      }
-      if (checkoutState.isNightInterval) {
-        return getNightDeliveryCost(checkoutState.deliveryDistance, checkoutState.isEngels);
-      }
       return getDeliveryCostByDistance(checkoutState.deliveryDistance, checkoutState.isEngels);
     }
     return 0;
@@ -1775,9 +1775,7 @@
           ' — Доставка по этому адресу недоступна (макс. ' + maxKm + ' км)';
         checkoutState.addressValidated = false;
       } else {
-        var cost = checkoutState.isNightInterval
-          ? getNightDeliveryCost(km, checkoutState.isEngels)
-          : getDeliveryCostByDistance(km, checkoutState.isEngels);
+        var cost = getDeliveryCostByDistance(km, checkoutState.isEngels);
         el.innerHTML = 'Расстояние: <b>' + km.toFixed(1) + ' км</b>' + label + ' — Доставка: <b>' + formatPrice(cost) + '</b>';
       }
       el.style.display = '';
@@ -2282,25 +2280,13 @@
 
   window.setDeliveryInterval = function (iv) {
     checkoutState.deliveryInterval = iv;
-    var _split = getIntervalsSplit();
-    checkoutState.isNightInterval = _split.night.indexOf(iv) !== -1;
     var opts = document.querySelectorAll('#interval-group .radio-option');
     opts.forEach(function (o) { o.classList.remove('selected'); });
     var radios = document.querySelectorAll('#interval-group input[type="radio"]');
     radios.forEach(function (r) {
       if (r.value === iv) r.closest('.radio-option').classList.add('selected');
     });
-        updateCheckoutSummary();
-    if (checkoutState.deliveryDistance > 0) {
-      var distEl = document.getElementById('delivery-distance-info');
-      if (distEl && distEl.style.display !== 'none') {
-        var _nc = checkoutState.isNightInterval
-          ? getNightDeliveryCost(checkoutState.deliveryDistance, checkoutState.isEngels)
-          : getDeliveryCostByDistance(checkoutState.deliveryDistance, checkoutState.isEngels);
-        distEl.innerHTML = '\u0420\u0430\u0441\u0441\u0442\u043e\u044f\u043d\u0438\u0435: <b>' + checkoutState.deliveryDistance.toFixed(1) + ' \u043a\u043c</b> \u2014 \u0414\u043e\u0441\u0442\u0430\u0432\u043a\u0430: <b>' + formatPrice(_nc) + '</b>';
-      }
-    }
-updateStepButtons();
+    updateStepButtons();
   };
 
   window.toggleExactTime = function () {

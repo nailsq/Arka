@@ -478,7 +478,8 @@ app.get('/api/user/orders', async function (req, res) {
   console.log('[UserOrders] telegram_id=' + telegramId + ', user=' + (user ? 'id=' + user.id : 'NOT FOUND'));
   if (!user) return res.json([]);
 
-  var orders = await db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC').all(user.id);
+  // Show only paid orders in customer profile/history.
+  var orders = await db.prepare('SELECT * FROM orders WHERE user_id = ? AND is_paid = 1 ORDER BY created_at DESC').all(user.id);
   console.log('[UserOrders] Found ' + orders.length + ' orders for user_id=' + user.id);
 
   for (var i = 0; i < orders.length; i++) {
@@ -887,9 +888,13 @@ app.get('/api/user/is-admin', async function (req, res) {
 app.get('/api/admin/orders', adminAuth, async function (req, res) {
   var status = req.query.status;
   var search = (req.query.search || '').trim();
+  // By default admin panel shows only paid orders. Use ?include_unpaid=1 to include all.
   var sql = 'SELECT * FROM orders';
   var conditions = [];
   var params = [];
+  if (String(req.query.include_unpaid || '') !== '1') {
+    conditions.push('is_paid = 1');
+  }
 
   if (status) {
     conditions.push('status = ?');
@@ -1307,7 +1312,7 @@ app.post('/api/telegram/webhook', async function (req, res) {
         }
         var activeStatuses = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Готов к выдаче'];
         var activeOrder = await db.prepare(
-          "SELECT * FROM orders WHERE user_id = ? AND status IN ('" + activeStatuses.join("','") + "') ORDER BY created_at DESC LIMIT 1"
+          "SELECT * FROM orders WHERE user_id = ? AND is_paid = 1 AND status IN ('" + activeStatuses.join("','") + "') ORDER BY created_at DESC LIMIT 1"
         ).get(ordUser.id);
 
         if (!activeOrder) {
@@ -1358,7 +1363,7 @@ app.post('/api/telegram/webhook', async function (req, res) {
       if (tgText === '\u041e \u043d\u0430\u0441') {
         var aboutText = await getSetting('about_text');
         if (!aboutText) {
-          aboutText = '\u041a\u0430\u043d\u0430\u043b \u043e \u0436\u0438\u0437\u043d\u0438 \u0441\u0430\u043c\u043e\u0439 \u044d\u0441\u0442\u0435\u0442\u0438\u0447\u043d\u043e\u0439 \u0446\u0432\u0435\u0442\u043e\u0447\u043d\u043e\u0439 \u0441\u0442\u0443\u0434\u0438\u0438 \u0421\u0430\u0440\u0430\u0442\u043e\u0432\u0430 \u2728\n@arkaflowersshop\n\n\u041c\u0435\u043d\u0435\u0434\u0436\u0435\u0440 \u043f\u043e \u0437\u0430\u043a\u0430\u0437\u0430\u043c @arkaflowers64\n\n<b>\u0410\u0434\u0440\u0435\u0441\u0430 \u0433. \u0421\u0430\u0440\u0430\u0442\u043e\u0432</b>\n1 \u0444\u0438\u043b\u0438\u0430\u043b: 3-\u0439 \u0414\u0435\u0433\u0442\u044f\u0440\u043d\u044b\u0439 \u043f\u0440\u043e\u0435\u0437\u0434, 21 \u043a \u0414\n2 \u0444\u0438\u043b\u0438\u0430\u043b: \u041f\u0440\u043e\u0435\u0437\u0434 \u0438\u043c. \u0413.\u0418. \u041a\u043e\u0442\u043e\u0432\u0441\u043a\u043e\u0433\u043e, 10\n\n\u041d\u0430\u0448 \u043a\u0430\u043d\u0430\u043b: https://www.instagram.com/arkaflowers/\n\n\u041e\u0444\u043e\u0440\u043c\u0438 \u043a\u0440\u0430\u0441\u0438\u0432\u043e';
+          aboutText = '<b>ARKA STUDIO FLOWERS</b>\n\n\u041c\u044b \u0441\u043e\u0437\u0434\u0430\u0451\u043c \u043a\u0440\u0430\u0441\u0438\u0432\u044b\u0435 \u0431\u0443\u043a\u0435\u0442\u044b \u0438 \u0446\u0432\u0435\u0442\u043e\u0447\u043d\u044b\u0435 \u043a\u043e\u043c\u043f\u043e\u0437\u0438\u0446\u0438\u0438.\n\n\u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u041a\u0410\u0422\u0410\u041b\u041e\u0413, \u0447\u0442\u043e\u0431\u044b \u043f\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u0442\u044c \u043d\u0430\u0448\u0438 \u0440\u0430\u0431\u043e\u0442\u044b!';
         }
         await telegramApiCall('sendMessage', { chat_id: tgChatId, text: aboutText, parse_mode: 'HTML', reply_markup: BOT_MAIN_KEYBOARD });
         return;

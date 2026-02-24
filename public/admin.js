@@ -1089,11 +1089,11 @@
       h += '</div>';
 
       h += '<div class="settings-section">';
-      h += '<div class="settings-section-title">Ночная доставка — Энгельс (от центра)</div>';
+      h += '<div class="settings-section-title">Ночная доставка — Энгельс</div>';
       h += '<div id="s-tiers-list-night-engels"></div>';
       h += '<button type="button" class="btn btn-sm" onclick="addDeliveryTier(\'night-engels\')" style="margin-top:8px">+ Добавить зону</button>';
       h += '<input type="hidden" id="s-night-delivery-tiers-engels">';
-      h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Тарифы ночной доставки по км от центра Энгельса. Если пусто — используются дневные тарифы.</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Тарифы для ночной доставки. Если пусто — используются дневные тарифы.</div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1425,6 +1425,7 @@
     e.preventDefault();
     collectDeliveryTiers();
     collectAllIntervals();
+    var nightDisabledCalendarJson = collectNightDisabledCalendar();
 
     var data = {
       yandex_maps_key: document.getElementById('s-yandex-key').value,
@@ -1446,6 +1447,7 @@
       intervals_holiday: document.getElementById('s-intervals-holiday').value,
       intervals_holiday_day: document.getElementById('s-intervals-holiday-day').value,
       intervals_holiday_night: document.getElementById('s-intervals-holiday-night').value,
+      night_disabled_calendar: nightDisabledCalendarJson,
       holiday_dates: document.getElementById('s-holidays').value,
       exact_time_enabled: document.getElementById('s-exact-enabled').checked ? '1' : '0',
       exact_time_surcharge: document.getElementById('s-exact-surcharge').value,
