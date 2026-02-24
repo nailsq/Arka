@@ -275,6 +275,19 @@
     return item.product_id + '_' + (item.size_label || '');
   }
 
+  function compactSizesForCart(sizes) {
+    if (!sizes || !sizes.length) return [];
+    return sizes.map(function (s) {
+      return {
+        id: s.id,
+        label: s.label,
+        price: s.price,
+        flower_count: s.flower_count,
+        dimensions: s.dimensions || ''
+      };
+    });
+  }
+
   function updateCartQty(productId, sizeLabel, delta) {
     var cart = getCart();
     var key = productId + '_' + (sizeLabel || '');
@@ -979,7 +992,7 @@
       cart = getCart();
       cart.forEach(function (item) {
         if (sizeMap[item.product_id]) {
-          item.available_sizes = sizeMap[item.product_id];
+          item.available_sizes = compactSizesForCart(sizeMap[item.product_id]);
           updated = true;
         }
       });
@@ -3254,7 +3267,7 @@
   // Global handlers
   // ============================================================
 
-  window.switchCardSize = function (event, productId, btn, price, dims, imageUrl) {
+  window.switchCardSize = function (event, productId, btn, price, dims) {
     event.stopPropagation();
     var row = btn.parentElement;
     var btns = row.querySelectorAll('.card-size-btn');

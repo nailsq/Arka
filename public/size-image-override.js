@@ -3,6 +3,8 @@
 
   var sizeCache = {};
   var productCache = {};
+  var imageReadyCache = {};
+  var pendingCartImageToken = {};
 
   function getCart() {
     try { return JSON.parse(localStorage.getItem('arka_cart')) || []; } catch (e) { return []; }
@@ -29,6 +31,22 @@
       var sizes = (p && p.sizes && p.sizes.length) ? p.sizes : [];
       sizeCache[productId] = sizes;
       return sizes;
+    });
+  }
+
+  function preloadImage(url) {
+    if (!url) return Promise.resolve(false);
+    if (imageReadyCache[url]) return Promise.resolve(true);
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.onload = function () {
+        imageReadyCache[url] = true;
+        resolve(true);
+      };
+      img.onerror = function () {
+        resolve(false);
+      };
+      img.src = url;
     });
   }
 
@@ -75,14 +93,20 @@
 
   function updateCartItemImage(cartIdx, imageUrl) {
     if (!imageUrl) return;
-    var cart = getCart();
-    if (!cart[cartIdx]) return;
-    cart[cartIdx].image_url = imageUrl;
-    saveCart(cart);
-    var row = document.getElementById('cart-row-' + cartIdx);
-    if (!row) return;
-    var img = row.querySelector('.cart-item-img');
-    if (img && img.tagName === 'IMG') img.src = imageUrl;
+    var token = String(Date.now()) + '_' + Math.random();
+    pendingCartImageToken[cartIdx] = token;
+    preloadImage(imageUrl).then(function (ok) {
+      if (!ok) return;
+      if (pendingCartImageToken[cartIdx] !== token) return;
+      var cart = getCart();
+      if (!cart[cartIdx]) return;
+      cart[cartIdx].image_url = imageUrl;
+      saveCart(cart);
+      var row = document.getElementById('cart-row-' + cartIdx);
+      if (!row) return;
+      var img = row.querySelector('.cart-item-img');
+      if (img && img.tagName === 'IMG') img.src = imageUrl;
+    });
   }
 
   function annotateDetailSizeButtons() {

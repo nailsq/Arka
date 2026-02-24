@@ -897,7 +897,7 @@
     var preview = row.querySelector('.pf-size-image-preview');
     if (!hidden || !preview) return;
     if (!input.files || !input.files[0]) return;
-    resizeImageFile(input.files[0], 1400, 0.82).then(function (dataUrl) {
+    resizeImageFile(input.files[0], 900, 0.72).then(function (dataUrl) {
       dataUrl = String(dataUrl || '');
       if (!dataUrl) return;
       hidden.value = dataUrl;
