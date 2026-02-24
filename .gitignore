@@ -3,3 +3,4 @@ arka.db
 arka.db-shm
 arka.db-wal
 .env
+arka.db.current_backup
