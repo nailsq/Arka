@@ -844,7 +844,7 @@
         var firstSize = p.sizes[0];
         var sizeBtns = p.sizes.map(function (s, idx) {
           return '<button type="button" class="size-btn' + (idx === 0 ? ' active' : '') + '" ' +
-            'data-size-id="' + s.id + '" data-price="' + s.price + '" data-fc="' + s.flower_count + '" data-label="' + escapeHtml(s.label) + '" data-dims="' + escapeHtml(s.dimensions || '') + '" ' +
+            'data-size-id="' + s.id + '" data-price="' + s.price + '" data-fc="' + s.flower_count + '" data-label="' + escapeHtml(s.label) + '" data-dims="' + escapeHtml(s.dimensions || '') + '" data-img="' + escapeHtml(s.image_url || '') + '" ' +
             'onclick="selectSize(this,' + p.id + ')">' +
             escapeHtml(s.label) +
           '</button>';
@@ -3253,38 +3253,6 @@
   // ============================================================
   // Global handlers
   // ============================================================
-
-  function setCardImageBySize(productId, imageUrl) {
-    if (!imageUrl) return;
-    var cards = document.querySelectorAll('.product-card');
-    cards.forEach(function (card) {
-      var activeBtn = card.querySelector('.card-size-btn.active');
-      if (!activeBtn) return;
-      var onClick = activeBtn.getAttribute('onclick') || '';
-      if (onClick.indexOf(',' + productId + ',') < 0) return;
-      var slides = card.querySelectorAll('.product-card-img-wrap .card-slide');
-      var dots = card.querySelectorAll('.product-card-img-wrap .card-dot');
-      if (slides.length) {
-        slides[0].src = imageUrl;
-        slides.forEach(function (s, idx) { s.classList.toggle('card-slide-active', idx === 0); });
-        dots.forEach(function (d, idx) { d.classList.toggle('active', idx === 0); });
-        return;
-      }
-      var single = card.querySelector('.product-card-img-wrap .product-card-img');
-      if (single && single.tagName === 'IMG') single.src = imageUrl;
-    });
-  }
-
-  function setDetailImageBySize(imageUrl) {
-    if (!imageUrl) return;
-    var single = document.querySelector('.product-detail-img-wrap .product-detail-img');
-    if (single && single.tagName === 'IMG') single.src = imageUrl;
-    var first = document.querySelector('#gallery-track .gallery-slide:first-child .product-detail-img');
-    if (first && first.tagName === 'IMG') {
-      first.src = imageUrl;
-      galleryGoTo(0);
-    }
-  }
 
   window.switchCardSize = function (event, productId, btn, price, dims) {
     event.stopPropagation();
