@@ -961,6 +961,8 @@
         adminToast(msg, 'success');
         loadProducts();
       });
+    }).catch(function (err) {
+      adminToast('Ошибка сохранения: ' + (err && err.message ? err.message : 'проверьте сервер'), 'error');
     });
   };
 
