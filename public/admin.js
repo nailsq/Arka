@@ -2,15 +2,6 @@
   // night-calendar-fix-marker
   'use strict';
 
-  function pluralFlower(n) {
-    var abs = Math.abs(n) % 100;
-    var last = abs % 10;
-    if (abs > 10 && abs < 20) return n + ' цветков';
-    if (last === 1) return n + ' цветок';
-    if (last >= 2 && last <= 4) return n + ' цветка';
-    return n + ' цветков';
-  }
-
   var app = document.getElementById('admin-app');
   var token = localStorage.getItem('arka_admin_token') || '';
   var currentTab = 'orders';
@@ -571,9 +562,8 @@
         h += '<div style="font-weight:600;margin-bottom:8px">Состав заказа</div>';
         o.items.forEach(function (i) {
           var sizeTag = i.size_label ? ' [' + esc(i.size_label) + ']' : '';
-          var fcTag = i.flower_count ? ' (' + pluralFlower(i.flower_count) + ')' : '';
           h += '<div class="order-item-row">' +
-            '<span>' + esc(i.product_name || 'Товар') + sizeTag + fcTag + ' x ' + i.quantity + '</span>' +
+            '<span>' + esc(i.product_name || 'Товар') + sizeTag + ' x ' + i.quantity + '</span>' +
             '<span><strong>' + fmtPrice(i.price * i.quantity) + '</strong></span>' +
           '</div>';
         });
@@ -684,7 +674,7 @@
           var sizesInfo = '';
           if (p.sizes && p.sizes.length) {
             sizesInfo = '<div style="font-size:10px;color:var(--text-secondary)">' +
-              p.sizes.map(function (s) { return s.label + ' (' + s.flower_count + ' цв.)'; }).join(', ') + '</div>';
+              p.sizes.map(function (s) { return s.label; }).join(', ') + '</div>';
           }
           var stockToggle = p.in_stock === 0
             ? '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#fff3cd;color:#856404;border-color:#ffe08a" onclick="toggleStock(' + p.id + ',1)">Скоро</button>'
@@ -758,7 +748,6 @@
       sizesHtml = p.sizes.map(function (s) {
         return '<div class="pf-size-row" data-size-id="' + s.id + '">' +
           '<input type="text" class="form-input" style="width:60px" value="' + esc(s.label) + '" placeholder="M" data-field="label">' +
-          '<input type="number" class="form-input" style="width:70px" value="' + s.flower_count + '" placeholder="цветов" data-field="flower_count" min="0">' +
           '<input type="number" class="form-input" style="width:90px" value="' + s.price + '" placeholder="цена" data-field="price" min="0">' +
           '<input type="text" class="form-input" style="width:80px" value="' + esc(s.dimensions || '') + '" placeholder="см" data-field="dimensions">' +
           '<button type="button" class="btn btn-sm btn-danger" onclick="removeSizeRow(this)" style="flex-shrink:0">X</button>' +
@@ -811,7 +800,7 @@
             '</div>' +
             '<div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px" id="pf-sizes-section">' +
               '<div style="font-weight:600;margin-bottom:6px">Размеры букета</div>' +
-              '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Добавьте размеры (S, M, L, XL и т.д.) с количеством цветков, ценой и размером в см.</div>' +
+              '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Добавьте размеры (S, M, L, XL и т.д.) с ценой и размером в см.</div>' +
               '<div id="pf-sizes-list">' + sizesHtml + '</div>' +
               '<button type="button" class="btn btn-sm" onclick="addSizeRow()" style="margin-top:8px">+ Добавить размер</button>' +
             '</div>' +
@@ -837,7 +826,6 @@
     row.setAttribute('data-size-id', 'new');
     row.innerHTML =
       '<input type="text" class="form-input" style="width:60px" placeholder="M" data-field="label">' +
-      '<input type="number" class="form-input" style="width:70px" placeholder="цветов" data-field="flower_count" min="0">' +
       '<input type="number" class="form-input" style="width:90px" placeholder="цена" data-field="price" min="0">' +
       '<input type="text" class="form-input" style="width:80px" placeholder="см" data-field="dimensions">' +
       '<button type="button" class="btn btn-sm btn-danger" onclick="removeSizeRow(this)" style="flex-shrink:0">X</button>';
@@ -908,13 +896,12 @@
       sizeRows.forEach(function (row, idx) {
         var sizeId = row.getAttribute('data-size-id');
         var label = row.querySelector('[data-field="label"]').value.trim();
-        var flowerCount = row.querySelector('[data-field="flower_count"]').value || '0';
         var price = row.querySelector('[data-field="price"]').value || '0';
         var dims = row.querySelector('[data-field="dimensions"]');
         var dimsVal = dims ? dims.value.trim() : '';
         if (!label) return;
 
-        var sizeData = { product_id: productId, label: label, flower_count: flowerCount, price: price, sort_order: idx, dimensions: dimsVal };
+        var sizeData = { product_id: productId, label: label, price: price, sort_order: idx, dimensions: dimsVal };
         if (sizeId && sizeId !== 'new') {
           sizeSavePromises.push(api('PUT', '/api/admin/product-sizes/' + sizeId, sizeData));
         } else {
@@ -1098,14 +1085,9 @@
       h += '</div>';
 
       h += '<div class="settings-section">';
-      h += '<div class="settings-section-title">Стоимость доставки по дням</div>';
-      h += '<div class="form-row">' +
-        '<div class="form-group"><label class="form-label">Будние дни (руб.)</label>' +
-        '<input type="number" class="form-input" id="s-delivery-regular" value="' + esc(s.delivery_regular || '500') + '"></div>' +
-        '<div class="form-group"><label class="form-label">Праздничные дни (руб.)</label>' +
-        '<input type="number" class="form-input" id="s-delivery-holiday" value="' + esc(s.delivery_holiday || '1000') + '"></div>' +
-      '</div>';
-      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Праздничные дни: 8 марта, 14 февраля, День матери и т.п. В праздники созвониться и узнать адрес у получателя, время доставки.</div>';
+      h += '<div class="settings-section-title">Стоимость доставки</div>';
+      h += '<div class="form-group"><label class="form-label">Базовая стоимость (руб.)</label>' +
+        '<input type="number" class="form-input" id="s-delivery-regular" value="' + esc(s.delivery_regular || '500') + '"></div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1138,22 +1120,10 @@
       h += '<input type="hidden" id="s-intervals-regular-day">';
       h += '<input type="hidden" id="s-intervals-regular-night">';
 
-      h += '<div class="form-group"><label class="form-label">Праздничные интервалы — дневные</label>' +
-        '<div id="s-intervals-list-holiday-day"></div>' +
-        '<button type="button" class="btn btn-sm" onclick="addInterval(\'holiday-day\', false)" style="margin-top:8px">+ Добавить дневной</button></div>';
-      h += '<div class="form-group"><label class="form-label" style="color:#65657a">Праздничные интервалы — ночные <span style="font-size:11px;font-weight:400;color:var(--text-secondary)">(доставка переходит на следующий день)</span></label>' +
-        '<div id="s-intervals-list-holiday-night"></div>' +
-        '<button type="button" class="btn btn-sm" onclick="addInterval(\'holiday-night\', true)" style="margin-top:8px">+ Добавить ночной</button></div>';
-      h += '<input type="hidden" id="s-intervals-holiday">';
-      h += '<input type="hidden" id="s-intervals-holiday-day">';
-      h += '<input type="hidden" id="s-intervals-holiday-night">';
-      h += '</div>';
-
-      h += '<div class="settings-section">';
-      h += '<div class="settings-section-title">Праздничные даты</div>';
-      h += '<div class="form-group"><label class="form-label">Даты (JSON, формат ММ-ДД, напр. ["02-14","03-08","11-26"])</label>' +
-        '<textarea class="form-textarea" id="s-holidays">' + esc(s.holiday_dates || '[]') + '</textarea></div>';
-      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">02-14 = 14 февраля, 03-08 = 8 марта, 11-26 = День матери. Добавляйте/убирайте даты по необходимости.</div>';
+      h += '<input type="hidden" id="s-intervals-holiday" value="[]">';
+      h += '<input type="hidden" id="s-intervals-holiday-day" value="[]">';
+      h += '<input type="hidden" id="s-intervals-holiday-night" value="[]">';
+      h += '<input type="hidden" id="s-holidays" value="[]">';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1262,23 +1232,7 @@
       renderIntervals(regDay, 'regular-day');
       renderIntervals(regNight, 'regular-night');
 
-      var holDay = [], holNight = [];
-      if (s.intervals_holiday_day) {
-        try { holDay = JSON.parse(s.intervals_holiday_day); } catch (e) {}
-        try { holNight = JSON.parse(s.intervals_holiday_night || '[]'); } catch (e) {}
-      } else {
-        var ivHol = [];
-        try { ivHol = JSON.parse(s.intervals_holiday || '[]'); } catch (e) {}
-        if (!ivHol.length) ivHol = ['10:00-13:00', '13:00-16:00', '16:00-19:00', '19:00-22:00'];
-        ivHol.forEach(function (iv) {
-          var p = iv.split('-'); var sH = parseInt(p[0]); var eH = parseInt(p[1]);
-          (eH <= sH ? holNight : holDay).push(iv);
-        });
-      }
-      if (!holDay.length && !holNight.length) holDay = ['10:00-13:00', '13:00-16:00', '16:00-19:00', '19:00-22:00'];
-      console.log('[LoadSettings] holiday day:', JSON.stringify(holDay), 'night:', JSON.stringify(holNight));
-      renderIntervals(holDay, 'holiday-day');
-      renderIntervals(holNight, 'holiday-night');
+      // Holidays are intentionally disabled in admin settings.
     });
   }
 
@@ -1401,25 +1355,24 @@
   function collectAllIntervals() {
     var regDay = collectIntervalsRaw('s-intervals-list-regular-day');
     var regNight = collectIntervalsRaw('s-intervals-list-regular-night');
-    var holDay = collectIntervalsRaw('s-intervals-list-holiday-day');
-    var holNight = collectIntervalsRaw('s-intervals-list-holiday-night');
 
     var hiddenReg = document.getElementById('s-intervals-regular');
     if (hiddenReg) hiddenReg.value = JSON.stringify(regDay.concat(regNight));
     var hiddenHol = document.getElementById('s-intervals-holiday');
-    if (hiddenHol) hiddenHol.value = JSON.stringify(holDay.concat(holNight));
+    if (hiddenHol) hiddenHol.value = '[]';
 
     var hiddenRegDay = document.getElementById('s-intervals-regular-day');
     if (hiddenRegDay) hiddenRegDay.value = JSON.stringify(regDay);
     var hiddenRegNight = document.getElementById('s-intervals-regular-night');
     if (hiddenRegNight) hiddenRegNight.value = JSON.stringify(regNight);
     var hiddenHolDay = document.getElementById('s-intervals-holiday-day');
-    if (hiddenHolDay) hiddenHolDay.value = JSON.stringify(holDay);
+    if (hiddenHolDay) hiddenHolDay.value = '[]';
     var hiddenHolNight = document.getElementById('s-intervals-holiday-night');
-    if (hiddenHolNight) hiddenHolNight.value = JSON.stringify(holNight);
+    if (hiddenHolNight) hiddenHolNight.value = '[]';
+    var holidays = document.getElementById('s-holidays');
+    if (holidays) holidays.value = '[]';
 
     console.log('[Intervals] Regular day:', JSON.stringify(regDay), 'night:', JSON.stringify(regNight));
-    console.log('[Intervals] Holiday day:', JSON.stringify(holDay), 'night:', JSON.stringify(holNight));
   }
 
   function collectDeliveryTiers() {
@@ -1449,16 +1402,16 @@
       max_delivery_km_saratov: document.getElementById('s-max-distance-saratov').value,
       max_delivery_km_engels: document.getElementById('s-max-distance-engels').value,
       delivery_regular: document.getElementById('s-delivery-regular').value,
-      delivery_holiday: document.getElementById('s-delivery-holiday').value,
+      delivery_holiday: document.getElementById('s-delivery-regular').value,
       pickup_address: document.getElementById('s-pickup').value,
       cutoff_hour: document.getElementById('s-cutoff').value,
       intervals_regular: document.getElementById('s-intervals-regular').value,
       intervals_regular_day: document.getElementById('s-intervals-regular-day').value,
       intervals_regular_night: document.getElementById('s-intervals-regular-night').value,
-      intervals_holiday: document.getElementById('s-intervals-holiday').value,
-      intervals_holiday_day: document.getElementById('s-intervals-holiday-day').value,
-      intervals_holiday_night: document.getElementById('s-intervals-holiday-night').value,
-      holiday_dates: document.getElementById('s-holidays').value,
+      intervals_holiday: '[]',
+      intervals_holiday_day: '[]',
+      intervals_holiday_night: '[]',
+      holiday_dates: '[]',
       exact_time_enabled: document.getElementById('s-exact-enabled').checked ? '1' : '0',
       exact_time_surcharge: document.getElementById('s-exact-surcharge').value,
       pickup_cutoff_hour: document.getElementById('s-pickup-cutoff').value,
@@ -1471,7 +1424,6 @@
     };
 
     console.log('[SaveSettings] intervals_regular:', data.intervals_regular);
-    console.log('[SaveSettings] intervals_holiday:', data.intervals_holiday);
 
     api('POST', '/api/admin/settings', data).then(function () {
       adminToast('Настройки сохранены', 'success');
@@ -1646,14 +1598,11 @@
     { key: 'delivery_zone_saratov', label: 'Стоимость доставки — Саратов', section: 'Стоимость доставки по районам' },
     { key: 'delivery_zone_engels', label: 'Стоимость доставки — Энгельс', section: 'Стоимость доставки по районам' },
     { key: 'delivery_zone_remote', label: 'Стоимость доставки — Окрестности', section: 'Стоимость доставки по районам' },
-    { key: 'delivery_regular', label: 'Доставка в будние дни', section: 'Стоимость доставки по дням' },
-    { key: 'delivery_holiday', label: 'Доставка в праздничные дни', section: 'Стоимость доставки по дням' },
+    { key: 'delivery_regular', label: 'Стоимость доставки', section: 'Стоимость доставки' },
     { key: 'exact_time_surcharge', label: 'Доплата за точное время', section: 'Точное время доставки' },
     { key: 'pickup_address', label: 'Адрес самовывоза', section: 'Самовывоз' },
     { key: 'cutoff_hour', label: 'Вечерний порог (час)', section: 'Время и интервалы' },
-    { key: 'intervals_regular', label: 'Обычные интервалы', section: 'Время и интервалы' },
-    { key: 'intervals_holiday', label: 'Праздничные интервалы', section: 'Время и интервалы' },
-    { key: 'holiday_dates', label: 'Праздничные даты', section: 'Праздничные даты' },
+    { key: 'intervals_regular', label: 'Интервалы доставки', section: 'Время и интервалы' },
     { key: 'delivery_info', label: 'Информация о доставке', section: 'Информация о доставке' },
     { key: 'social_telegram', label: 'Telegram', section: 'Соцсети' },
     { key: 'social_instagram', label: 'Instagram', section: 'Соцсети' },
@@ -1859,14 +1808,11 @@
           exact_time_surcharge: 's-exact-surcharge',
           cutoff_hour: 's-cutoff',
           intervals_regular: 's-intervals-regular',
-          intervals_holiday: 's-intervals-holiday',
-          holiday_dates: 's-holidays',
           delivery_info: 's-delivery-info',
           social_telegram: 's-social-tg',
           social_instagram: 's-social-ig',
           social_vk: 's-social-vk',
           delivery_regular: 's-delivery-regular',
-          delivery_holiday: 's-delivery-holiday',
           pickup_address: 's-pickup'
         };
         el = document.getElementById(map[key]);

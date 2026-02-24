@@ -9,15 +9,6 @@
   var selectedCity = null;
   var citiesList = [];
 
-  function pluralFlower(n) {
-    var abs = Math.abs(n) % 100;
-    var last = abs % 10;
-    if (abs > 10 && abs < 20) return n + ' цветков';
-    if (last === 1) return n + ' цветок';
-    if (last >= 2 && last <= 4) return n + ' цветка';
-    return n + ' цветков';
-  }
-
   // ============================================================
   // Telegram Web App
   // ============================================================
@@ -196,7 +187,6 @@
     if (sizeObj) {
       price = sizeObj.price;
       sizeLabel = sizeObj.label;
-      flowerCount = sizeObj.flower_count;
       dims = sizeObj.dimensions || '';
     }
 
@@ -212,7 +202,6 @@
         price: price,
         image_url: product.image_url,
         quantity: 1,
-        flower_count: flowerCount,
         dimensions: dims,
         size_label: sizeLabel,
         is_bouquet: isBouquet ? 1 : 0,
@@ -261,7 +250,6 @@
         price: 0,
         image_url: appSettings.free_service_image || '',
         quantity: bouquetCount,
-        flower_count: 0,
         size_label: '',
         is_bouquet: 0,
         base_price: 0,
@@ -569,62 +557,48 @@
     }
   }
 
-  function isHolidayToday() {
-    var raw = appSettings.holiday_dates;
-    if (!raw) return false;
-    try {
-      var dates = JSON.parse(raw);
-      var todayStr = saratovNow().dateStr;
-      return dates.indexOf(todayStr) >= 0;
-    } catch (e) { return false; }
-  }
-
   function getIntervals() {
-    var isHoliday = isHolidayToday();
-    var key = isHoliday ? 'intervals_holiday' : 'intervals_regular';
-    try { return JSON.parse(appSettings[key] || '[]'); }
+    try { return JSON.parse(appSettings.intervals_regular || '[]'); }
     catch (e) { return []; }
   }
 
-  function getNightDateContext() {
-    var dateEl = document.getElementById('field-date');
-    var raw = (dateEl && dateEl.value) ? dateEl.value : saratovNow().dateStr;
-    var p = String(raw).split('-');
+  function getNightDateContext(selectedDateStr) {
+    var p = String(selectedDateStr || '').split('.');
     if (p.length !== 3) return null;
-    var y = parseInt(p[0]);
-    var m = parseInt(p[1]);
-    var d = parseInt(p[2]);
-    var dt = new Date(y, m - 1, d);
-    if (isNaN(dt.getTime())) return null;
-    var jsDay = dt.getDay(); // 0..6
-    var isoDay = jsDay === 0 ? 7 : jsDay; // 1..7 Mon..Sun
-    var week = Math.floor((d - 1) / 7) + 1;
-    return { monthKey: p[0] + '-' + p[1], week: week, isoDay: isoDay };
+    var d = parseInt(p[0], 10);
+    var m = parseInt(p[1], 10) - 1;
+    var y = parseInt(p[2], 10);
+    if (!d || m < 0 || !y) return null;
+    var dt = new Date(y, m, d);
+    return {
+      monthKey: y + '-' + String(m + 1).padStart(2, '0'),
+      week: Math.ceil(d / 7),
+      weekday: (dt.getDay() + 6) % 7 + 1
+    };
   }
 
-  function isNightDisabledForSelectedDate() {
-    var ctx = getNightDateContext();
+  function isNightDisabledForSelectedDate(selectedDateStr) {
+    var raw = appSettings.night_disabled_calendar;
+    if (!raw) return false;
+    var cal;
+    try {
+      cal = JSON.parse(raw);
+    } catch (e) {
+      return false;
+    }
+    if (!cal || typeof cal !== 'object') return false;
+    var ctx = getNightDateContext(selectedDateStr);
     if (!ctx) return false;
-    try {
-      var calendar = JSON.parse(appSettings.night_disabled_calendar || '{}');
-      if (calendar && typeof calendar === 'object') {
-        var monthCfg = calendar[ctx.monthKey] || {};
-        var weekCfg = monthCfg[String(ctx.week)] || [];
-        if (Array.isArray(weekCfg) && weekCfg.indexOf(ctx.isoDay) >= 0) return true;
-      }
-    } catch (e) {}
-    // Backward compatibility for old setting
-    try {
-      var oldWeekdays = JSON.parse(appSettings.night_disabled_weekdays || '[]');
-      if (Array.isArray(oldWeekdays) && oldWeekdays.indexOf(ctx.isoDay) >= 0) return true;
-    } catch (e2) {}
-    return false;
+    var monthCfg = cal[ctx.monthKey];
+    if (!monthCfg || typeof monthCfg !== 'object') return false;
+    var days = monthCfg[String(ctx.week)];
+    if (!Array.isArray(days)) return false;
+    return days.indexOf(ctx.weekday) >= 0;
   }
 
   function getIntervalsSplit() {
-    var isHoliday = isHolidayToday();
-    var dayKey = isHoliday ? 'intervals_holiday_day' : 'intervals_regular_day';
-    var nightKey = isHoliday ? 'intervals_holiday_night' : 'intervals_regular_night';
+    var dayKey = 'intervals_regular_day';
+    var nightKey = 'intervals_regular_night';
     var day = [], night = [];
 
     if (appSettings[dayKey]) {
@@ -638,7 +612,7 @@
         (eH <= sH ? night : day).push(iv);
       });
     }
-    if (isNightDisabledForSelectedDate()) {
+    if (isNightDisabledForSelectedDate(checkoutState.deliveryDate)) {
       night = [];
     }
     return { day: day, night: night };
@@ -845,13 +819,12 @@
         var firstSize = p.sizes[0];
         var sizeBtns = p.sizes.map(function (s, idx) {
           return '<button type="button" class="size-btn' + (idx === 0 ? ' active' : '') + '" ' +
-            'data-size-id="' + s.id + '" data-price="' + s.price + '" data-fc="' + s.flower_count + '" data-label="' + escapeHtml(s.label) + '" data-dims="' + escapeHtml(s.dimensions || '') + '" ' +
+            'data-size-id="' + s.id + '" data-price="' + s.price + '" data-label="' + escapeHtml(s.label) + '" data-dims="' + escapeHtml(s.dimensions || '') + '" ' +
             'onclick="selectSize(this,' + p.id + ')">' +
             escapeHtml(s.label) +
           '</button>';
         }).join('');
-        var firstInfo = pluralFlower(firstSize.flower_count);
-        if (firstSize.dimensions) firstInfo += ' · ' + escapeHtml(firstSize.dimensions);
+        var firstInfo = firstSize.dimensions ? escapeHtml(firstSize.dimensions) : '';
         sizeHtml =
           '<div class="size-selector" id="size-selector">' +
             '<div class="size-selector-label">Размер букета</div>' +
@@ -996,7 +969,7 @@
           var sizeBtns = sizes.map(function (s) {
             var isActive = s.label === item.size_label;
             return '<button type="button" class="size-btn' + (isActive ? ' active' : '') + '" ' +
-              'onclick="changeCartSize(' + idx + ',\'' + escapeHtml(s.label).replace(/'/g, "\\'") + '\',' + s.price + ',' + s.flower_count + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\')">' +
+              'onclick="changeCartSize(' + idx + ',\'' + escapeHtml(s.label).replace(/'/g, "\\'") + '\',' + s.price + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\')">' +
               escapeHtml(s.label) + '</button>';
           }).join('');
           oldBtns.querySelector('.size-btn-row').innerHTML = sizeBtns;
@@ -1089,12 +1062,11 @@
       var sizeBtns = sizes.map(function (s) {
         var isActive = s.label === item.size_label;
         return '<button type="button" class="size-btn' + (isActive ? ' active' : '') + '" ' +
-          'onclick="changeCartSize(' + idx + ',\'' + escapeHtml(s.label).replace(/'/g, "\\'") + '\',' + s.price + ',' + s.flower_count + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\')">' +
+          'onclick="changeCartSize(' + idx + ',\'' + escapeHtml(s.label).replace(/'/g, "\\'") + '\',' + s.price + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\')">' +
           escapeHtml(s.label) + '</button>';
       }).join('');
       var sizeInfo = '';
-      if (item.flower_count) sizeInfo += pluralFlower(item.flower_count);
-      if (item.dimensions) sizeInfo += (sizeInfo ? ' · ' : '') + escapeHtml(item.dimensions);
+      if (item.dimensions) sizeInfo += escapeHtml(item.dimensions);
       sizeSelector = '<div class="cart-size-selector">' +
         '<div class="size-btn-row">' + sizeBtns + '</div>' +
         (sizeInfo ? '<div class="cart-size-fc">' + sizeInfo + '</div>' : '') +
@@ -1417,7 +1389,6 @@
     var sNow = saratovNow();
     var currentHour = sNow.hours;
     var cutoff = getCutoffHour();
-    var holiday = isHolidayToday();
     var pickup = appSettings.pickup_address || 'г. Саратов, 3-й Дегтярный проезд, 21к3';
 
     if (!draft) {
@@ -2416,7 +2387,7 @@
       telegram_id: getTelegramId() || '',
       city_id: selectedCity ? selectedCity.id : null,
       items: cart.map(function (i) {
-        return { product_id: i.product_id, quantity: i.quantity, price: i.price, flower_count: i.flower_count || 0, size_label: i.size_label || '' };
+        return { product_id: i.product_id, quantity: i.quantity, price: i.price, size_label: i.size_label || '' };
       })
     };
 
@@ -2857,8 +2828,7 @@
           itemsHtml = '<div class="order-card-items">' +
             o.items.map(function (i) {
               var sizeTag = i.size_label ? ' [' + i.size_label + ']' : '';
-              var fcTag = i.flower_count ? ' (' + pluralFlower(i.flower_count) + ')' : '';
-              return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + fcTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
+              return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
             }).join('') + '</div>';
         }
         return '<div class="order-card">' +
@@ -2983,8 +2953,7 @@
           itemsHtml = '<div class="track-items">' +
             o.items.map(function (i) {
               var sizeTag = i.size_label ? ' [' + i.size_label + ']' : '';
-              var fcTag = i.flower_count ? ' (' + pluralFlower(i.flower_count) + ')' : '';
-              return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + fcTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
+              return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
             }).join('') + '</div>';
         }
 
@@ -3310,7 +3279,6 @@
           id: parseInt(activeBtn.getAttribute('data-size-id')),
           label: activeBtn.getAttribute('data-label'),
           price: parseInt(activeBtn.getAttribute('data-price')),
-          flower_count: parseInt(activeBtn.getAttribute('data-fc')),
           dimensions: activeBtn.getAttribute('data-dims') || ''
         };
       } else {
@@ -3325,14 +3293,12 @@
     btns.forEach(function (b) { b.classList.remove('active'); });
     btn.classList.add('active');
     var price = parseInt(btn.getAttribute('data-price'));
-    var fc = parseInt(btn.getAttribute('data-fc'));
     var dims = btn.getAttribute('data-dims') || '';
     var priceEl = document.getElementById('detail-price');
     if (priceEl) priceEl.textContent = formatPrice(price);
     var infoEl = document.getElementById('size-info');
     if (infoEl) {
-      var text = pluralFlower(fc);
-      if (dims) text += ' · ' + dims;
+      var text = dims || '';
       infoEl.textContent = text;
     }
   };
@@ -3398,7 +3364,7 @@
     return true;
   }
 
-  window.changeCartSize = function (cartIdx, newLabel, newPrice, newFlowerCount, newDims) {
+  window.changeCartSize = function (cartIdx, newLabel, newPrice, newDims) {
     var cart = getCart();
     var item = cart[cartIdx];
     if (!item) return;
@@ -3420,7 +3386,6 @@
 
     item.size_label = newLabel;
     item.price = newPrice;
-    item.flower_count = newFlowerCount;
     item.dimensions = newDims || '';
     saveCart(cart);
 
@@ -3435,8 +3400,7 @@
       var fcEl = row.querySelector('.cart-size-fc');
       if (fcEl) {
         var fcText = '';
-        if (newFlowerCount) fcText += pluralFlower(newFlowerCount);
-        if (newDims) fcText += (fcText ? ' · ' : '') + newDims;
+        if (newDims) fcText = newDims;
         fcEl.textContent = fcText;
       }
       var totalEl = document.getElementById('cart-total-val');
