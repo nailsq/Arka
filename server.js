@@ -1172,6 +1172,24 @@ app.post('/api/admin/settings', adminAuth, async function (req, res) {
   res.json({ ok: true });
 });
 
+app.post('/api/admin/backup-now', adminAuth, async function (req, res) {
+  try {
+    await backup.backup();
+    res.json({ ok: true, message: 'Backup completed' });
+  } catch (err) {
+    res.status(500).json({ error: 'Backup failed: ' + err.message });
+  }
+});
+
+app.get('/api/admin/backup-status', adminAuth, async function (req, res) {
+  try {
+    var status = await backup.getStatus();
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: 'Status check failed: ' + err.message });
+  }
+});
+
 // ============================================================
 // ADMIN: Manage admin users (super admin only)
 // ============================================================

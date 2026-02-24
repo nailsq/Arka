@@ -169,6 +169,44 @@ async function backup() {
   }
 }
 
+async function getStatus() {
+  if (!isEnabled()) {
+    return {
+      configured: false,
+      hasBackup: false,
+      gistId: '',
+      updatedAt: null,
+      partCount: 0
+    };
+  }
+  try {
+    var gist = await githubApi('GET', '/gists/' + GITHUB_GIST_ID);
+    var files = gist.files || {};
+    var keys = Object.keys(files);
+    var partCount = 0;
+    for (var i = 0; i < keys.length; i++) {
+      if (/^arka_backup_part\d+\.gz\.b64$/.test(keys[i])) partCount++;
+    }
+    var hasSingle = !!files['arka_backup.gz.b64'];
+    return {
+      configured: true,
+      hasBackup: hasSingle || partCount > 0,
+      gistId: GITHUB_GIST_ID,
+      updatedAt: gist.updated_at || null,
+      partCount: partCount || (hasSingle ? 1 : 0)
+    };
+  } catch (err) {
+    return {
+      configured: true,
+      hasBackup: false,
+      gistId: GITHUB_GIST_ID,
+      updatedAt: null,
+      partCount: 0,
+      error: err.message
+    };
+  }
+}
+
 var backupTimer = null;
 
 function startPeriodicBackup() {
@@ -192,6 +230,7 @@ function startPeriodicBackup() {
 module.exports = {
   restore: restore,
   backup: backup,
+  getStatus: getStatus,
   startPeriodicBackup: startPeriodicBackup,
   isEnabled: isEnabled
 };

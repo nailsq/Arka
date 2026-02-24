@@ -1,4 +1,5 @@
 (function () {
+  // night-calendar-fix-marker
   'use strict';
 
   function pluralFlower(n) {
@@ -1192,6 +1193,16 @@
         '<input type="text" class="form-input" id="s-social-vk" value="' + esc(s.social_vk || '') + '"></div>';
       h += '</div>';
 
+      h += '<div class="settings-section">';
+      h += '<div class="settings-section-title">Резервная копия</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Сохраняет текущую базу данных в GitHub Gist. Для работы должны быть заданы GITHUB_TOKEN и GITHUB_GIST_ID на сервере.</div>';
+      h += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+      h += '<button type="button" class="btn btn-sm" id="backup-now-btn" onclick="runBackupNow()">Сделать бэкап сейчас</button>';
+      h += '<button type="button" class="btn btn-sm" onclick="checkBackupStatus()">Проверить последнее сохранение</button>';
+      h += '</div>';
+      h += '<div id="backup-status" style="margin-top:8px;font-size:13px;color:var(--text-secondary)">Проверка статуса...</div>';
+      h += '</div>';
+
       h += '<button type="submit" class="btn btn-success" style="margin-top:8px">Сохранить настройки</button>';
       h += '</div></form>';
 
@@ -1213,6 +1224,7 @@
       }
 
       el.innerHTML = h;
+      setTimeout(function () { if (window.checkBackupStatus) window.checkBackupStatus(); }, 0);
 
       var tiersSar = [];
       try { tiersSar = JSON.parse(s.delivery_distance_tiers || '[]'); } catch (e) {}
@@ -1425,7 +1437,6 @@
     e.preventDefault();
     collectDeliveryTiers();
     collectAllIntervals();
-    var nightDisabledCalendarJson = collectNightDisabledCalendar();
 
     var data = {
       yandex_maps_key: document.getElementById('s-yandex-key').value,
@@ -1447,7 +1458,6 @@
       intervals_holiday: document.getElementById('s-intervals-holiday').value,
       intervals_holiday_day: document.getElementById('s-intervals-holiday-day').value,
       intervals_holiday_night: document.getElementById('s-intervals-holiday-night').value,
-      night_disabled_calendar: nightDisabledCalendarJson,
       holiday_dates: document.getElementById('s-holidays').value,
       exact_time_enabled: document.getElementById('s-exact-enabled').checked ? '1' : '0',
       exact_time_surcharge: document.getElementById('s-exact-surcharge').value,
@@ -1465,6 +1475,53 @@
 
     api('POST', '/api/admin/settings', data).then(function () {
       adminToast('Настройки сохранены', 'success');
+    });
+  };
+
+  window.runBackupNow = function () {
+    var btn = document.getElementById('backup-now-btn');
+    var statusEl = document.getElementById('backup-status');
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--text-secondary)">Выполняем бэкап...</span>';
+
+    api('POST', '/api/admin/backup-now').then(function (r) {
+      if (r && r.error) {
+        if (statusEl) statusEl.innerHTML = '<span style="color:#c00">' + esc(r.error) + '</span>';
+        return;
+      }
+      if (statusEl) statusEl.innerHTML = '<span style="color:#2d6a2d">Бэкап успешно создан. Обновляем статус...</span>';
+      adminToast('Бэкап успешно создан', 'success');
+      setTimeout(function () { window.checkBackupStatus(); }, 400);
+    }).catch(function (err) {
+      if (statusEl) statusEl.innerHTML = '<span style="color:#c00">Ошибка бэкапа: ' + esc(err.message || 'unknown') + '</span>';
+    }).finally(function () {
+      if (btn) btn.disabled = false;
+    });
+  };
+
+  window.checkBackupStatus = function () {
+    var statusEl = document.getElementById('backup-status');
+    if (!statusEl) return;
+    statusEl.innerHTML = '<span style="color:var(--text-secondary)">Проверяем состояние бэкапа...</span>';
+
+    api('GET', '/api/admin/backup-status').then(function (st) {
+      if (!st || st.error) {
+        statusEl.innerHTML = '<span style="color:#c00">' + esc((st && st.error) || 'Не удалось получить статус') + '</span>';
+        return;
+      }
+      if (!st.configured) {
+        statusEl.innerHTML = 'Бэкап не настроен: заполните <code>GITHUB_TOKEN</code> и <code>GITHUB_GIST_ID</code> на сервере.';
+        return;
+      }
+      if (!st.hasBackup) {
+        statusEl.innerHTML = 'Бэкап настроен, но сохранений ещё нет.';
+        return;
+      }
+      var when = st.updatedAt ? fmtDate(st.updatedAt) : 'дата неизвестна';
+      var parts = st.partCount ? (' · частей: ' + st.partCount) : '';
+      statusEl.innerHTML = '<span style="color:#2d6a2d">Последний бэкап: ' + esc(when) + parts + '</span>';
+    }).catch(function (err) {
+      statusEl.innerHTML = '<span style="color:#c00">Ошибка проверки: ' + esc(err.message || 'unknown') + '</span>';
     });
   };
 
