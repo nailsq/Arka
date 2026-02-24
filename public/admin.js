@@ -32,6 +32,19 @@
   // Helpers
   // ============================================================
 
+  function parseApiResponse(r) {
+    return r.text().then(function (txt) {
+      var data = null;
+      try { data = txt ? JSON.parse(txt) : {}; } catch (e) {}
+      if (!r.ok) {
+        var msg = (data && data.error) || (data && data.message) || txt || ('HTTP ' + r.status);
+        throw new Error(msg);
+      }
+      if (data !== null) return data;
+      throw new Error('Сервер вернул не JSON. Проверьте деплой и перезапуск сервера.');
+    });
+  }
+
   function api(method, url, body) {
     var opts = {
       method: method,
@@ -45,7 +58,7 @@
         showLogin();
         throw new Error('Unauthorized');
       }
-      return r.json();
+      return parseApiResponse(r);
     });
   }
 
@@ -61,7 +74,7 @@
         showLogin();
         throw new Error('Unauthorized');
       }
-      return r.json();
+      return parseApiResponse(r);
     });
   }
 
