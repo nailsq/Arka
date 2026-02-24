@@ -1160,6 +1160,14 @@
       h += '</div>';
 
       h += '<div class="settings-section">';
+      h += '<div class="settings-section-title">Информационные документы</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Документы внизу приложения (о доставке, оплате, возврате и т.д.). Используйте обычный текст — HTML-теги автоматически удаляются.</div>';
+      h += '<div id="s-info-pages-list"></div>';
+      h += '<button type="button" class="btn btn-sm" onclick="addInfoPageRow()" style="margin-top:8px">+ Добавить документ</button>';
+      h += '<input type="hidden" id="s-info-pages-json" value="' + esc(s.info_pages_json || '') + '">';
+      h += '</div>';
+
+      h += '<div class="settings-section">';
       h += '<div class="settings-section-title">Резервная копия</div>';
       h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Сохраняет текущую базу данных в GitHub Gist. Для работы должны быть заданы GITHUB_TOKEN и GITHUB_GIST_ID на сервере.</div>';
       h += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
@@ -1191,6 +1199,7 @@
 
       el.innerHTML = h;
       setTimeout(function () { if (window.checkBackupStatus) window.checkBackupStatus(); }, 0);
+      renderInfoPagesEditor(parseInfoPagesSetting(s.info_pages_json || ''));
 
       var tiersSar = [];
       try { tiersSar = JSON.parse(s.delivery_distance_tiers || '[]'); } catch (e) {}
@@ -1382,6 +1391,130 @@
     if (hiddenNightEng) hiddenNightEng.value = collectTiersFrom('s-tiers-list-night-engels');
   }
 
+  function plainTextOnly(value) {
+    return String(value || '')
+      .replace(/\r/g, '')
+      .replace(/<[^>]*>/g, '')
+      .replace(/[<>]/g, '')
+      .trim();
+  }
+
+  function slugifyInfoPage(title, fallbackIdx) {
+    var base = plainTextOnly(title).toLowerCase()
+      .replace(/[^a-zа-я0-9\s-]/gi, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    if (!base) base = 'doc-' + (fallbackIdx + 1);
+    return base;
+  }
+
+  function getDefaultInfoPages() {
+    return [
+      { slug: 'order', title: 'О заказе и доставке', content: 'Здесь можно указать условия заказа и доставки.' },
+      { slug: 'payment', title: 'Об оплате', content: 'Здесь можно указать способы оплаты и важные условия.' },
+      { slug: 'returns', title: 'Условия возврата', content: 'Здесь можно указать условия возврата и претензий.' },
+      { slug: 'care', title: 'Рекомендации по уходу', content: 'Здесь можно указать рекомендации по уходу за букетами.' },
+      { slug: 'offer', title: 'Публичная оферта', content: 'Здесь можно разместить текст публичной оферты.' }
+    ];
+  }
+
+  function parseInfoPagesSetting(raw) {
+    if (!raw) return getDefaultInfoPages();
+    try {
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr) || !arr.length) return getDefaultInfoPages();
+      var out = [];
+      arr.forEach(function (d, i) {
+        if (!d) return;
+        var title = plainTextOnly(d.title || '');
+        var content = plainTextOnly(d.content || '');
+        if (!title || !content) return;
+        var slug = plainTextOnly(d.slug || '') || slugifyInfoPage(title, i);
+        out.push({ slug: slug, title: title, content: content });
+      });
+      return out.length ? out : getDefaultInfoPages();
+    } catch (e) {
+      return getDefaultInfoPages();
+    }
+  }
+
+  function renderInfoPagesEditor(docs) {
+    var list = document.getElementById('s-info-pages-list');
+    if (!list) return;
+    var h = '';
+    docs.forEach(function (d, idx) {
+      var moveUpDisabled = idx === 0 ? ' disabled' : '';
+      var moveDownDisabled = idx === docs.length - 1 ? ' disabled' : '';
+      h += '<div class="card" style="padding:12px;margin-bottom:10px">' +
+        '<div class="form-group"><label class="form-label">Название документа</label>' +
+        '<input type="text" class="form-input info-page-title" value="' + esc(d.title || '') + '" placeholder="Например, Условия возврата"></div>' +
+        '<div class="form-group"><label class="form-label">Ключ (slug)</label>' +
+        '<input type="text" class="form-input info-page-slug" value="' + esc(d.slug || '') + '" placeholder="returns"></div>' +
+        '<div class="form-group"><label class="form-label">Текст</label>' +
+        '<textarea class="form-textarea info-page-content" rows="7" placeholder="Обычный текст без HTML">' + esc(d.content || '') + '</textarea></div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+          '<button type="button" class="btn btn-sm"' + moveUpDisabled + ' onclick="moveInfoPageUp(' + idx + ')">Вверх</button>' +
+          '<button type="button" class="btn btn-sm"' + moveDownDisabled + ' onclick="moveInfoPageDown(' + idx + ')">Вниз</button>' +
+          '<button type="button" class="btn btn-sm btn-danger" onclick="removeInfoPageRow(' + idx + ')">Удалить документ</button>' +
+        '</div>' +
+      '</div>';
+    });
+    list.innerHTML = h;
+  }
+
+  window.addInfoPageRow = function () {
+    var docs = collectInfoPagesData();
+    docs.push({ slug: '', title: '', content: '' });
+    renderInfoPagesEditor(docs);
+  };
+
+  window.removeInfoPageRow = function (idx) {
+    var docs = collectInfoPagesData();
+    docs.splice(idx, 1);
+    renderInfoPagesEditor(docs);
+  };
+
+  window.moveInfoPageUp = function (idx) {
+    var docs = collectInfoPagesData();
+    if (idx <= 0 || idx >= docs.length) return;
+    var current = docs[idx];
+    docs[idx] = docs[idx - 1];
+    docs[idx - 1] = current;
+    renderInfoPagesEditor(docs);
+  };
+
+  window.moveInfoPageDown = function (idx) {
+    var docs = collectInfoPagesData();
+    if (idx < 0 || idx >= docs.length - 1) return;
+    var current = docs[idx];
+    docs[idx] = docs[idx + 1];
+    docs[idx + 1] = current;
+    renderInfoPagesEditor(docs);
+  };
+
+  function collectInfoPagesData() {
+    var list = document.getElementById('s-info-pages-list');
+    if (!list) return [];
+    var blocks = list.querySelectorAll('.card');
+    var docs = [];
+    blocks.forEach(function (block, idx) {
+      var titleEl = block.querySelector('.info-page-title');
+      var slugEl = block.querySelector('.info-page-slug');
+      var contentEl = block.querySelector('.info-page-content');
+      var title = plainTextOnly(titleEl ? titleEl.value : '');
+      var content = plainTextOnly(contentEl ? contentEl.value : '');
+      if (!title || !content) return;
+      var slug = plainTextOnly(slugEl ? slugEl.value : '') || slugifyInfoPage(title, idx);
+      docs.push({ slug: slug, title: title, content: content });
+    });
+    return docs;
+  }
+
+  function collectInfoPagesJson() {
+    return JSON.stringify(collectInfoPagesData());
+  }
+
   window.saveSettings = function (e) {
     e.preventDefault();
     collectDeliveryTiers();
@@ -1416,7 +1549,8 @@
       free_service_image: _freeServiceImgData !== null ? _freeServiceImgData : (document.querySelector('#s-free-service-img-preview img') ? document.querySelector('#s-free-service-img-preview img').src : ''),
       social_telegram: document.getElementById('s-social-tg').value,
       social_instagram: document.getElementById('s-social-ig').value,
-      social_vk: document.getElementById('s-social-vk').value
+      social_vk: document.getElementById('s-social-vk').value,
+      info_pages_json: collectInfoPagesJson()
     };
 
     console.log('[SaveSettings] intervals_regular:', data.intervals_regular);
@@ -1599,6 +1733,7 @@
     { key: 'cutoff_hour', label: 'Вечерний порог (час)', section: 'Время и интервалы' },
     { key: 'intervals_regular', label: 'Интервалы доставки', section: 'Время и интервалы' },
     { key: 'delivery_info', label: 'Информация о доставке', section: 'Информация о доставке' },
+    { key: 'info_pages_json', label: 'Информационные документы', section: 'Информационные документы' },
     { key: 'social_telegram', label: 'Telegram', section: 'Соцсети' },
     { key: 'social_instagram', label: 'Instagram', section: 'Соцсети' },
     { key: 'social_vk', label: 'ВКонтакте', section: 'Соцсети' }
@@ -1804,6 +1939,7 @@
           cutoff_hour: 's-cutoff',
           intervals_regular: 's-intervals-regular',
           delivery_info: 's-delivery-info',
+          info_pages_json: 's-info-pages-json',
           social_telegram: 's-social-tg',
           social_instagram: 's-social-ig',
           social_vk: 's-social-vk',

@@ -9,6 +9,15 @@
   var selectedCity = null;
   var citiesList = [];
 
+  function pluralFlower(n) {
+    var abs = Math.abs(n) % 100;
+    var last = abs % 10;
+    if (abs > 10 && abs < 20) return n + ' цветков';
+    if (last === 1) return n + ' цветок';
+    if (last >= 2 && last <= 4) return n + ' цветка';
+    return n + ' цветков';
+  }
+
   // ============================================================
   // Telegram Web App
   // ============================================================
@@ -187,6 +196,7 @@
     if (sizeObj) {
       price = sizeObj.price;
       sizeLabel = sizeObj.label;
+      flowerCount = sizeObj.flower_count;
       dims = sizeObj.dimensions || '';
     }
 
@@ -202,6 +212,7 @@
         price: price,
         image_url: product.image_url,
         quantity: 1,
+        flower_count: flowerCount,
         dimensions: dims,
         size_label: sizeLabel,
         is_bouquet: isBouquet ? 1 : 0,
@@ -250,6 +261,7 @@
         price: 0,
         image_url: appSettings.free_service_image || '',
         quantity: bouquetCount,
+        flower_count: 0,
         size_label: '',
         is_bouquet: 0,
         base_price: 0,
@@ -557,8 +569,20 @@
     }
   }
 
+  function isHolidayToday() {
+    var raw = appSettings.holiday_dates;
+    if (!raw) return false;
+    try {
+      var dates = JSON.parse(raw);
+      var todayStr = saratovNow().dateStr;
+      return dates.indexOf(todayStr) >= 0;
+    } catch (e) { return false; }
+  }
+
   function getIntervals() {
-    try { return JSON.parse(appSettings.intervals_regular || '[]'); }
+    var isHoliday = isHolidayToday();
+    var key = isHoliday ? 'intervals_holiday' : 'intervals_regular';
+    try { return JSON.parse(appSettings[key] || '[]'); }
     catch (e) { return []; }
   }
 
@@ -597,8 +621,9 @@
   }
 
   function getIntervalsSplit() {
-    var dayKey = 'intervals_regular_day';
-    var nightKey = 'intervals_regular_night';
+    var isHoliday = isHolidayToday();
+    var dayKey = isHoliday ? 'intervals_holiday_day' : 'intervals_regular_day';
+    var nightKey = isHoliday ? 'intervals_holiday_night' : 'intervals_regular_night';
     var day = [], night = [];
 
     if (appSettings[dayKey]) {
@@ -819,12 +844,13 @@
         var firstSize = p.sizes[0];
         var sizeBtns = p.sizes.map(function (s, idx) {
           return '<button type="button" class="size-btn' + (idx === 0 ? ' active' : '') + '" ' +
-            'data-size-id="' + s.id + '" data-price="' + s.price + '" data-label="' + escapeHtml(s.label) + '" data-dims="' + escapeHtml(s.dimensions || '') + '" ' +
+            'data-size-id="' + s.id + '" data-price="' + s.price + '" data-fc="' + s.flower_count + '" data-label="' + escapeHtml(s.label) + '" data-dims="' + escapeHtml(s.dimensions || '') + '" ' +
             'onclick="selectSize(this,' + p.id + ')">' +
             escapeHtml(s.label) +
           '</button>';
         }).join('');
-        var firstInfo = firstSize.dimensions ? escapeHtml(firstSize.dimensions) : '';
+        var firstInfo = pluralFlower(firstSize.flower_count);
+        if (firstSize.dimensions) firstInfo += ' · ' + escapeHtml(firstSize.dimensions);
         sizeHtml =
           '<div class="size-selector" id="size-selector">' +
             '<div class="size-selector-label">Размер букета</div>' +
@@ -969,7 +995,7 @@
           var sizeBtns = sizes.map(function (s) {
             var isActive = s.label === item.size_label;
             return '<button type="button" class="size-btn' + (isActive ? ' active' : '') + '" ' +
-              'onclick="changeCartSize(' + idx + ',\'' + escapeHtml(s.label).replace(/'/g, "\\'") + '\',' + s.price + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\')">' +
+              'onclick="changeCartSize(' + idx + ',\'' + escapeHtml(s.label).replace(/'/g, "\\'") + '\',' + s.price + ',' + s.flower_count + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\')">' +
               escapeHtml(s.label) + '</button>';
           }).join('');
           oldBtns.querySelector('.size-btn-row').innerHTML = sizeBtns;
@@ -1062,11 +1088,12 @@
       var sizeBtns = sizes.map(function (s) {
         var isActive = s.label === item.size_label;
         return '<button type="button" class="size-btn' + (isActive ? ' active' : '') + '" ' +
-          'onclick="changeCartSize(' + idx + ',\'' + escapeHtml(s.label).replace(/'/g, "\\'") + '\',' + s.price + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\')">' +
+          'onclick="changeCartSize(' + idx + ',\'' + escapeHtml(s.label).replace(/'/g, "\\'") + '\',' + s.price + ',' + s.flower_count + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\')">' +
           escapeHtml(s.label) + '</button>';
       }).join('');
       var sizeInfo = '';
-      if (item.dimensions) sizeInfo += escapeHtml(item.dimensions);
+      if (item.flower_count) sizeInfo += pluralFlower(item.flower_count);
+      if (item.dimensions) sizeInfo += (sizeInfo ? ' · ' : '') + escapeHtml(item.dimensions);
       sizeSelector = '<div class="cart-size-selector">' +
         '<div class="size-btn-row">' + sizeBtns + '</div>' +
         (sizeInfo ? '<div class="cart-size-fc">' + sizeInfo + '</div>' : '') +
@@ -1389,6 +1416,7 @@
     var sNow = saratovNow();
     var currentHour = sNow.hours;
     var cutoff = getCutoffHour();
+    var holiday = isHolidayToday();
     var pickup = appSettings.pickup_address || 'г. Саратов, 3-й Дегтярный проезд, 21к3';
 
     if (!draft) {
@@ -2387,7 +2415,7 @@
       telegram_id: getTelegramId() || '',
       city_id: selectedCity ? selectedCity.id : null,
       items: cart.map(function (i) {
-        return { product_id: i.product_id, quantity: i.quantity, price: i.price, size_label: i.size_label || '' };
+        return { product_id: i.product_id, quantity: i.quantity, price: i.price, flower_count: i.flower_count || 0, size_label: i.size_label || '' };
       })
     };
 
@@ -2828,7 +2856,8 @@
           itemsHtml = '<div class="order-card-items">' +
             o.items.map(function (i) {
               var sizeTag = i.size_label ? ' [' + i.size_label + ']' : '';
-              return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
+              var fcTag = i.flower_count ? ' (' + pluralFlower(i.flower_count) + ')' : '';
+              return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + fcTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
             }).join('') + '</div>';
         }
         return '<div class="order-card">' +
@@ -2953,7 +2982,8 @@
           itemsHtml = '<div class="track-items">' +
             o.items.map(function (i) {
               var sizeTag = i.size_label ? ' [' + i.size_label + ']' : '';
-              return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
+              var fcTag = i.flower_count ? ' (' + pluralFlower(i.flower_count) + ')' : '';
+              return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + fcTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
             }).join('') + '</div>';
         }
 
@@ -3038,6 +3068,7 @@
   // ============================================================
 
   function showPageOrder() {
+    return renderInfoPageBySlug('order');
     render(
       '<span class="back-link" onclick="navigateTo(\'home\')">На главную</span>' +
       '<div class="static-page">' +
@@ -3063,6 +3094,7 @@
   }
 
   function showPagePayment() {
+    return renderInfoPageBySlug('payment');
     render(
       '<span class="back-link" onclick="navigateTo(\'home\')">На главную</span>' +
       '<div class="static-page">' +
@@ -3082,6 +3114,7 @@
   }
 
   function showReturns() {
+    return renderInfoPageBySlug('returns');
     render(
       '<span class="back-link" onclick="navigateTo(\'home\')">На главную</span>' +
       '<div class="static-page">' +
@@ -3113,6 +3146,7 @@
   }
 
   function showPageCare() {
+    return renderInfoPageBySlug('care');
     render(
       '<span class="back-link" onclick="navigateTo(\'home\')">На главную</span>' +
       '<div class="static-page">' +
@@ -3137,6 +3171,7 @@
   }
 
   function showPageOffer() {
+    return renderInfoPageBySlug('offer');
     render(
       '<span class="back-link" onclick="navigateTo(\'home\')">На главную</span>' +
       '<div class="static-page">' +
@@ -3279,6 +3314,7 @@
           id: parseInt(activeBtn.getAttribute('data-size-id')),
           label: activeBtn.getAttribute('data-label'),
           price: parseInt(activeBtn.getAttribute('data-price')),
+          flower_count: parseInt(activeBtn.getAttribute('data-fc')),
           dimensions: activeBtn.getAttribute('data-dims') || ''
         };
       } else {
@@ -3293,12 +3329,14 @@
     btns.forEach(function (b) { b.classList.remove('active'); });
     btn.classList.add('active');
     var price = parseInt(btn.getAttribute('data-price'));
+    var fc = parseInt(btn.getAttribute('data-fc'));
     var dims = btn.getAttribute('data-dims') || '';
     var priceEl = document.getElementById('detail-price');
     if (priceEl) priceEl.textContent = formatPrice(price);
     var infoEl = document.getElementById('size-info');
     if (infoEl) {
-      var text = dims || '';
+      var text = pluralFlower(fc);
+      if (dims) text += ' · ' + dims;
       infoEl.textContent = text;
     }
   };
@@ -3364,7 +3402,7 @@
     return true;
   }
 
-  window.changeCartSize = function (cartIdx, newLabel, newPrice, newDims) {
+  window.changeCartSize = function (cartIdx, newLabel, newPrice, newFlowerCount, newDims) {
     var cart = getCart();
     var item = cart[cartIdx];
     if (!item) return;
@@ -3386,6 +3424,7 @@
 
     item.size_label = newLabel;
     item.price = newPrice;
+    item.flower_count = newFlowerCount;
     item.dimensions = newDims || '';
     saveCart(cart);
 
@@ -3400,7 +3439,8 @@
       var fcEl = row.querySelector('.cart-size-fc');
       if (fcEl) {
         var fcText = '';
-        if (newDims) fcText = newDims;
+        if (newFlowerCount) fcText += pluralFlower(newFlowerCount);
+        if (newDims) fcText += (fcText ? ' · ' : '') + newDims;
         fcEl.textContent = fcText;
       }
       var totalEl = document.getElementById('cart-total-val');
