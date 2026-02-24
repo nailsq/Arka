@@ -39,7 +39,7 @@ var upload = multer({
 
 var https = require('https');
 
-var BODY_LIMIT = '5mb';
+var BODY_LIMIT = '20mb';
 app.use(express.json({ limit: BODY_LIMIT }));
 app.use(express.urlencoded({ extended: true, limit: BODY_LIMIT }));
 app.use(express.text({ type: 'text/plain', limit: BODY_LIMIT }));
@@ -677,6 +677,8 @@ app.post('/api/payments/create', async function (req, res) {
       var basePublicUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://');
       var redirectUrl = basePublicUrl + '/api/payments/tochka-success/' + orderId;
 
+      // Tochka requires unique paymentLinkId; reusing orderId causes 424 "already exists" on repeated attempts.
+      var paymentLinkId = String(orderId) + '_' + Date.now();
       var tochkaBody = {
         Data: {
           customerCode: TOCHKA_CUSTOMER_CODE,
@@ -685,7 +687,7 @@ app.post('/api/payments/create', async function (req, res) {
           paymentMode: ['sbp', 'card', 'tinkoff'],
           redirectUrl: redirectUrl,
           ttl: 60,
-          paymentLinkId: String(orderId),
+          paymentLinkId: paymentLinkId,
           Client: {
             email: order.user_email || undefined
           },
