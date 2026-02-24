@@ -3068,7 +3068,6 @@
   // ============================================================
 
   function showPageOrder() {
-    return renderInfoPageBySlug('order');
     render(
       '<span class="back-link" onclick="navigateTo(\'home\')">На главную</span>' +
       '<div class="static-page">' +
@@ -3094,7 +3093,6 @@
   }
 
   function showPagePayment() {
-    return renderInfoPageBySlug('payment');
     render(
       '<span class="back-link" onclick="navigateTo(\'home\')">На главную</span>' +
       '<div class="static-page">' +
@@ -3114,7 +3112,6 @@
   }
 
   function showReturns() {
-    return renderInfoPageBySlug('returns');
     render(
       '<span class="back-link" onclick="navigateTo(\'home\')">На главную</span>' +
       '<div class="static-page">' +
@@ -3146,7 +3143,6 @@
   }
 
   function showPageCare() {
-    return renderInfoPageBySlug('care');
     render(
       '<span class="back-link" onclick="navigateTo(\'home\')">На главную</span>' +
       '<div class="static-page">' +
@@ -3171,7 +3167,6 @@
   }
 
   function showPageOffer() {
-    return renderInfoPageBySlug('offer');
     render(
       '<span class="back-link" onclick="navigateTo(\'home\')">На главную</span>' +
       '<div class="static-page">' +
@@ -3259,7 +3254,7 @@
   // Global handlers
   // ============================================================
 
-  window.switchCardSize = function (event, productId, btn, price, dims) {
+  window.switchCardSize = function (event, productId, btn, price, dims, imageUrl) {
     event.stopPropagation();
     var row = btn.parentElement;
     var btns = row.querySelectorAll('.card-size-btn');

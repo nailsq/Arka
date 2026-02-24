@@ -744,12 +744,23 @@
     }
 
     var sizesHtml = '';
+    var sizeImageOptions = '<option value="">Без отдельного фото (общее)</option>';
+    if (p.images && p.images.length) {
+      p.images.forEach(function (img, idx) {
+        sizeImageOptions += '<option value="' + esc(img.image_url) + '">Фото ' + (idx + 1) + '</option>';
+      });
+    }
     if (product && p.sizes && p.sizes.length) {
       sizesHtml = p.sizes.map(function (s) {
+        var imageOptions = sizeImageOptions;
+        if (s.image_url && imageOptions.indexOf('value="' + esc(s.image_url) + '"') < 0) {
+          imageOptions += '<option value="' + esc(s.image_url) + '">Пользовательское фото</option>';
+        }
         return '<div class="pf-size-row" data-size-id="' + s.id + '">' +
           '<input type="text" class="form-input" style="width:60px" value="' + esc(s.label) + '" placeholder="M" data-field="label">' +
           '<input type="number" class="form-input" style="width:90px" value="' + s.price + '" placeholder="цена" data-field="price" min="0">' +
           '<input type="text" class="form-input" style="width:80px" value="' + esc(s.dimensions || '') + '" placeholder="см" data-field="dimensions">' +
+          '<select class="form-select" style="min-width:170px" data-field="image_url">' + imageOptions + '</select>' +
           '<button type="button" class="btn btn-sm btn-danger" onclick="removeSizeRow(this)" style="flex-shrink:0">X</button>' +
         '</div>';
       }).join('');
@@ -800,7 +811,8 @@
             '</div>' +
             '<div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px" id="pf-sizes-section">' +
               '<div style="font-weight:600;margin-bottom:6px">Размеры букета</div>' +
-              '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Добавьте размеры (S, M, L, XL и т.д.) с ценой и размером в см.</div>' +
+              '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Добавьте размеры (S, M, L, XL и т.д.) с ценой, размером в см и фото для каждого размера.</div>' +
+              '<input type="hidden" id="pf-size-image-options" value="' + esc(sizeImageOptions) + '">' +
               '<div id="pf-sizes-list">' + sizesHtml + '</div>' +
               '<button type="button" class="btn btn-sm" onclick="addSizeRow()" style="margin-top:8px">+ Добавить размер</button>' +
             '</div>' +
@@ -815,12 +827,20 @@
     if (product) {
       var sel = document.getElementById('pf-category');
       if (sel) sel.value = p.category_id;
+      var rows = document.querySelectorAll('#pf-sizes-list .pf-size-row');
+      rows.forEach(function (row, idx) {
+        var size = p.sizes && p.sizes[idx] ? p.sizes[idx] : null;
+        var select = row.querySelector('[data-field="image_url"]');
+        if (size && select) select.value = size.image_url || '';
+      });
     }
   }
 
   window.addSizeRow = function () {
     var list = document.getElementById('pf-sizes-list');
     if (!list) return;
+    var optionsEl = document.getElementById('pf-size-image-options');
+    var options = optionsEl ? optionsEl.value : '<option value="">Без отдельного фото (общее)</option>';
     var row = document.createElement('div');
     row.className = 'pf-size-row';
     row.setAttribute('data-size-id', 'new');
@@ -828,6 +848,7 @@
       '<input type="text" class="form-input" style="width:60px" placeholder="M" data-field="label">' +
       '<input type="number" class="form-input" style="width:90px" placeholder="цена" data-field="price" min="0">' +
       '<input type="text" class="form-input" style="width:80px" placeholder="см" data-field="dimensions">' +
+      '<select class="form-select" style="min-width:170px" data-field="image_url">' + options + '</select>' +
       '<button type="button" class="btn btn-sm btn-danger" onclick="removeSizeRow(this)" style="flex-shrink:0">X</button>';
     list.appendChild(row);
   };
@@ -899,9 +920,11 @@
         var price = row.querySelector('[data-field="price"]').value || '0';
         var dims = row.querySelector('[data-field="dimensions"]');
         var dimsVal = dims ? dims.value.trim() : '';
+        var imageSel = row.querySelector('[data-field="image_url"]');
+        var imageUrl = imageSel ? imageSel.value.trim() : '';
         if (!label) return;
 
-        var sizeData = { product_id: productId, label: label, price: price, sort_order: idx, dimensions: dimsVal };
+        var sizeData = { product_id: productId, label: label, price: price, sort_order: idx, dimensions: dimsVal, image_url: imageUrl };
         if (sizeId && sizeId !== 'new') {
           sizeSavePromises.push(api('PUT', '/api/admin/product-sizes/' + sizeId, sizeData));
         } else {

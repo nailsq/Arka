@@ -155,6 +155,7 @@ var SCHEMA = "\
     flower_count INTEGER NOT NULL DEFAULT 0,\
     price INTEGER NOT NULL DEFAULT 0,\
     sort_order INTEGER DEFAULT 0,\
+    image_url TEXT DEFAULT '',\
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE\
   );\
 ";
