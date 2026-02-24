@@ -1084,11 +1084,7 @@
       h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Тарифы для ночной доставки. Если пусто — используются дневные тарифы.</div>';
       h += '</div>';
 
-      h += '<div class="settings-section">';
-      h += '<div class="settings-section-title">Стоимость доставки</div>';
-      h += '<div class="form-group"><label class="form-label">Базовая стоимость (руб.)</label>' +
-        '<input type="number" class="form-input" id="s-delivery-regular" value="' + esc(s.delivery_regular || '500') + '"></div>';
-      h += '</div>';
+      h += '<input type="hidden" id="s-delivery-regular" value="' + esc(s.delivery_regular || '500') + '">';
 
       h += '<div class="settings-section">';
       h += '<div class="settings-section-title">Точное время доставки</div>';
@@ -1598,7 +1594,6 @@
     { key: 'delivery_zone_saratov', label: 'Стоимость доставки — Саратов', section: 'Стоимость доставки по районам' },
     { key: 'delivery_zone_engels', label: 'Стоимость доставки — Энгельс', section: 'Стоимость доставки по районам' },
     { key: 'delivery_zone_remote', label: 'Стоимость доставки — Окрестности', section: 'Стоимость доставки по районам' },
-    { key: 'delivery_regular', label: 'Стоимость доставки', section: 'Стоимость доставки' },
     { key: 'exact_time_surcharge', label: 'Доплата за точное время', section: 'Точное время доставки' },
     { key: 'pickup_address', label: 'Адрес самовывоза', section: 'Самовывоз' },
     { key: 'cutoff_hour', label: 'Вечерний порог (час)', section: 'Время и интервалы' },
@@ -1812,7 +1807,6 @@
           social_telegram: 's-social-tg',
           social_instagram: 's-social-ig',
           social_vk: 's-social-vk',
-          delivery_regular: 's-delivery-regular',
           pickup_address: 's-pickup'
         };
         el = document.getElementById(map[key]);

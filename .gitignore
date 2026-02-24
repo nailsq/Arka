@@ -4,3 +4,5 @@ arka.db-shm
 arka.db-wal
 .env
 arka.db.current_backup
+NUL
+cleanup-git.bat

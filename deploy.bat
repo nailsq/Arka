@@ -8,8 +8,8 @@ if errorlevel 1 (
   exit /b 1
 )
 
-REM Avoid SSH host-key prompt/known_hosts issues on Windows with Cyrillic profile path
-set "GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=NUL"
+REM Accept new host keys without writing to invalid NUL path
+set "GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=accept-new"
 
 git rev-parse --abbrev-ref HEAD >nul 2>&1
 if errorlevel 1 (
