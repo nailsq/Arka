@@ -857,6 +857,38 @@
     list.appendChild(row);
   };
 
+  function resizeImageFile(file, maxSide, quality) {
+    return new Promise(function (resolve) {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var img = new Image();
+        img.onload = function () {
+          var w = img.width;
+          var h = img.height;
+          var scale = 1;
+          if (Math.max(w, h) > maxSide) {
+            scale = maxSide / Math.max(w, h);
+          }
+          var tw = Math.max(1, Math.round(w * scale));
+          var th = Math.max(1, Math.round(h * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = tw;
+          canvas.height = th;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, tw, th);
+          var out = canvas.toDataURL('image/jpeg', quality);
+          resolve(out);
+        };
+        img.onerror = function () {
+          resolve(String(e.target.result || ''));
+        };
+        img.src = String(e.target.result || '');
+      };
+      reader.onerror = function () { resolve(''); };
+      reader.readAsDataURL(file);
+    });
+  }
+
   window.previewSizeImage = function (input) {
     if (!input) return;
     var row = input.closest('.pf-size-row');
@@ -865,17 +897,16 @@
     var preview = row.querySelector('.pf-size-image-preview');
     if (!hidden || !preview) return;
     if (!input.files || !input.files[0]) return;
-    var reader = new FileReader();
-    reader.onload = function (e) {
-      var dataUrl = String(e.target.result || '');
+    resizeImageFile(input.files[0], 1400, 0.82).then(function (dataUrl) {
+      dataUrl = String(dataUrl || '');
+      if (!dataUrl) return;
       hidden.value = dataUrl;
       preview.innerHTML =
         '<div style="display:flex;align-items:center;gap:8px">' +
           '<img src="' + dataUrl + '" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">' +
           '<button type="button" class="btn btn-sm" onclick="clearSizeImage(this)">Убрать</button>' +
         '</div>';
-    };
-    reader.readAsDataURL(input.files[0]);
+    });
   };
 
   window.clearSizeImage = function (btn) {
