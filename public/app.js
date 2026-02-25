@@ -578,14 +578,31 @@
   }
 
   function getNightDateContext(selectedDateStr) {
-    var p = String(selectedDateStr || '').split('.');
-    if (p.length !== 3) return null;
-    var d = parseInt(p[0], 10);
-    var m = parseInt(p[1], 10) - 1;
-    var y = parseInt(p[2], 10);
+    var src = String(selectedDateStr || '').trim();
+    if (!src) return null;
+    var d = 0, m = 0, y = 0;
+
+    // Supports both formats used in app/admin:
+    // - client date input: YYYY-MM-DD
+    // - admin stored date: DD.MM.YYYY
+    if (/^\d{4}-\d{2}-\d{2}$/.test(src)) {
+      var i = src.split('-');
+      y = parseInt(i[0], 10);
+      m = parseInt(i[1], 10) - 1;
+      d = parseInt(i[2], 10);
+    } else {
+      var p = src.split('.');
+      if (p.length !== 3) return null;
+      d = parseInt(p[0], 10);
+      m = parseInt(p[1], 10) - 1;
+      y = parseInt(p[2], 10);
+    }
     if (!d || m < 0 || !y) return null;
     var dt = new Date(y, m, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m || dt.getDate() !== d) return null;
     return {
+      iso: y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'),
+      dmy: String(d).padStart(2, '0') + '.' + String(m + 1).padStart(2, '0') + '.' + y,
       monthKey: y + '-' + String(m + 1).padStart(2, '0'),
       week: Math.ceil(d / 7),
       weekday: (dt.getDay() + 6) % 7 + 1
@@ -593,11 +610,20 @@
   }
 
   function isNightDisabledForSelectedDate(selectedDateStr) {
+    var selectedCtx = getNightDateContext(selectedDateStr);
+    if (!selectedCtx) return false;
+
     var datesRaw = appSettings.night_disabled_dates;
-    if (datesRaw && selectedDateStr) {
+    if (datesRaw) {
       try {
         var dateList = JSON.parse(datesRaw);
-        if (Array.isArray(dateList) && dateList.indexOf(selectedDateStr) >= 0) return true;
+        if (Array.isArray(dateList) && dateList.length) {
+          for (var i = 0; i < dateList.length; i++) {
+            var itemCtx = getNightDateContext(dateList[i]);
+            if (!itemCtx) continue;
+            if (itemCtx.iso === selectedCtx.iso) return true;
+          }
+        }
       } catch (e) {}
     }
 
@@ -606,8 +632,7 @@
       try {
         var weekdayList = JSON.parse(weekdayRaw);
         if (Array.isArray(weekdayList) && weekdayList.length) {
-          var weekdayCtx = getNightDateContext(selectedDateStr);
-          if (weekdayCtx && weekdayList.indexOf(weekdayCtx.weekday) >= 0) return true;
+          if (weekdayList.indexOf(selectedCtx.weekday) >= 0) return true;
         }
       } catch (e) {}
     }
@@ -621,13 +646,11 @@
       return false;
     }
     if (!cal || typeof cal !== 'object') return false;
-    var ctx = getNightDateContext(selectedDateStr);
-    if (!ctx) return false;
-    var monthCfg = cal[ctx.monthKey];
+    var monthCfg = cal[selectedCtx.monthKey];
     if (!monthCfg || typeof monthCfg !== 'object') return false;
-    var days = monthCfg[String(ctx.week)];
+    var days = monthCfg[String(selectedCtx.week)];
     if (!Array.isArray(days)) return false;
-    return days.indexOf(ctx.weekday) >= 0;
+    return days.indexOf(selectedCtx.weekday) >= 0;
   }
 
   function getIntervalsSplit() {
