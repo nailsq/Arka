@@ -402,7 +402,8 @@
     warmProductSizeImages(p);
     var favClass = isFavorited(p.id) ? ' favorited' : '';
     var desc = p.description ? '<div class="product-card-desc">' + escapeHtml(p.description) + '</div>' : '';
-    var images = p.images && p.images.length ? p.images : (p.image_url ? [{ image_url: p.image_url }] : []);
+    var fallbackSizeImage = (p.sizes && p.sizes.length && p.sizes[0].image_url) ? p.sizes[0].image_url : '';
+    var images = p.images && p.images.length ? p.images : (p.image_url ? [{ image_url: p.image_url }] : (fallbackSizeImage ? [{ image_url: fallbackSizeImage }] : []));
     var imgHtml = '';
     var dotsHtml = '';
 
@@ -868,7 +869,8 @@
       if (!p || p.error) { document.getElementById('product-detail').innerHTML = '<div class="empty-state">Товар не найден</div>'; return; }
       warmProductSizeImages(p);
       var favClass = isFavorited(p.id) ? ' favorited' : '';
-      var images = p.images && p.images.length ? p.images : (p.image_url ? [{ image_url: p.image_url }] : []);
+      var fallbackSizeImage = (p.sizes && p.sizes.length && p.sizes[0].image_url) ? p.sizes[0].image_url : '';
+      var images = p.images && p.images.length ? p.images : (p.image_url ? [{ image_url: p.image_url }] : (fallbackSizeImage ? [{ image_url: fallbackSizeImage }] : []));
       var galleryHtml = '';
 
       if (images.length > 1) {
@@ -3329,7 +3331,15 @@
       var card = btn.closest('.product-card');
       if (card) {
         var activeImg = card.querySelector('.product-card-img.card-slide-active') || card.querySelector('.product-card-img');
-        if (activeImg) activeImg.setAttribute('src', imageUrl);
+        if (activeImg) {
+          activeImg.setAttribute('src', imageUrl);
+        } else {
+          var wrap = card.querySelector('.product-card-img-wrap');
+          var noImg = wrap ? wrap.querySelector('.no-image') : null;
+          if (noImg) {
+            noImg.outerHTML = '<img src="' + imageUrl + '" alt="" class="product-card-img">';
+          }
+        }
       }
     }
   };
@@ -3396,7 +3406,12 @@
     }
     if (img) {
       var detailImgs = document.querySelectorAll('#product-detail .product-detail-img');
-      detailImgs.forEach(function (el) { el.setAttribute('src', img); });
+      if (detailImgs.length) {
+        detailImgs.forEach(function (el) { el.setAttribute('src', img); });
+      } else {
+        var noImg = document.querySelector('#product-detail .product-detail-img-wrap .no-image');
+        if (noImg) noImg.outerHTML = '<img src="' + img + '" alt="" class="product-detail-img">';
+      }
     }
   };
 
