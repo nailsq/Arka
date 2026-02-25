@@ -340,8 +340,27 @@
 
   function productImage(url, alt, cls) {
     if (!url) return '<div class="' + (cls || 'no-image') + '">Фото</div>';
+    var loading = (cls && cls.indexOf('product-detail-img') >= 0) ? 'eager' : 'lazy';
     return '<img src="' + escapeHtml(url) + '" alt="' + escapeHtml(alt) +
-      '" class="' + (cls || '') + '" onerror="this.outerHTML=\'<div class=\\\'no-image\\\'>Фото</div>\'">';
+      '" class="' + (cls || '') + '" loading="' + loading + '" decoding="async" onerror="this.outerHTML=\'<div class=\\\'no-image\\\'>Фото</div>\'">';
+  }
+
+  var _warmedImages = {};
+  function warmImage(url) {
+    if (!url || _warmedImages[url]) return;
+    _warmedImages[url] = true;
+    var img = new Image();
+    img.decoding = 'async';
+    img.src = url;
+  }
+
+  function warmProductSizeImages(product) {
+    if (!product) return;
+    if (product.image_url) warmImage(product.image_url);
+    var images = product.images || [];
+    images.forEach(function (it) { if (it && it.image_url) warmImage(it.image_url); });
+    var sizes = product.sizes || [];
+    sizes.forEach(function (s) { if (s && s.image_url) warmImage(s.image_url); });
   }
 
   var SARATOV_TZ = 'Europe/Saratov';
@@ -380,6 +399,7 @@
   var cartSvg = '<svg viewBox="0 0 24 24"><path class="cart-icon-path" d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.16 14.26l.04-.12.94-1.7h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0020.04 4H5.21l-.94-2H1v2h2l3.6 7.59-1.35 2.44C4.52 15.37 5.48 17 7 17h12v-2H7.42c-.13 0-.22-.11-.22-.2l-.04-.14z"/></svg>';
 
   function buildProductCard(p) {
+    warmProductSizeImages(p);
     var favClass = isFavorited(p.id) ? ' favorited' : '';
     var desc = p.description ? '<div class="product-card-desc">' + escapeHtml(p.description) + '</div>' : '';
     var images = p.images && p.images.length ? p.images : (p.image_url ? [{ image_url: p.image_url }] : []);
@@ -846,6 +866,7 @@
     );
     fetchJSON('/api/products/' + id).then(function (p) {
       if (!p || p.error) { document.getElementById('product-detail').innerHTML = '<div class="empty-state">Товар не найден</div>'; return; }
+      warmProductSizeImages(p);
       var favClass = isFavorited(p.id) ? ' favorited' : '';
       var images = p.images && p.images.length ? p.images : (p.image_url ? [{ image_url: p.image_url }] : []);
       var galleryHtml = '';
@@ -1104,6 +1125,7 @@
   }
 
   function buildCartRow(item, idx) {
+    if (item.image_url) warmImage(item.image_url);
     if (item.is_free_service) {
       return '<div class="cart-item" id="cart-row-' + idx + '">' +
         productImage(item.image_url, item.name, 'cart-item-img') +
@@ -1119,6 +1141,7 @@
     }
     var sizeSelector = '';
     var sizes = item.available_sizes || [];
+    sizes.forEach(function (s) { if (s && s.image_url) warmImage(s.image_url); });
     if (sizes.length) {
       var sizeBtns = sizes.map(function (s) {
         var isActive = s.label === item.size_label;
