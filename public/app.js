@@ -2540,21 +2540,26 @@
       stopAbandonTimer();
       updateCartBadge();
 
-      postJSON('/api/payments/create', { order_id: result.order_id }).then(function (pay) {
-        if (pay && pay.payment_url) {
-          showPaymentPage(result.order_id, pay.payment_url, result.total_amount);
-        } else {
-          showOrderSuccess(result.order_id);
-        }
-      }).catch(function () {
-        showOrderSuccess(result.order_id);
-      });
+      requestPaymentAndShow(result.order_id, result.total_amount);
     }).catch(function (err) {
       if (btn) { btn.disabled = false; btn.textContent = 'Оформить заказ'; }
       console.error('Order error:', err);
       showToast('Ошибка: ' + (err.message || 'нет подключения к серверу'));
     });
   };
+
+  function requestPaymentAndShow(orderId, totalAmount) {
+    postJSON('/api/payments/create', { order_id: orderId }).then(function (pay) {
+      if (pay && pay.payment_url) {
+        showPaymentPage(orderId, pay.payment_url, totalAmount);
+        return;
+      }
+      var msg = (pay && (pay.error || pay.message)) || 'Ссылка на оплату не получена';
+      showPaymentInitFailed(orderId, totalAmount, msg);
+    }).catch(function (err) {
+      showPaymentInitFailed(orderId, totalAmount, (err && err.message) || 'Ошибка подключения к платежному сервису');
+    });
+  }
 
   function showPaymentPage(orderId, paymentUrl, totalAmount) {
     render(
@@ -2570,6 +2575,23 @@
     );
     showToast('Заказ N ' + orderId + ' создан');
   }
+
+  function showPaymentInitFailed(orderId, totalAmount, errorText) {
+    render(
+      '<div class="section-title">Заказ N ' + orderId + ' создан</div>' +
+      '<div style="margin-bottom:16px;font-size:14px;">' +
+        '<p>Сумма к оплате: ' + formatPrice(totalAmount) + '</p>' +
+      '</div>' +
+      '<div class="cutoff-hint" style="margin-bottom:14px">Не удалось открыть оплату: ' + escapeHtml(errorText || 'неизвестная ошибка') + '</div>' +
+      '<button class="nav-btn nav-btn--filled" onclick="retryPayment(' + orderId + ',' + totalAmount + ')" style="display:block;width:100%;margin-bottom:12px">Повторить оплату</button>' +
+      '<button class="nav-btn" onclick="navigateTo(\'account\')">Мои заказы</button>'
+    );
+    showToast('Заказ создан, но оплата не открылась');
+  }
+
+  window.retryPayment = function (orderId, totalAmount) {
+    requestPaymentAndShow(orderId, totalAmount);
+  };
 
   function showOrderSuccess(orderId) {
     render(
