@@ -2,6 +2,7 @@ require('dotenv').config();
 var express = require('express');
 var path = require('path');
 var crypto = require('crypto');
+var fs = require('fs');
 var multer = require('multer');
 var backup = require('./backup');
 var db = require('./database');
@@ -19,6 +20,7 @@ var ADMIN_TELEGRAM_IDS = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(f
 
 var TOCHKA_API_URL = process.env.TOCHKA_API_URL || 'https://enter.tochka.com/sandbox/v2';
 var TOCHKA_JWT = process.env.TOCHKA_JWT || 'sandbox.jwt.token';
+var TOCHKA_JWT_FILE = process.env.TOCHKA_JWT_FILE || path.join(__dirname, 'secrets', 'tochka_jwt.txt');
 var TOCHKA_CUSTOMER_CODE = process.env.TOCHKA_CUSTOMER_CODE || '';
 var TOCHKA_MERCHANT_ID = process.env.TOCHKA_MERCHANT_ID || '';
 var TOCHKA_CLIENT_ID = process.env.TOCHKA_CLIENT_ID || '';
@@ -55,6 +57,38 @@ app.use(function (err, req, res, next) {
   }
   return next(err);
 });
+
+function sanitizeTochkaToken(raw) {
+  return String(raw || '')
+    .replace(/\uFEFF/g, '')
+    .replace(/[^\x00-\x7F]/g, '')
+    .replace(/\s+/g, '')
+    .trim();
+}
+
+function isTochkaTokenValid(token) {
+  var dots = (String(token || '').match(/\./g) || []).length;
+  return dots >= 2;
+}
+
+function readTochkaTokenFromFile() {
+  try {
+    if (!TOCHKA_JWT_FILE || !fs.existsSync(TOCHKA_JWT_FILE)) return '';
+    var raw = fs.readFileSync(TOCHKA_JWT_FILE, 'utf8');
+    return sanitizeTochkaToken(raw);
+  } catch (e) {
+    console.error('[Tochka] Failed to read token file:', e.message);
+    return '';
+  }
+}
+
+function getTochkaJwt() {
+  var envJwt = sanitizeTochkaToken(process.env.TOCHKA_JWT || TOCHKA_JWT);
+  if (isTochkaTokenValid(envJwt)) return envJwt;
+  var fileJwt = readTochkaTokenFromFile();
+  if (isTochkaTokenValid(fileJwt)) return fileJwt;
+  return envJwt || fileJwt || '';
+}
 
 function sendTelegramMessage(chatId, text) {
   if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE' || !chatId) return;
@@ -645,6 +679,11 @@ app.post('/api/payments/create', async function (req, res) {
 
   if (PAYMENT_PROVIDER === 'tochka') {
     try {
+      var tochkaJwt = getTochkaJwt();
+      if (!isTochkaTokenValid(tochkaJwt)) {
+        return res.status(500).json({ error: 'Tochka JWT is missing or invalid (expected JWT with 2 dots).' });
+      }
+
       var orderItems = await db.prepare(
         'SELECT oi.*, p.name as product_name FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?'
       ).all(orderId);
@@ -705,7 +744,7 @@ app.post('/api/payments/create', async function (req, res) {
       var response = await fetch(tochkaUrl, {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer ' + TOCHKA_JWT,
+          'Authorization': 'Bearer ' + tochkaJwt,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(tochkaBody)
@@ -1555,8 +1594,10 @@ async function start() {
     console.log('Server running on http://localhost:' + PORT);
     backup.startPeriodicBackup();
 
-    if (PAYMENT_PROVIDER === 'tochka' && TOCHKA_CLIENT_ID && TOCHKA_JWT && PUBLIC_URL) {
+    if (PAYMENT_PROVIDER === 'tochka' && TOCHKA_CLIENT_ID && isTochkaTokenValid(getTochkaJwt()) && PUBLIC_URL) {
       setTimeout(function () { registerTochkaWebhook(); }, 5000);
+    } else if (PAYMENT_PROVIDER === 'tochka') {
+      console.warn('[Tochka] Webhook registration skipped: missing/invalid JWT or client config.');
     }
 
     if (BOT_TOKEN && BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE' && PUBLIC_URL) {
@@ -1567,6 +1608,11 @@ async function start() {
 
 async function registerTochkaWebhook() {
   try {
+    var tochkaJwt = getTochkaJwt();
+    if (!isTochkaTokenValid(tochkaJwt)) {
+      console.warn('[Tochka] Webhook registration skipped: invalid JWT (expected 2 dots).');
+      return;
+    }
     var webhookUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://') + '/api/payments/webhook';
     var url = TOCHKA_API_URL + '/webhook/v1.0/' + TOCHKA_CLIENT_ID;
 
@@ -1575,7 +1621,7 @@ async function registerTochkaWebhook() {
     var response = await fetch(url, {
       method: 'PUT',
       headers: {
-        'Authorization': 'Bearer ' + TOCHKA_JWT,
+        'Authorization': 'Bearer ' + tochkaJwt,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
