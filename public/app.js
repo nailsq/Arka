@@ -9,15 +9,6 @@
   var selectedCity = null;
   var citiesList = [];
 
-  function pluralFlower(n) {
-    var abs = Math.abs(n) % 100;
-    var last = abs % 10;
-    if (abs > 10 && abs < 20) return n + ' цветков';
-    if (last === 1) return n + ' цветок';
-    if (last >= 2 && last <= 4) return n + ' цветка';
-    return n + ' цветков';
-  }
-
   // ============================================================
   // Telegram Web App
   // ============================================================
@@ -2412,7 +2403,7 @@
       telegram_id: getTelegramId() || '',
       city_id: selectedCity ? selectedCity.id : null,
       items: cart.map(function (i) {
-        return { product_id: i.product_id, quantity: i.quantity, price: i.price, flower_count: i.flower_count || 0, size_label: i.size_label || '' };
+        return { product_id: i.product_id, quantity: i.quantity, price: i.price, size_label: i.size_label || '' };
       })
     };
 

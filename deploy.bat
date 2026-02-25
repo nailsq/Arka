@@ -8,7 +8,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-set "LOCK_FILE=%~dp0.deploy.lock"
+set "LOCK_FILE=%TEMP%\arcaflowers-deploy.lock"
 set "EXIT_CODE=0"
 
 if exist "%LOCK_FILE%" (
