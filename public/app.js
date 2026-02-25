@@ -593,6 +593,17 @@
   }
 
   function isNightDisabledForSelectedDate(selectedDateStr) {
+    var weekdayRaw = appSettings.night_disabled_weekdays;
+    if (weekdayRaw) {
+      try {
+        var weekdayList = JSON.parse(weekdayRaw);
+        if (Array.isArray(weekdayList) && weekdayList.length) {
+          var weekdayCtx = getNightDateContext(selectedDateStr);
+          if (weekdayCtx && weekdayList.indexOf(weekdayCtx.weekday) >= 0) return true;
+        }
+      } catch (e) {}
+    }
+
     var raw = appSettings.night_disabled_calendar;
     if (!raw) return false;
     var cal;

@@ -1215,6 +1215,20 @@
       h += '</div>';
 
       h += '<div class="settings-section">';
+      h += '<div class="settings-section-title">Отключение ночной доставки</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Отметьте дни недели, в которые ночные интервалы должны быть недоступны для клиентов.</div>';
+      h += '<div style="display:flex;gap:10px;flex-wrap:wrap">';
+      h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-1" style="margin-right:6px">Пн</label>';
+      h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-2" style="margin-right:6px">Вт</label>';
+      h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-3" style="margin-right:6px">Ср</label>';
+      h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-4" style="margin-right:6px">Чт</label>';
+      h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-5" style="margin-right:6px">Пт</label>';
+      h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-6" style="margin-right:6px">Сб</label>';
+      h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-7" style="margin-right:6px">Вс</label>';
+      h += '</div>';
+      h += '</div>';
+
+      h += '<div class="settings-section">';
       h += '<div class="settings-section-title">Информация о доставке</div>';
       h += '<div class="form-group"><label class="form-label">Текст для клиентов (отображается в приложении)</label>' +
         '<textarea class="form-textarea" id="s-delivery-info" rows="4">' + esc(s.delivery_info || '') + '</textarea></div>';
@@ -1328,6 +1342,14 @@
       console.log('[LoadSettings] regular day:', JSON.stringify(regDay), 'night:', JSON.stringify(regNight));
       renderIntervals(regDay, 'regular-day');
       renderIntervals(regNight, 'regular-night');
+
+      var disabledWeekdays = [];
+      try { disabledWeekdays = JSON.parse(s.night_disabled_weekdays || '[]'); } catch (e) {}
+      if (!Array.isArray(disabledWeekdays)) disabledWeekdays = [];
+      disabledWeekdays.forEach(function (d) {
+        var cb = document.getElementById('s-night-off-' + d);
+        if (cb) cb.checked = true;
+      });
 
       // Holidays are intentionally disabled in admin settings.
     });
@@ -1470,6 +1492,15 @@
     if (holidays) holidays.value = '[]';
 
     console.log('[Intervals] Regular day:', JSON.stringify(regDay), 'night:', JSON.stringify(regNight));
+  }
+
+  function collectNightDisabledWeekdays() {
+    var out = [];
+    for (var d = 1; d <= 7; d++) {
+      var cb = document.getElementById('s-night-off-' + d);
+      if (cb && cb.checked) out.push(d);
+    }
+    return out;
   }
 
   function collectDeliveryTiers() {
@@ -1633,6 +1664,7 @@
       intervals_holiday_day: '[]',
       intervals_holiday_night: '[]',
       holiday_dates: '[]',
+      night_disabled_weekdays: JSON.stringify(collectNightDisabledWeekdays()),
       exact_time_enabled: document.getElementById('s-exact-enabled').checked ? '1' : '0',
       exact_time_surcharge: document.getElementById('s-exact-surcharge').value,
       pickup_cutoff_hour: document.getElementById('s-pickup-cutoff').value,
