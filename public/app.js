@@ -1397,8 +1397,31 @@
     return lower.indexOf('энгельс') !== -1 || lower.indexOf('engels') !== -1;
   }
 
-  function getDeliveryTiers(engels) {
-    var key = engels ? 'delivery_distance_tiers_engels' : 'delivery_distance_tiers';
+  function isNightDeliveryInterval(iv) {
+    var s = String(iv || '').trim();
+    if (!s || s.indexOf('-') < 0) return false;
+    var parts = s.split('-');
+    if (parts.length !== 2) return false;
+    var p1 = parts[0].split(':');
+    var p2 = parts[1].split(':');
+    var sh = parseInt(p1[0], 10), sm = parseInt(p1[1] || '0', 10);
+    var eh = parseInt(p2[0], 10), em = parseInt(p2[1] || '0', 10);
+    if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return false;
+    var start = sh * 60 + sm;
+    var end = eh * 60 + em;
+    if (end <= start) return true;      // crosses midnight, e.g. 21:00-00:00 / 22:00-01:00
+    if (start >= 21 * 60) return true;  // late evening slot
+    if (start < 10 * 60) return true;   // after-midnight slot
+    return false;
+  }
+
+  function getDeliveryTiers(engels, nightMode) {
+    var key = '';
+    if (nightMode) {
+      key = engels ? 'night_delivery_tiers_engels' : 'night_delivery_tiers';
+    } else {
+      key = engels ? 'delivery_distance_tiers_engels' : 'delivery_distance_tiers';
+    }
     try { return JSON.parse(appSettings[key] || '[]'); }
     catch (e) { return []; }
   }
@@ -1414,10 +1437,11 @@
     return checkoutState.deliveryDistance > getMaxDeliveryKm(checkoutState.isEngels);
   }
 
-  function getDeliveryCostByDistance(km, engels) {
-    var tiers = getDeliveryTiers(engels);
+  function getDeliveryCostByDistance(km, engels, nightMode) {
+    var tiers = getDeliveryTiers(engels, nightMode);
+    if (nightMode && !tiers.length) tiers = getDeliveryTiers(engels, false); // fallback to day tiers
     if (!tiers.length) return 0;
-    tiers.sort(function (a, b) { return a.max_km - b.max_km; });
+    tiers = tiers.slice().sort(function (a, b) { return a.max_km - b.max_km; });
     for (var i = 0; i < tiers.length; i++) {
       if (km <= tiers[i].max_km) return tiers[i].price;
     }
@@ -1430,7 +1454,8 @@
       return parseInt(appSettings.exact_time_surcharge) || 1000;
     }
     if (checkoutState.deliveryDistance > 0) {
-      return getDeliveryCostByDistance(checkoutState.deliveryDistance, checkoutState.isEngels);
+      var nightMode = isNightDeliveryInterval(checkoutState.deliveryInterval);
+      return getDeliveryCostByDistance(checkoutState.deliveryDistance, checkoutState.isEngels, nightMode);
     }
     return 0;
   }
@@ -1832,7 +1857,8 @@
           ' — Доставка по этому адресу недоступна (макс. ' + maxKm + ' км)';
         checkoutState.addressValidated = false;
       } else {
-        var cost = getDeliveryCostByDistance(km, checkoutState.isEngels);
+        var nightMode = isNightDeliveryInterval(checkoutState.deliveryInterval);
+        var cost = getDeliveryCostByDistance(km, checkoutState.isEngels, nightMode);
         el.innerHTML = 'Расстояние: <b>' + km.toFixed(1) + ' км</b>' + label + ' — Доставка: <b>' + formatPrice(cost) + '</b>';
       }
       el.style.display = '';
@@ -2360,6 +2386,9 @@
     radios.forEach(function (r) {
       if (r.value === iv) r.closest('.radio-option').classList.add('selected');
     });
+    if (checkoutState.deliveryDistance > 0) {
+      showDistanceResult(checkoutState.deliveryDistance, checkoutState.isEngels ? 'от центра Энгельса' : 'от магазина');
+    }
     updateStepButtons();
   };
 
