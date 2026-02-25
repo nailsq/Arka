@@ -2086,9 +2086,30 @@
     }
   }
 
+  function getTodayIsoDate() {
+    return saratovNow().dateStr;
+  }
+
+  function isPastIsoDate(dateStr) {
+    var d = String(dateStr || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+    return d < getTodayIsoDate();
+  }
+
+  function normalizeDateFieldNotPast() {
+    var dateField = document.getElementById('field-date');
+    if (!dateField) return;
+    var today = getTodayIsoDate();
+    if (dateField.min !== today) dateField.min = today;
+    if (!dateField.value || isPastIsoDate(dateField.value)) {
+      dateField.value = today;
+    }
+  }
+
   function renderIntervals() {
     var el = document.getElementById('interval-group');
     if (!el) return;
+    normalizeDateFieldNotPast();
     var dateField = document.getElementById('field-date');
     var selectedDate = dateField ? dateField.value : '';
     var sNowIv = saratovNow();
@@ -2301,6 +2322,12 @@
   };
 
   window.onDeliveryDateChange = function () {
+    normalizeDateFieldNotPast();
+    var dateField = document.getElementById('field-date');
+    if (dateField && isPastIsoDate(dateField.value)) {
+      dateField.value = getTodayIsoDate();
+      showToast('Нельзя выбрать прошедшую дату');
+    }
     updateCutoffNotice();
     checkoutState.deliveryInterval = '';
     checkoutState.pickupTime = '';
@@ -2470,6 +2497,10 @@
     var rcvName = isSelf ? tgVal : (document.getElementById('field-rcv-name') ? document.getElementById('field-rcv-name').value.trim() : '');
     var rcvPhone = isSelf ? phoneVal : (document.getElementById('field-rcv-phone') ? document.getElementById('field-rcv-phone').value.trim() : '');
     var dateVal = document.getElementById('field-date') ? document.getElementById('field-date').value : '';
+    if (!dateVal || isPastIsoDate(dateVal)) {
+      showToast('Нельзя оформить заказ на прошедшую дату');
+      return;
+    }
 
     if (!isSelf && (!rcvName || !rcvPhone)) {
       showToast('Заполните данные получателя');
