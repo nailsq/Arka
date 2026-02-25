@@ -8,6 +8,22 @@ if errorlevel 1 (
   exit /b 1
 )
 
+set "LOCK_FILE=%~dp0.deploy.lock"
+set "EXIT_CODE=0"
+
+if exist "%LOCK_FILE%" (
+  echo.
+  echo Deploy is already running - lock file exists:
+  echo %LOCK_FILE%
+  echo.
+  echo If you are sure no deploy is running, delete the lock file manually.
+  echo Example: del "%LOCK_FILE%"
+  pause
+  exit /b 1
+)
+
+echo started> "%LOCK_FILE%"
+
 REM Accept new host keys without writing to invalid NUL path
 set "GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=accept-new"
 
@@ -15,16 +31,16 @@ git rev-parse --abbrev-ref HEAD >nul 2>&1
 if errorlevel 1 (
   echo.
   echo Not a git repository or git is unavailable.
-  pause
-  exit /b 1
+  set "EXIT_CODE=1"
+  goto :finish
 )
 
 for /f %%i in ('git rev-parse --abbrev-ref HEAD') do set BRANCH=%%i
 if /I not "%BRANCH%"=="main" (
   echo.
   echo Current branch is "%BRANCH%". Switch to "main" before deploy.
-  pause
-  exit /b 1
+  set "EXIT_CODE=1"
+  goto :finish
 )
 
 git status --porcelain >nul 2>&1
@@ -38,8 +54,8 @@ if not "%CHANGED%"=="0" (
   if errorlevel 1 (
     echo.
     echo Commit failed.
-    pause
-    exit /b 1
+    set "EXIT_CODE=1"
+    goto :finish
   )
 ) else (
   echo.
@@ -50,18 +66,29 @@ git push origin main
 if errorlevel 1 (
   echo.
   echo GitHub push failed.
-  pause
-  exit /b 1
+  set "EXIT_CODE=1"
+  goto :finish
 )
 
 git push production main
 if errorlevel 1 (
   echo.
   echo Production deploy push failed.
-  pause
-  exit /b 1
+  set "EXIT_CODE=1"
+  goto :finish
 )
 
 echo.
 echo Done.
+goto :finish
+
+:finish
+if exist "%LOCK_FILE%" del "%LOCK_FILE%" >nul 2>&1
+if not "%EXIT_CODE%"=="0" (
+  echo.
+  echo Deploy finished with errors.
+  pause
+  exit /b %EXIT_CODE%
+)
 pause
+exit /b 0

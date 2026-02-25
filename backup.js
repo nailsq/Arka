@@ -8,6 +8,7 @@ var GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 var GITHUB_GIST_ID = process.env.GITHUB_GIST_ID || '';
 var BACKUP_INTERVAL = 2 * 60 * 1000;
 var CHUNK_SIZE = 3 * 1024 * 1024;
+var FORCE_RESTORE_FROM_GITHUB = String(process.env.FORCE_RESTORE_FROM_GITHUB || '').toLowerCase() === 'true';
 
 function isEnabled() {
   return !!(GITHUB_TOKEN && GITHUB_GIST_ID);
@@ -80,6 +81,17 @@ async function restore() {
     console.log('Backup not configured (no GITHUB_TOKEN / GITHUB_GIST_ID).');
     return false;
   }
+  // Protect local changes: by default do NOT overwrite an existing local database on startup.
+  // Set FORCE_RESTORE_FROM_GITHUB=true only for manual disaster recovery.
+  try {
+    if (!FORCE_RESTORE_FROM_GITHUB && fs.existsSync(DB_PATH)) {
+      var stats = fs.statSync(DB_PATH);
+      if (stats.size > 0) {
+        console.log('Skipping GitHub restore: local database exists (' + Math.round(stats.size / 1024) + ' KB).');
+        return false;
+      }
+    }
+  } catch (e) {}
   try {
     console.log('Restoring database from GitHub backup...');
     var gist = await githubApi('GET', '/gists/' + GITHUB_GIST_ID);

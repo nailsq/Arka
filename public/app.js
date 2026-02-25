@@ -188,16 +188,16 @@
     var cart = getCart();
     var price = product.price;
     var sizeLabel = '';
-    var flowerCount = 0;
     var dims = product.dimensions || '';
+    var imageUrl = product.image_url || '';
     var allSizes = (product.sizes && product.sizes.length) ? product.sizes : [];
     var isBouquet = !!(sizeObj || product.is_bouquet);
 
     if (sizeObj) {
       price = sizeObj.price;
       sizeLabel = sizeObj.label;
-      flowerCount = sizeObj.flower_count;
       dims = sizeObj.dimensions || '';
+      imageUrl = sizeObj.image_url || imageUrl;
     }
 
     var cartKey = product.id + '_' + sizeLabel;
@@ -205,14 +205,14 @@
     if (existing) {
       existing.quantity += 1;
       if (allSizes.length) existing.available_sizes = allSizes;
+      if (imageUrl) existing.image_url = imageUrl;
     } else {
       cart.push({
         product_id: product.id,
         name: product.name,
         price: price,
-        image_url: product.image_url,
+        image_url: imageUrl,
         quantity: 1,
-        flower_count: flowerCount,
         dimensions: dims,
         size_label: sizeLabel,
         is_bouquet: isBouquet ? 1 : 0,
@@ -430,7 +430,7 @@
       sizeBtnsHtml = '<div class="card-size-row" onclick="event.stopPropagation()">';
       p.sizes.forEach(function (s, idx) {
         sizeBtnsHtml += '<button class="card-size-btn' + (idx === 0 ? ' active' : '') + '" data-idx="' + idx + '" ' +
-          'onclick="switchCardSize(event,' + p.id + ',this,' + s.price + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\')">' +
+          'onclick="switchCardSize(event,' + p.id + ',this,' + s.price + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\',\'' + escapeHtml(s.image_url || '').replace(/'/g, "\\'") + '\')">' +
           escapeHtml(s.label) + '</button>';
       });
       sizeBtnsHtml += '</div>';
@@ -844,13 +844,12 @@
         var firstSize = p.sizes[0];
         var sizeBtns = p.sizes.map(function (s, idx) {
           return '<button type="button" class="size-btn' + (idx === 0 ? ' active' : '') + '" ' +
-            'data-size-id="' + s.id + '" data-price="' + s.price + '" data-fc="' + s.flower_count + '" data-label="' + escapeHtml(s.label) + '" data-dims="' + escapeHtml(s.dimensions || '') + '" data-img="' + escapeHtml(s.image_url || '') + '" ' +
+            'data-size-id="' + s.id + '" data-price="' + s.price + '" data-label="' + escapeHtml(s.label) + '" data-dims="' + escapeHtml(s.dimensions || '') + '" data-img="' + escapeHtml(s.image_url || '') + '" ' +
             'onclick="selectSize(this,' + p.id + ')">' +
             escapeHtml(s.label) +
           '</button>';
         }).join('');
-        var firstInfo = pluralFlower(firstSize.flower_count);
-        if (firstSize.dimensions) firstInfo += ' · ' + escapeHtml(firstSize.dimensions);
+        var firstInfo = firstSize.dimensions ? escapeHtml(firstSize.dimensions) : '';
         sizeHtml =
           '<div class="size-selector" id="size-selector">' +
             '<div class="size-selector-label">Размер букета</div>' +
@@ -995,7 +994,7 @@
           var sizeBtns = sizes.map(function (s) {
             var isActive = s.label === item.size_label;
             return '<button type="button" class="size-btn' + (isActive ? ' active' : '') + '" ' +
-              'onclick="changeCartSize(' + idx + ',\'' + escapeHtml(s.label).replace(/'/g, "\\'") + '\',' + s.price + ',' + s.flower_count + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\')">' +
+              'onclick="changeCartSize(' + idx + ',\'' + escapeHtml(s.label).replace(/'/g, "\\'") + '\',' + s.price + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\',\'' + escapeHtml(s.image_url || '').replace(/'/g, "\\'") + '\')">' +
               escapeHtml(s.label) + '</button>';
           }).join('');
           oldBtns.querySelector('.size-btn-row').innerHTML = sizeBtns;
@@ -1088,12 +1087,10 @@
       var sizeBtns = sizes.map(function (s) {
         var isActive = s.label === item.size_label;
         return '<button type="button" class="size-btn' + (isActive ? ' active' : '') + '" ' +
-          'onclick="changeCartSize(' + idx + ',\'' + escapeHtml(s.label).replace(/'/g, "\\'") + '\',' + s.price + ',' + s.flower_count + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\')">' +
+          'onclick="changeCartSize(' + idx + ',\'' + escapeHtml(s.label).replace(/'/g, "\\'") + '\',' + s.price + ',\'' + escapeHtml(s.dimensions || '').replace(/'/g, "\\'") + '\',\'' + escapeHtml(s.image_url || '').replace(/'/g, "\\'") + '\')">' +
           escapeHtml(s.label) + '</button>';
       }).join('');
-      var sizeInfo = '';
-      if (item.flower_count) sizeInfo += pluralFlower(item.flower_count);
-      if (item.dimensions) sizeInfo += (sizeInfo ? ' · ' : '') + escapeHtml(item.dimensions);
+      var sizeInfo = item.dimensions ? escapeHtml(item.dimensions) : '';
       sizeSelector = '<div class="cart-size-selector">' +
         '<div class="size-btn-row">' + sizeBtns + '</div>' +
         (sizeInfo ? '<div class="cart-size-fc">' + sizeInfo + '</div>' : '') +
@@ -2856,8 +2853,7 @@
           itemsHtml = '<div class="order-card-items">' +
             o.items.map(function (i) {
               var sizeTag = i.size_label ? ' [' + i.size_label + ']' : '';
-              var fcTag = i.flower_count ? ' (' + pluralFlower(i.flower_count) + ')' : '';
-              return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + fcTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
+              return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
             }).join('') + '</div>';
         }
         return '<div class="order-card">' +
@@ -2982,8 +2978,7 @@
           itemsHtml = '<div class="track-items">' +
             o.items.map(function (i) {
               var sizeTag = i.size_label ? ' [' + i.size_label + ']' : '';
-              var fcTag = i.flower_count ? ' (' + pluralFlower(i.flower_count) + ')' : '';
-              return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + fcTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
+              return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
             }).join('') + '</div>';
         }
 
@@ -3254,7 +3249,7 @@
   // Global handlers
   // ============================================================
 
-  window.switchCardSize = function (event, productId, btn, price, dims) {
+  window.switchCardSize = function (event, productId, btn, price, dims, imageUrl) {
     event.stopPropagation();
     var row = btn.parentElement;
     var btns = row.querySelectorAll('.card-size-btn');
@@ -3269,6 +3264,13 @@
         dimsEl.style.display = '';
       } else {
         dimsEl.style.display = 'none';
+      }
+    }
+    if (imageUrl) {
+      var card = btn.closest('.product-card');
+      if (card) {
+        var activeImg = card.querySelector('.product-card-img.card-slide-active') || card.querySelector('.product-card-img');
+        if (activeImg) activeImg.setAttribute('src', imageUrl);
       }
     }
   };
@@ -3309,8 +3311,8 @@
           id: parseInt(activeBtn.getAttribute('data-size-id')),
           label: activeBtn.getAttribute('data-label'),
           price: parseInt(activeBtn.getAttribute('data-price')),
-          flower_count: parseInt(activeBtn.getAttribute('data-fc')),
-          dimensions: activeBtn.getAttribute('data-dims') || ''
+          dimensions: activeBtn.getAttribute('data-dims') || '',
+          image_url: activeBtn.getAttribute('data-img') || ''
         };
       } else {
         sizeObj = p.sizes[0];
@@ -3324,15 +3326,18 @@
     btns.forEach(function (b) { b.classList.remove('active'); });
     btn.classList.add('active');
     var price = parseInt(btn.getAttribute('data-price'));
-    var fc = parseInt(btn.getAttribute('data-fc'));
     var dims = btn.getAttribute('data-dims') || '';
+    var img = btn.getAttribute('data-img') || '';
     var priceEl = document.getElementById('detail-price');
     if (priceEl) priceEl.textContent = formatPrice(price);
     var infoEl = document.getElementById('size-info');
     if (infoEl) {
-      var text = pluralFlower(fc);
-      if (dims) text += ' · ' + dims;
+      var text = dims || '';
       infoEl.textContent = text;
+    }
+    if (img) {
+      var detailImgs = document.querySelectorAll('#product-detail .product-detail-img');
+      detailImgs.forEach(function (el) { el.setAttribute('src', img); });
     }
   };
 
@@ -3397,7 +3402,7 @@
     return true;
   }
 
-  window.changeCartSize = function (cartIdx, newLabel, newPrice, newFlowerCount, newDims) {
+  window.changeCartSize = function (cartIdx, newLabel, newPrice, newDims, newImg) {
     var cart = getCart();
     var item = cart[cartIdx];
     if (!item) return;
@@ -3419,8 +3424,8 @@
 
     item.size_label = newLabel;
     item.price = newPrice;
-    item.flower_count = newFlowerCount;
     item.dimensions = newDims || '';
+    if (newImg) item.image_url = newImg;
     saveCart(cart);
 
     var row = document.getElementById('cart-row-' + cartIdx);
@@ -3433,11 +3438,11 @@
       if (priceEl) priceEl.textContent = formatPrice(newPrice);
       var fcEl = row.querySelector('.cart-size-fc');
       if (fcEl) {
-        var fcText = '';
-        if (newFlowerCount) fcText += pluralFlower(newFlowerCount);
-        if (newDims) fcText += (fcText ? ' · ' : '') + newDims;
+        var fcText = newDims || '';
         fcEl.textContent = fcText;
       }
+      var imgEl = row.querySelector('.cart-item-img');
+      if (imgEl && newImg) imgEl.setAttribute('src', newImg);
       var totalEl = document.getElementById('cart-total-val');
       if (totalEl) totalEl.textContent = formatPrice(getCartTotal());
 
