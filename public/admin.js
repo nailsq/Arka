@@ -876,7 +876,11 @@
           canvas.height = th;
           var ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, tw, th);
-          var out = canvas.toDataURL('image/jpeg', quality);
+          var out = '';
+          try { out = canvas.toDataURL('image/webp', quality); } catch (e1) {}
+          if (!out || out.indexOf('data:image/webp') !== 0) {
+            out = canvas.toDataURL('image/jpeg', quality);
+          }
           resolve(out);
         };
         img.onerror = function () {
@@ -885,6 +889,47 @@
         img.src = String(e.target.result || '');
       };
       reader.onerror = function () { resolve(''); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function resizeImageToBlob(file, maxSide, quality) {
+    return new Promise(function (resolve) {
+      if (!file) return resolve(null);
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var img = new Image();
+        img.onload = function () {
+          var w = img.width;
+          var h = img.height;
+          var scale = 1;
+          if (Math.max(w, h) > maxSide) scale = maxSide / Math.max(w, h);
+          var tw = Math.max(1, Math.round(w * scale));
+          var th = Math.max(1, Math.round(h * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = tw;
+          canvas.height = th;
+          var ctx = canvas.getContext('2d');
+          if (!ctx) return resolve(file);
+          ctx.drawImage(img, 0, 0, tw, th);
+          canvas.toBlob(function (blobWebp) {
+            if (blobWebp && blobWebp.size > 0) {
+              blobWebp._ext = 'webp';
+              return resolve(blobWebp);
+            }
+            canvas.toBlob(function (blobJpeg) {
+              if (blobJpeg && blobJpeg.size > 0) {
+                blobJpeg._ext = 'jpg';
+                return resolve(blobJpeg);
+              }
+              resolve(file);
+            }, 'image/jpeg', quality);
+          }, 'image/webp', quality);
+        };
+        img.onerror = function () { resolve(file); };
+        img.src = String(e.target.result || '');
+      };
+      reader.onerror = function () { resolve(file); };
       reader.readAsDataURL(file);
     });
   }
@@ -968,16 +1013,28 @@
     fd.append('flower_step', '1');
     fd.append('price_per_flower', '0');
     var fileInput = document.getElementById('pf-images');
-    if (fileInput && fileInput.files.length) {
-      for (var i = 0; i < fileInput.files.length; i++) {
-        fd.append('images', fileInput.files[i]);
-      }
-    }
 
     var url = editingProduct ? '/api/admin/products/' + editingProduct : '/api/admin/products';
     var method = editingProduct ? 'PUT' : 'POST';
 
-    apiUpload(method, url, fd).then(function (result) {
+    var compressPromise = Promise.resolve([]);
+    if (fileInput && fileInput.files && fileInput.files.length) {
+      var originalFiles = Array.prototype.slice.call(fileInput.files);
+      compressPromise = Promise.all(originalFiles.map(function (file) {
+        return resizeImageToBlob(file, 1800, 0.82).then(function (blob) {
+          if (!blob) return file;
+          if (blob === file) return file;
+          var baseName = String(file.name || 'image').replace(/\.[^.]+$/, '');
+          var ext = blob._ext || 'webp';
+          return new File([blob], baseName + '.' + ext, { type: blob.type || ('image/' + ext) });
+        });
+      }));
+    }
+
+    compressPromise.then(function (optimizedFiles) {
+      optimizedFiles.forEach(function (f) { fd.append('images', f); });
+      return apiUpload(method, url, fd);
+    }).then(function (result) {
       var productId = editingProduct || result.id;
 
       var sizeSavePromises = [];
