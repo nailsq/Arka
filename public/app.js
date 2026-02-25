@@ -670,7 +670,10 @@
         (eH <= sH ? night : day).push(iv);
       });
     }
-    if (isNightDisabledForSelectedDate(checkoutState.deliveryDate)) {
+    var selectedDateVal = '';
+    var dateEl = document.getElementById('field-date');
+    if (dateEl && dateEl.value) selectedDateVal = dateEl.value;
+    if (isNightDisabledForSelectedDate(selectedDateVal)) {
       night = [];
     }
     return { day: day, night: night };
