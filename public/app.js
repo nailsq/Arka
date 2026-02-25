@@ -2110,11 +2110,27 @@
       el.innerHTML = '<div class="cutoff-hint">На сегодня все интервалы недоступны. Выберите другую дату или самовывоз.</div>';
       return;
     }
-    var nextDayStr = '';
-    if (nightIntervals.length && selectedDate) {
+    var selectedBaseDate = null;
+    if (selectedDate) {
       var dp = selectedDate.split('-');
-      var nextDay = new Date(parseInt(dp[0]), parseInt(dp[1]) - 1, parseInt(dp[2]) + 1);
-      nextDayStr = String(nextDay.getDate()).padStart(2, '0') + '.' + String(nextDay.getMonth() + 1).padStart(2, '0');
+      if (dp.length === 3) {
+        selectedBaseDate = new Date(parseInt(dp[0], 10), parseInt(dp[1], 10) - 1, parseInt(dp[2], 10));
+      }
+    }
+    if (!selectedBaseDate) {
+      selectedBaseDate = new Date(sNowIv.year, sNowIv.month - 1, sNowIv.day);
+    }
+    var nextBaseDate = new Date(selectedBaseDate.getFullYear(), selectedBaseDate.getMonth(), selectedBaseDate.getDate() + 1);
+
+    function formatDayMonth(dt) {
+      return String(dt.getDate()).padStart(2, '0') + '.' + String(dt.getMonth() + 1).padStart(2, '0');
+    }
+
+    function getNightSlotDate(iv) {
+      var parts = String(iv || '').split('-');
+      var startHour = parseInt(parts[0], 10);
+      var isAfterMidnight = startHour >= 0 && startHour < 10;
+      return isAfterMidnight ? nextBaseDate : selectedBaseDate;
     }
 
     function buildOption(iv, isNight) {
@@ -2131,9 +2147,11 @@
         }
       }
       var displayIv = iv.replace('-', ' — ');
-      var nightBadge = isNight && nextDayStr
-        ? '<span class="night-date-badge">' + nextDayStr + '</span>'
-        : '';
+      var nightBadge = '';
+      if (isNight) {
+        var slotDate = getNightSlotDate(iv);
+        nightBadge = '<span class="night-date-badge">' + formatDayMonth(slotDate) + '</span>';
+      }
       return '<label class="radio-option' + (isNight ? ' radio-option-night' : '') +
         (disabled ? '" style="opacity:0.3;pointer-events:none"' : '"') +
         ' onclick="setDeliveryInterval(\'' + escapeHtml(iv) + '\')">' +
@@ -2150,8 +2168,7 @@
     }
     if (nightIntervals.length > 0) {
       html += '<div class="night-intervals-divider" onclick="toggleNightIntervals()" style="cursor:pointer;user-select:none">' +
-        '<span class="night-icon">&#9790;</span> Ночная доставка' +
-        (nextDayStr ? ' (на ' + nextDayStr + ')' : '') +
+        '<span class="night-icon">&#9790;</span> Ночная доставка (' + formatDayMonth(selectedBaseDate) + ' — ' + formatDayMonth(nextBaseDate) + ')' +
         ' <span id="night-toggle-arrow" style="float:right;transition:transform 0.3s">&#9660;</span></div>';
       html += '<div id="night-intervals-container" style="display:none">';
       html += nightIntervals.map(function (iv) { return buildOption(iv, true); }).join('');
