@@ -593,6 +593,14 @@
   }
 
   function isNightDisabledForSelectedDate(selectedDateStr) {
+    var datesRaw = appSettings.night_disabled_dates;
+    if (datesRaw && selectedDateStr) {
+      try {
+        var dateList = JSON.parse(datesRaw);
+        if (Array.isArray(dateList) && dateList.indexOf(selectedDateStr) >= 0) return true;
+      } catch (e) {}
+    }
+
     var weekdayRaw = appSettings.night_disabled_weekdays;
     if (weekdayRaw) {
       try {

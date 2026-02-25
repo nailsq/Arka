@@ -1226,6 +1226,14 @@
       h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-6" style="margin-right:6px">Сб</label>';
       h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-7" style="margin-right:6px">Вс</label>';
       h += '</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin:12px 0 8px">Или отметьте конкретные даты в календаре (приоритетнее дней недели).</div>';
+      h += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">';
+      h += '<button type="button" class="btn btn-sm" onclick="shiftNightCalendarMonth(-1)">← Месяц</button>';
+      h += '<input type="month" class="form-input" id="s-night-month-picker" style="width:auto;min-width:170px" onchange="setNightCalendarMonth(this.value)">';
+      h += '<button type="button" class="btn btn-sm" onclick="shiftNightCalendarMonth(1)">Месяц →</button>';
+      h += '<button type="button" class="btn btn-sm btn-danger" onclick="clearNightCalendarMonth()">Очистить месяц</button>';
+      h += '</div>';
+      h += '<div id="s-night-calendar-grid"></div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1350,6 +1358,7 @@
         var cb = document.getElementById('s-night-off-' + d);
         if (cb) cb.checked = true;
       });
+      initNightCalendarEditor(s.night_disabled_dates || '[]');
 
       // Holidays are intentionally disabled in admin settings.
     });
@@ -1501,6 +1510,126 @@
       if (cb && cb.checked) out.push(d);
     }
     return out;
+  }
+
+  var _nightDisabledDateMap = {};
+  var _nightCalendarCursor = null;
+
+  function parseDateKeyToDate(key) {
+    var p = String(key || '').split('.');
+    if (p.length !== 3) return null;
+    var d = parseInt(p[0], 10);
+    var m = parseInt(p[1], 10) - 1;
+    var y = parseInt(p[2], 10);
+    if (!d || m < 0 || !y) return null;
+    var dt = new Date(y, m, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m || dt.getDate() !== d) return null;
+    return dt;
+  }
+
+  function toDateKey(dt) {
+    return String(dt.getDate()).padStart(2, '0') + '.' +
+      String(dt.getMonth() + 1).padStart(2, '0') + '.' +
+      dt.getFullYear();
+  }
+
+  function monthInputValue(dt) {
+    return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
+  }
+
+  function initNightCalendarEditor(raw) {
+    _nightDisabledDateMap = {};
+    var arr = [];
+    try { arr = JSON.parse(raw || '[]'); } catch (e) {}
+    if (!Array.isArray(arr)) arr = [];
+    arr.forEach(function (key) {
+      var dt = parseDateKeyToDate(key);
+      if (!dt) return;
+      _nightDisabledDateMap[toDateKey(dt)] = true;
+    });
+    _nightCalendarCursor = new Date();
+    var monthInput = document.getElementById('s-night-month-picker');
+    if (monthInput) monthInput.value = monthInputValue(_nightCalendarCursor);
+    renderNightCalendarEditor();
+  }
+
+  function renderNightCalendarEditor() {
+    var grid = document.getElementById('s-night-calendar-grid');
+    if (!grid) return;
+    var monthInput = document.getElementById('s-night-month-picker');
+    if (!_nightCalendarCursor) _nightCalendarCursor = new Date();
+    if (monthInput && monthInput.value) {
+      var m = /^(\d{4})-(\d{2})$/.exec(monthInput.value);
+      if (m) _nightCalendarCursor = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, 1);
+    } else if (monthInput) {
+      monthInput.value = monthInputValue(_nightCalendarCursor);
+    }
+
+    var y = _nightCalendarCursor.getFullYear();
+    var mo = _nightCalendarCursor.getMonth();
+    var first = new Date(y, mo, 1);
+    var daysInMonth = new Date(y, mo + 1, 0).getDate();
+    var startOffset = (first.getDay() + 6) % 7;
+    var weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    var h = '<div style="display:grid;grid-template-columns:repeat(7,minmax(36px,1fr));gap:6px;max-width:420px">';
+    weekdays.forEach(function (wd) {
+      h += '<div style="text-align:center;font-size:12px;color:var(--text-secondary);font-weight:600">' + wd + '</div>';
+    });
+    for (var i = 0; i < startOffset; i++) h += '<div></div>';
+    for (var d = 1; d <= daysInMonth; d++) {
+      var dt = new Date(y, mo, d);
+      var key = toDateKey(dt);
+      var active = !!_nightDisabledDateMap[key];
+      h += '<button type="button" class="btn btn-sm' + (active ? ' btn-danger' : '') +
+        '" onclick="toggleNightCalendarDate(\'' + key + '\')" style="padding:6px 0;min-width:0">' + d + '</button>';
+    }
+    h += '</div>';
+    h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Красным отмечены даты, где ночная доставка выключена.</div>';
+    grid.innerHTML = h;
+  }
+
+  window.toggleNightCalendarDate = function (dateKey) {
+    if (_nightDisabledDateMap[dateKey]) delete _nightDisabledDateMap[dateKey];
+    else _nightDisabledDateMap[dateKey] = true;
+    renderNightCalendarEditor();
+  };
+
+  window.setNightCalendarMonth = function (value) {
+    var m = /^(\d{4})-(\d{2})$/.exec(String(value || ''));
+    if (!m) return;
+    _nightCalendarCursor = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, 1);
+    var monthInput = document.getElementById('s-night-month-picker');
+    if (monthInput) monthInput.value = monthInputValue(_nightCalendarCursor);
+    renderNightCalendarEditor();
+  };
+
+  window.shiftNightCalendarMonth = function (delta) {
+    if (!_nightCalendarCursor) _nightCalendarCursor = new Date();
+    _nightCalendarCursor = new Date(_nightCalendarCursor.getFullYear(), _nightCalendarCursor.getMonth() + (parseInt(delta, 10) || 0), 1);
+    var monthInput = document.getElementById('s-night-month-picker');
+    if (monthInput) monthInput.value = monthInputValue(_nightCalendarCursor);
+    renderNightCalendarEditor();
+  };
+
+  window.clearNightCalendarMonth = function () {
+    if (!_nightCalendarCursor) _nightCalendarCursor = new Date();
+    var y = _nightCalendarCursor.getFullYear();
+    var mo = _nightCalendarCursor.getMonth();
+    var daysInMonth = new Date(y, mo + 1, 0).getDate();
+    for (var d = 1; d <= daysInMonth; d++) {
+      delete _nightDisabledDateMap[toDateKey(new Date(y, mo, d))];
+    }
+    renderNightCalendarEditor();
+  };
+
+  function collectNightDisabledDates() {
+    var keys = Object.keys(_nightDisabledDateMap);
+    keys.sort(function (a, b) {
+      var da = parseDateKeyToDate(a);
+      var db = parseDateKeyToDate(b);
+      return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
+    });
+    return keys;
   }
 
   function collectDeliveryTiers() {
@@ -1665,6 +1794,7 @@
       intervals_holiday_night: '[]',
       holiday_dates: '[]',
       night_disabled_weekdays: JSON.stringify(collectNightDisabledWeekdays()),
+      night_disabled_dates: JSON.stringify(collectNightDisabledDates()),
       exact_time_enabled: document.getElementById('s-exact-enabled').checked ? '1' : '0',
       exact_time_surcharge: document.getElementById('s-exact-surcharge').value,
       pickup_cutoff_hour: document.getElementById('s-pickup-cutoff').value,
