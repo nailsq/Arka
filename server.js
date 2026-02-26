@@ -19,7 +19,7 @@ var PUBLIC_URL = process.env.PUBLIC_URL || ('http://localhost:' + PORT);
 var ADMIN_TELEGRAM_IDS = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 
 var TOCHKA_API_URL = process.env.TOCHKA_API_URL || 'https://enter.tochka.com/sandbox/v2';
-var TOCHKA_JWT = process.env.TOCHKA_JWT || 'sandbox.jwt.token';
+var TOCHKA_JWT = process.env.TOCHKA_JWT || '';
 var TOCHKA_JWT_FILE = process.env.TOCHKA_JWT_FILE || path.join(__dirname, 'secrets', 'tochka_jwt.txt');
 var TOCHKA_CUSTOMER_CODE = process.env.TOCHKA_CUSTOMER_CODE || '';
 var TOCHKA_MERCHANT_ID = process.env.TOCHKA_MERCHANT_ID || '';
@@ -83,10 +83,10 @@ function readTochkaTokenFromFile() {
 }
 
 function getTochkaJwt() {
-  var envJwt = sanitizeTochkaToken(process.env.TOCHKA_JWT || TOCHKA_JWT);
-  if (isTochkaTokenValid(envJwt)) return envJwt;
   var fileJwt = readTochkaTokenFromFile();
   if (isTochkaTokenValid(fileJwt)) return fileJwt;
+  var envJwt = sanitizeTochkaToken(process.env.TOCHKA_JWT || TOCHKA_JWT);
+  if (isTochkaTokenValid(envJwt)) return envJwt;
   return envJwt || fileJwt || '';
 }
 
