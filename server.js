@@ -232,7 +232,7 @@ async function notifyAdminsNewOrder(order) {
     for (var a = 0; a < ADMIN_TELEGRAM_IDS.length; a++) {
       var adminChatId = String(ADMIN_TELEGRAM_IDS[a] || '').trim();
       var adminUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://') + '/admin?order=' + order.id + '&tg_auth=' + encodeURIComponent(adminChatId);
-      var btns = [[{ text: '\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0437\u0430\u043a\u0430\u0437', url: adminUrl }]];
+      var btns = [[{ text: '\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0437\u0430\u043a\u0430\u0437', web_app: { url: adminUrl } }]];
       await adminTelegramApiCall('sendMessage', {
         chat_id: adminChatId,
         text: msg,
@@ -249,7 +249,7 @@ async function notifyAdminsNewOrder(order) {
         if (dbAdmins[d].telegram_username) {
           dbAdminUrl += '&tg_user=' + encodeURIComponent(dbAdmins[d].telegram_username);
         }
-        var dbBtns = [[{ text: '\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0437\u0430\u043a\u0430\u0437', url: dbAdminUrl }]];
+        var dbBtns = [[{ text: '\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0437\u0430\u043a\u0430\u0437', web_app: { url: dbAdminUrl } }]];
         await adminTelegramApiCall('sendMessage', {
           chat_id: dbAdminChatId,
           text: msg,
