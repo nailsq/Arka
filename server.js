@@ -160,8 +160,6 @@ var BOT_MAIN_KEYBOARD = JSON.stringify({
 
 var BOT_ADMIN_KEYBOARD = JSON.stringify({
   keyboard: [
-    [{ text: '\u041c\u043e\u0439 \u0437\u0430\u043a\u0430\u0437' }, { text: '\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438' }],
-    [{ text: '\u041e \u043d\u0430\u0441' }],
     [{ text: '\u041d\u043e\u0432\u044b\u0435 \u0437\u0430\u043a\u0430\u0437\u044b' }, { text: '\u0410\u0434\u043c\u0438\u043d-\u043f\u0430\u043d\u0435\u043b\u044c' }]
   ],
   resize_keyboard: true,
@@ -231,26 +229,32 @@ async function notifyAdminsNewOrder(order) {
       }
     }
 
-    var adminUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://') + '/admin?order=' + order.id;
-    var btns = [[{ text: '\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0437\u0430\u043a\u0430\u0437', url: adminUrl }]];
-
     for (var a = 0; a < ADMIN_TELEGRAM_IDS.length; a++) {
+      var adminChatId = String(ADMIN_TELEGRAM_IDS[a] || '').trim();
+      var adminUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://') + '/admin?order=' + order.id + '&tg_auth=' + encodeURIComponent(adminChatId);
+      var btns = [[{ text: '\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0437\u0430\u043a\u0430\u0437', url: adminUrl }]];
       await adminTelegramApiCall('sendMessage', {
-        chat_id: ADMIN_TELEGRAM_IDS[a],
+        chat_id: adminChatId,
         text: msg,
         parse_mode: 'HTML',
         reply_markup: JSON.stringify({ inline_keyboard: btns })
       });
     }
 
-    var dbAdmins = await db.prepare('SELECT telegram_id FROM admin_users WHERE telegram_id IS NOT NULL').all();
+    var dbAdmins = await db.prepare('SELECT telegram_id, telegram_username FROM admin_users WHERE telegram_id IS NOT NULL').all();
     for (var d = 0; d < dbAdmins.length; d++) {
       if (!ADMIN_TELEGRAM_IDS.includes(dbAdmins[d].telegram_id)) {
+        var dbAdminChatId = String(dbAdmins[d].telegram_id || '').trim();
+        var dbAdminUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://') + '/admin?order=' + order.id + '&tg_auth=' + encodeURIComponent(dbAdminChatId);
+        if (dbAdmins[d].telegram_username) {
+          dbAdminUrl += '&tg_user=' + encodeURIComponent(dbAdmins[d].telegram_username);
+        }
+        var dbBtns = [[{ text: '\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0437\u0430\u043a\u0430\u0437', url: dbAdminUrl }]];
         await adminTelegramApiCall('sendMessage', {
-          chat_id: dbAdmins[d].telegram_id,
+          chat_id: dbAdminChatId,
           text: msg,
           parse_mode: 'HTML',
-          reply_markup: JSON.stringify({ inline_keyboard: btns })
+          reply_markup: JSON.stringify({ inline_keyboard: dbBtns })
         });
       }
     }
@@ -1625,7 +1629,8 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
       }
 
       if (isAdminBot && tgText === 'Админ-панель' && tgIsAdmin) {
-        var panelUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://') + '/admin';
+        var panelUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://') + '/admin?tg_auth=' + encodeURIComponent(String(tgChatId));
+        if (tgUsername) panelUrl += '&tg_user=' + encodeURIComponent(tgUsername);
         await tgCall('sendMessage', {
           chat_id: tgChatId,
           text: 'Нажмите кнопку ниже:',
