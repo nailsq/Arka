@@ -580,6 +580,10 @@ app.post('/api/abandoned-cart', async function (req, res) {
     user_id: userId,
     username: body.username ? '@' + body.username : null,
     phone: body.phone || '',
+    email: body.email || '',
+    step: Number(body.step) || 0,
+    step_name: body.step_name || '',
+    reason: body.reason || '',
     cart: cart,
     total: body.total || 0
   });

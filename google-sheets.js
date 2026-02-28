@@ -24,6 +24,18 @@ function formatSaratovDateTime(value) {
   return dt.toLocaleString('ru-RU', { timeZone: 'Europe/Saratov' });
 }
 
+function formatAbandonedStep(step, stepName) {
+  var n = Number(step) || 0;
+  var map = {
+    1: 'Шаг 1: Заказчик',
+    2: 'Шаг 2: Доставка',
+    3: 'Шаг 3: Получатель'
+  };
+  if (map[n]) return map[n];
+  if (stepName && String(stepName).trim()) return String(stepName).trim();
+  return 'Шаг не определён';
+}
+
 function getAuth() {
   var email = process.env.GOOGLE_SERVICE_EMAIL;
   var key = process.env.GOOGLE_PRIVATE_KEY;
@@ -170,7 +182,7 @@ async function appendAbandonedCart(data) {
       return c.name + ' × ' + c.quantity + ' = ' + (c.price * c.quantity) + ' ₽';
     }).join('\n');
 
-    var stepLabel = data.step_name || ('Шаг ' + (data.step || '?'));
+    var stepLabel = formatAbandonedStep(data.step, data.step_name);
 
     var row = [
       date,
