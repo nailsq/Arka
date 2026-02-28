@@ -1377,7 +1377,7 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
       await tgCall('answerCallbackQuery', { callback_query_id: cbq.id });
 
       if (cbData.indexOf('reply_') === 0) {
-        if (!isAdminBot) return;
+        if (isAdminBot) return;
         var targetChatId = cbData.replace('reply_', '');
         adminReplyState[String(cbChatId)] = targetChatId;
         await tgCall('sendMessage', {
@@ -1401,7 +1401,7 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
           chat_id: tgChatId,
           text: '<b>\u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u043e\u0432\u0430\u0442\u044c \u0432 ARKA STUDIO FLOWERS!</b>\n\n\u0417\u0434\u0435\u0441\u044c \u0432\u044b \u043c\u043e\u0436\u0435\u0442\u0435 \u0437\u0430\u043a\u0430\u0437\u0430\u0442\u044c \u043a\u0440\u0430\u0441\u0438\u0432\u044b\u0435 \u0431\u0443\u043a\u0435\u0442\u044b \u0438 \u0446\u0432\u0435\u0442\u043e\u0447\u043d\u044b\u0435 \u043a\u043e\u043c\u043f\u043e\u0437\u0438\u0446\u0438\u0438.\n\n\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439\u0442\u0435 \u043a\u043d\u043e\u043f\u043a\u0438 \u043d\u0438\u0436\u0435 \u0438\u043b\u0438 \u043d\u0430\u0436\u043c\u0438\u0442\u0435 \u041a\u0410\u0422\u0410\u041b\u041e\u0413 \u0434\u043b\u044f \u043e\u0442\u043a\u0440\u044b\u0442\u0438\u044f \u043c\u0430\u0433\u0430\u0437\u0438\u043d\u0430.',
           parse_mode: 'HTML',
-          reply_markup: tgIsAdmin ? BOT_ADMIN_KEYBOARD : BOT_MAIN_KEYBOARD
+          reply_markup: (isAdminBot && tgIsAdmin) ? BOT_ADMIN_KEYBOARD : BOT_MAIN_KEYBOARD
         });
         return;
       }
@@ -1510,16 +1510,16 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
         return;
       }
 
-      if (isAdminBot && tgText === '/cancel' && tgIsAdmin) {
+      if (!isAdminBot && tgText === '/cancel' && tgIsAdmin) {
         delete adminReplyState[String(tgChatId)];
         await tgCall('sendMessage', { chat_id: tgChatId, text: '\u0420\u0435\u0436\u0438\u043c \u043e\u0442\u0432\u0435\u0442\u0430 \u043e\u0442\u043c\u0435\u043d\u0451\u043d.' });
         return;
       }
 
-      if (isAdminBot && tgIsAdmin && adminReplyState[String(tgChatId)]) {
+      if (!isAdminBot && tgIsAdmin && adminReplyState[String(tgChatId)]) {
         var replyTargetId = adminReplyState[String(tgChatId)];
         delete adminReplyState[String(tgChatId)];
-        await clientTelegramApiCall('sendMessage', {
+        await tgCall('sendMessage', {
           chat_id: replyTargetId,
           text: '<b>\u041e\u0442\u0432\u0435\u0442 \u043e\u0442 ARKA STUDIO:</b>\n\n' + tgText,
           parse_mode: 'HTML'
@@ -1543,7 +1543,7 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
         var replyBtns = [[{ text: '\u041e\u0442\u0432\u0435\u0442\u0438\u0442\u044c', callback_data: 'reply_' + tgChatId }]];
 
         for (var ai = 0; ai < ADMIN_TELEGRAM_IDS.length; ai++) {
-          await adminTelegramApiCall('sendMessage', {
+          await clientTelegramApiCall('sendMessage', {
             chat_id: ADMIN_TELEGRAM_IDS[ai],
             text: adminNotif,
             parse_mode: 'HTML',
@@ -1554,7 +1554,7 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
         var dbAdmins = await db.prepare('SELECT telegram_id FROM admin_users WHERE telegram_id IS NOT NULL').all();
         for (var di = 0; di < dbAdmins.length; di++) {
           if (!ADMIN_TELEGRAM_IDS.includes(dbAdmins[di].telegram_id)) {
-            await adminTelegramApiCall('sendMessage', {
+            await clientTelegramApiCall('sendMessage', {
               chat_id: dbAdmins[di].telegram_id,
               text: adminNotif,
               parse_mode: 'HTML',
