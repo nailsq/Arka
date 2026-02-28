@@ -2981,8 +2981,6 @@
         '<input type="text" id="addr-label" placeholder="Дом"></div>' +
         '<div class="form-group"><label>Город</label>' +
         '<input type="text" id="addr-city" value="' + escapeHtml(cityName) + '" placeholder="Город"></div>' +
-        '<div class="form-group"><label>Район</label>' +
-        '<input type="text" id="addr-district" placeholder="Район"></div>' +
         '<div class="form-group"><label>Улица, дом</label>' +
         '<input type="text" id="addr-street" placeholder="Улица, дом"></div>' +
         '<div class="form-group"><label>Квартира / офис</label>' +
@@ -2999,10 +2997,11 @@
   window.saveNewAddress = function () {
     var telegramId = getTelegramId();
     if (!telegramId) return;
-    var district = document.getElementById('addr-district').value.trim();
+    var districtEl = document.getElementById('addr-district');
+    var district = districtEl ? districtEl.value.trim() : '';
     var street = document.getElementById('addr-street').value.trim();
     var apt = document.getElementById('addr-apt').value.trim();
-    if (!district || !street || !apt) { showToast('Заполните район, улицу и квартиру'); return; }
+    if (!street || !apt) { showToast('Заполните улицу и квартиру'); return; }
     postJSON('/api/user/addresses', {
       telegram_id: telegramId,
       label: document.getElementById('addr-label').value.trim(),

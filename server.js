@@ -519,7 +519,8 @@ app.post('/api/user/addresses', async function (req, res) {
   var user = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
   if (!user) return res.status(404).json({ error: 'User not found' });
   var b = req.body;
-  var fullAddr = (b.city || '') + ', ' + (b.district || '') + ', ' + (b.street || '') + ', кв./оф. ' + (b.apartment || '') + (b.note ? ', ' + b.note : '');
+  var addrMain = [b.city || '', b.district || '', b.street || ''].map(function (x) { return String(x).trim(); }).filter(Boolean).join(', ');
+  var fullAddr = addrMain + (b.apartment ? ', кв./оф. ' + String(b.apartment).trim() : '') + (b.note ? ', ' + String(b.note).trim() : '');
   var r = await db.prepare('INSERT INTO user_addresses (user_id, label, city, district, street, apartment, note, full_address) VALUES (?,?,?,?,?,?,?,?)').run(
     user.id, b.label || '', b.city || '', b.district || '', b.street || '', b.apartment || '', b.note || '', fullAddr
   );
