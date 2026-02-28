@@ -13,7 +13,8 @@ var PORT = process.env.PORT || 3000;
 
 var ADMIN_LOGIN = process.env.ADMIN_LOGIN || 'admin';
 var ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
-var BOT_TOKEN = process.env.BOT_TOKEN || '';
+var CLIENT_BOT_TOKEN = process.env.CLIENT_BOT_TOKEN || process.env.BOT_TOKEN || '';
+var ADMIN_BOT_TOKEN = process.env.ADMIN_BOT_TOKEN || '';
 var PAYMENT_PROVIDER = process.env.PAYMENT_PROVIDER || 'test';
 var PUBLIC_URL = process.env.PUBLIC_URL || ('http://localhost:' + PORT);
 var ADMIN_TELEGRAM_IDS = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
@@ -90,12 +91,20 @@ function getTochkaJwt() {
   return envJwt || fileJwt || '';
 }
 
+function isRealBotToken(token) {
+  return !!token && token !== 'YOUR_BOT_TOKEN_HERE';
+}
+
+function getAdminBotToken() {
+  return isRealBotToken(ADMIN_BOT_TOKEN) ? ADMIN_BOT_TOKEN : CLIENT_BOT_TOKEN;
+}
+
 function sendTelegramMessage(chatId, text) {
-  if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE' || !chatId) return;
+  if (!isRealBotToken(CLIENT_BOT_TOKEN) || !chatId) return;
   var data = JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'HTML' });
   var options = {
     hostname: 'api.telegram.org',
-    path: '/bot' + BOT_TOKEN + '/sendMessage',
+    path: '/bot' + CLIENT_BOT_TOKEN + '/sendMessage',
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
   };
@@ -111,13 +120,13 @@ function sendTelegramMessage(chatId, text) {
 
 var adminReplyState = {};
 
-function telegramApiCall(method, body) {
+function telegramApiCallByToken(token, method, body, logPrefix) {
   return new Promise(function (resolve, reject) {
-    if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') return resolve(null);
+    if (!isRealBotToken(token)) return resolve(null);
     var data = JSON.stringify(body);
     var options = {
       hostname: 'api.telegram.org',
-      path: '/bot' + BOT_TOKEN + '/' + method,
+      path: '/bot' + token + '/' + method,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
     };
@@ -128,10 +137,18 @@ function telegramApiCall(method, body) {
         try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch (e) { resolve(null); }
       });
     });
-    req.on('error', function (err) { console.error('[TG API] Error:', err.message); resolve(null); });
+    req.on('error', function (err) { console.error((logPrefix || '[TG API]') + ' Error:', err.message); resolve(null); });
     req.write(data);
     req.end();
   });
+}
+
+function clientTelegramApiCall(method, body) {
+  return telegramApiCallByToken(CLIENT_BOT_TOKEN, method, body, '[TG Client API]');
+}
+
+function adminTelegramApiCall(method, body) {
+  return telegramApiCallByToken(getAdminBotToken(), method, body, '[TG Admin API]');
 }
 
 var BOT_MAIN_KEYBOARD = JSON.stringify({
@@ -190,7 +207,7 @@ async function buildPaymentNotification(order) {
 }
 
 async function notifyAdminsNewOrder(order) {
-  if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') return;
+  if (!isRealBotToken(getAdminBotToken())) return;
   try {
     var items = await db.prepare(
       'SELECT oi.*, p.name as product_name FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?'
@@ -220,7 +237,7 @@ async function notifyAdminsNewOrder(order) {
     var btns = [[{ text: '\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0437\u0430\u043a\u0430\u0437', url: adminUrl }]];
 
     for (var a = 0; a < ADMIN_TELEGRAM_IDS.length; a++) {
-      await telegramApiCall('sendMessage', {
+      await adminTelegramApiCall('sendMessage', {
         chat_id: ADMIN_TELEGRAM_IDS[a],
         text: msg,
         parse_mode: 'HTML',
@@ -231,7 +248,7 @@ async function notifyAdminsNewOrder(order) {
     var dbAdmins = await db.prepare('SELECT telegram_id FROM admin_users WHERE telegram_id IS NOT NULL').all();
     for (var d = 0; d < dbAdmins.length; d++) {
       if (!ADMIN_TELEGRAM_IDS.includes(dbAdmins[d].telegram_id)) {
-        await telegramApiCall('sendMessage', {
+        await adminTelegramApiCall('sendMessage', {
           chat_id: dbAdmins[d].telegram_id,
           text: msg,
           parse_mode: 'HTML',
@@ -247,7 +264,7 @@ async function notifyAdminsNewOrder(order) {
 
 
 function validateTelegramInitData(initData) {
-  if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') return null;
+  if (!isRealBotToken(CLIENT_BOT_TOKEN)) return null;
   try {
     var params = new URLSearchParams(initData);
     var hash = params.get('hash');
@@ -256,7 +273,7 @@ function validateTelegramInitData(initData) {
     params.forEach(function (v, k) { entries.push(k + '=' + v); });
     entries.sort();
     var dataCheckString = entries.join('\n');
-    var secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
+    var secretKey = crypto.createHmac('sha256', 'WebAppData').update(CLIENT_BOT_TOKEN).digest();
     var computed = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
     if (computed === hash) {
       var userStr = params.get('user');
@@ -443,7 +460,7 @@ app.post('/api/auth/telegram', async function (req, res) {
     return res.status(400).json({ error: 'telegram_id required' });
   }
 
-  if (BOT_TOKEN && BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE' && initData) {
+  if (isRealBotToken(CLIENT_BOT_TOKEN) && initData) {
     var validated = validateTelegramInitData(initData);
     if (!validated || String(validated.id) !== String(telegramId)) {
       return res.status(403).json({ error: 'Invalid init data' });
@@ -844,7 +861,7 @@ app.post('/api/payments/webhook', async function (req, res) {
             .run('Оплачен', order.id);
           console.log('[Webhook] Order #' + order.id + ' marked as paid');
 
-          if (BOT_TOKEN && order.user_id) {
+          if (isRealBotToken(CLIENT_BOT_TOKEN) && order.user_id) {
             try {
               var u = await db.prepare('SELECT telegram_id FROM users WHERE id = ?').get(order.user_id);
               if (u && u.telegram_id) {
@@ -1338,23 +1355,32 @@ app.post('/api/admin/orders/cleanup', adminAuth, async function (req, res) {
 // TELEGRAM BOT: Webhook handler
 // ============================================================
 
-app.post('/api/telegram/webhook', async function (req, res) {
+app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async function (req, res) {
   res.json({ ok: true });
 
   try {
     var update = req.body;
+    var botType = String(req.params.botType || 'client').toLowerCase();
+    var isAdminBot = botType === 'admin';
+    var activeBotToken = isAdminBot ? getAdminBotToken() : CLIENT_BOT_TOKEN;
+    if (!isRealBotToken(activeBotToken)) return;
+
+    async function tgCall(method, body) {
+      return telegramApiCallByToken(activeBotToken, method, body, isAdminBot ? '[TG Admin API]' : '[TG Client API]');
+    }
 
     if (update.callback_query) {
       var cbq = update.callback_query;
       var cbChatId = cbq.from.id;
       var cbData = cbq.data;
 
-      await telegramApiCall('answerCallbackQuery', { callback_query_id: cbq.id });
+      await tgCall('answerCallbackQuery', { callback_query_id: cbq.id });
 
       if (cbData.indexOf('reply_') === 0) {
+        if (!isAdminBot) return;
         var targetChatId = cbData.replace('reply_', '');
         adminReplyState[String(cbChatId)] = targetChatId;
-        await telegramApiCall('sendMessage', {
+        await tgCall('sendMessage', {
           chat_id: cbChatId,
           text: '\u041d\u0430\u043f\u0438\u0448\u0438\u0442\u0435 \u043e\u0442\u0432\u0435\u0442 \u2014 \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0435\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0431\u0443\u0434\u0435\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e \u043a\u043b\u0438\u0435\u043d\u0442\u0443.\n\n\u0414\u043b\u044f \u043e\u0442\u043c\u0435\u043d\u044b: /cancel'
         });
@@ -1371,7 +1397,7 @@ app.post('/api/telegram/webhook', async function (req, res) {
       var tgIsAdmin = await isAdminUser(String(tgChatId), tgUsername);
 
       if (tgText === '/start') {
-        await telegramApiCall('sendMessage', {
+        await tgCall('sendMessage', {
           chat_id: tgChatId,
           text: '<b>\u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u043e\u0432\u0430\u0442\u044c \u0432 ARKA STUDIO FLOWERS!</b>\n\n\u0417\u0434\u0435\u0441\u044c \u0432\u044b \u043c\u043e\u0436\u0435\u0442\u0435 \u0437\u0430\u043a\u0430\u0437\u0430\u0442\u044c \u043a\u0440\u0430\u0441\u0438\u0432\u044b\u0435 \u0431\u0443\u043a\u0435\u0442\u044b \u0438 \u0446\u0432\u0435\u0442\u043e\u0447\u043d\u044b\u0435 \u043a\u043e\u043c\u043f\u043e\u0437\u0438\u0446\u0438\u0438.\n\n\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439\u0442\u0435 \u043a\u043d\u043e\u043f\u043a\u0438 \u043d\u0438\u0436\u0435 \u0438\u043b\u0438 \u043d\u0430\u0436\u043c\u0438\u0442\u0435 \u041a\u0410\u0422\u0410\u041b\u041e\u0413 \u0434\u043b\u044f \u043e\u0442\u043a\u0440\u044b\u0442\u0438\u044f \u043c\u0430\u0433\u0430\u0437\u0438\u043d\u0430.',
           parse_mode: 'HTML',
@@ -1383,7 +1409,7 @@ app.post('/api/telegram/webhook', async function (req, res) {
       if (tgText === 'Мой заказ' || tgText === '/orders') {
         var ordUser = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(tgChatId));
         if (!ordUser) {
-          await telegramApiCall('sendMessage', { chat_id: tgChatId, text: 'У вас нет активных заказов.', reply_markup: BOT_MAIN_KEYBOARD });
+          await tgCall('sendMessage', { chat_id: tgChatId, text: 'У вас нет активных заказов.', reply_markup: BOT_MAIN_KEYBOARD });
           return;
         }
         var activeStatuses = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Готов к выдаче'];
@@ -1392,7 +1418,7 @@ app.post('/api/telegram/webhook', async function (req, res) {
         ).get(ordUser.id);
 
         if (!activeOrder) {
-          await telegramApiCall('sendMessage', { chat_id: tgChatId, text: 'У вас нет активных заказов.', reply_markup: BOT_MAIN_KEYBOARD });
+          await tgCall('sendMessage', { chat_id: tgChatId, text: 'У вас нет активных заказов.', reply_markup: BOT_MAIN_KEYBOARD });
           return;
         }
 
@@ -1423,11 +1449,11 @@ app.post('/api/telegram/webhook', async function (req, res) {
           }
         }
 
-        await telegramApiCall('sendMessage', { chat_id: tgChatId, text: ordMsg, parse_mode: 'HTML', reply_markup: BOT_MAIN_KEYBOARD });
+        await tgCall('sendMessage', { chat_id: tgChatId, text: ordMsg, parse_mode: 'HTML', reply_markup: BOT_MAIN_KEYBOARD });
         return;
       }
       if (tgText === '\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438') {
-        await telegramApiCall('sendMessage', {
+        await tgCall('sendMessage', {
           chat_id: tgChatId,
           text: '<b>\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438</b>\n\n\u041d\u0430\u043f\u0438\u0448\u0438\u0442\u0435 \u0432\u0430\u0448\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u043f\u0440\u044f\u043c\u043e \u0441\u044e\u0434\u0430 \u2014 \u043c\u044b \u043f\u043e\u043b\u0443\u0447\u0438\u043c \u0435\u0433\u043e \u0438 \u043e\u0442\u0432\u0435\u0442\u0438\u043c \u0432\u0430\u043c!',
           parse_mode: 'HTML',
@@ -1441,12 +1467,12 @@ app.post('/api/telegram/webhook', async function (req, res) {
         if (!aboutText) {
           aboutText = '<b>ARKA STUDIO FLOWERS</b>\n\n\u041c\u044b \u0441\u043e\u0437\u0434\u0430\u0451\u043c \u043a\u0440\u0430\u0441\u0438\u0432\u044b\u0435 \u0431\u0443\u043a\u0435\u0442\u044b \u0438 \u0446\u0432\u0435\u0442\u043e\u0447\u043d\u044b\u0435 \u043a\u043e\u043c\u043f\u043e\u0437\u0438\u0446\u0438\u0438.\n\n\u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u041a\u0410\u0422\u0410\u041b\u041e\u0413, \u0447\u0442\u043e\u0431\u044b \u043f\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u0442\u044c \u043d\u0430\u0448\u0438 \u0440\u0430\u0431\u043e\u0442\u044b!';
         }
-        await telegramApiCall('sendMessage', { chat_id: tgChatId, text: aboutText, parse_mode: 'HTML', reply_markup: BOT_MAIN_KEYBOARD });
+        await tgCall('sendMessage', { chat_id: tgChatId, text: aboutText, parse_mode: 'HTML', reply_markup: BOT_MAIN_KEYBOARD });
         return;
       }
 
       if (tgText === '/help') {
-        await telegramApiCall('sendMessage', {
+        await tgCall('sendMessage', {
           chat_id: tgChatId,
           text: '<b>\u041f\u043e\u043c\u043e\u0449\u044c</b>\n\n\u041a\u0410\u0422\u0410\u041b\u041e\u0413 \u2014 \u043e\u0442\u043a\u0440\u043e\u0435\u0442\u0441\u044f \u043c\u0430\u0433\u0430\u0437\u0438\u043d\n\u041c\u043e\u0438 \u0437\u0430\u043a\u0430\u0437\u044b \u2014 \u0441\u0442\u0430\u0442\u0443\u0441 \u0437\u0430\u043a\u0430\u0437\u043e\u0432\n\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438 \u2014 \u043d\u0430\u043f\u0438\u0441\u0430\u0442\u044c \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435\n\u041e \u043d\u0430\u0441 \u2014 \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f\n\n\u0418\u043b\u0438 \u043f\u0440\u043e\u0441\u0442\u043e \u043d\u0430\u043f\u0438\u0448\u0438\u0442\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u2014 \u043c\u044b \u043e\u0442\u0432\u0435\u0442\u0438\u043c!',
           parse_mode: 'HTML',
@@ -1455,12 +1481,12 @@ app.post('/api/telegram/webhook', async function (req, res) {
         return;
       }
 
-      if (tgText === 'Новые заказы' && tgIsAdmin) {
+      if (isAdminBot && tgText === 'Новые заказы' && tgIsAdmin) {
         var pendingOrders = await db.prepare(
           "SELECT * FROM orders WHERE status IN ('Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Готов к выдаче') ORDER BY created_at DESC LIMIT 10"
         ).all();
         if (!pendingOrders.length) {
-          await telegramApiCall('sendMessage', { chat_id: tgChatId, text: 'Активных заказов нет.', reply_markup: BOT_ADMIN_KEYBOARD });
+          await tgCall('sendMessage', { chat_id: tgChatId, text: 'Активных заказов нет.', reply_markup: BOT_ADMIN_KEYBOARD });
           return;
         }
         var aMsg = '<b>Активные заказы (' + pendingOrders.length + '):</b>\n\n';
@@ -1468,13 +1494,13 @@ app.post('/api/telegram/webhook', async function (req, res) {
           var po = pendingOrders[pi];
           aMsg += '#' + po.id + ' | ' + (po.user_name || '-') + ' | ' + (po.status || 'Новый') + ' | ' + po.total_amount + ' руб.\n';
         }
-        await telegramApiCall('sendMessage', { chat_id: tgChatId, text: aMsg, parse_mode: 'HTML', reply_markup: BOT_ADMIN_KEYBOARD });
+        await tgCall('sendMessage', { chat_id: tgChatId, text: aMsg, parse_mode: 'HTML', reply_markup: BOT_ADMIN_KEYBOARD });
         return;
       }
 
-      if (tgText === 'Админ-панель' && tgIsAdmin) {
+      if (isAdminBot && tgText === 'Админ-панель' && tgIsAdmin) {
         var panelUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://') + '/admin';
-        await telegramApiCall('sendMessage', {
+        await tgCall('sendMessage', {
           chat_id: tgChatId,
           text: 'Нажмите кнопку ниже:',
           reply_markup: JSON.stringify({
@@ -1484,21 +1510,21 @@ app.post('/api/telegram/webhook', async function (req, res) {
         return;
       }
 
-      if (tgText === '/cancel' && tgIsAdmin) {
+      if (isAdminBot && tgText === '/cancel' && tgIsAdmin) {
         delete adminReplyState[String(tgChatId)];
-        await telegramApiCall('sendMessage', { chat_id: tgChatId, text: '\u0420\u0435\u0436\u0438\u043c \u043e\u0442\u0432\u0435\u0442\u0430 \u043e\u0442\u043c\u0435\u043d\u0451\u043d.' });
+        await tgCall('sendMessage', { chat_id: tgChatId, text: '\u0420\u0435\u0436\u0438\u043c \u043e\u0442\u0432\u0435\u0442\u0430 \u043e\u0442\u043c\u0435\u043d\u0451\u043d.' });
         return;
       }
 
-      if (tgIsAdmin && adminReplyState[String(tgChatId)]) {
+      if (isAdminBot && tgIsAdmin && adminReplyState[String(tgChatId)]) {
         var replyTargetId = adminReplyState[String(tgChatId)];
         delete adminReplyState[String(tgChatId)];
-        await telegramApiCall('sendMessage', {
+        await clientTelegramApiCall('sendMessage', {
           chat_id: replyTargetId,
           text: '<b>\u041e\u0442\u0432\u0435\u0442 \u043e\u0442 ARKA STUDIO:</b>\n\n' + tgText,
           parse_mode: 'HTML'
         });
-        await telegramApiCall('sendMessage', {
+        await tgCall('sendMessage', {
           chat_id: tgChatId,
           text: '\u0421\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e \u043a\u043b\u0438\u0435\u043d\u0442\u0443!'
         });
@@ -1517,7 +1543,7 @@ app.post('/api/telegram/webhook', async function (req, res) {
         var replyBtns = [[{ text: '\u041e\u0442\u0432\u0435\u0442\u0438\u0442\u044c', callback_data: 'reply_' + tgChatId }]];
 
         for (var ai = 0; ai < ADMIN_TELEGRAM_IDS.length; ai++) {
-          await telegramApiCall('sendMessage', {
+          await adminTelegramApiCall('sendMessage', {
             chat_id: ADMIN_TELEGRAM_IDS[ai],
             text: adminNotif,
             parse_mode: 'HTML',
@@ -1528,7 +1554,7 @@ app.post('/api/telegram/webhook', async function (req, res) {
         var dbAdmins = await db.prepare('SELECT telegram_id FROM admin_users WHERE telegram_id IS NOT NULL').all();
         for (var di = 0; di < dbAdmins.length; di++) {
           if (!ADMIN_TELEGRAM_IDS.includes(dbAdmins[di].telegram_id)) {
-            await telegramApiCall('sendMessage', {
+            await adminTelegramApiCall('sendMessage', {
               chat_id: dbAdmins[di].telegram_id,
               text: adminNotif,
               parse_mode: 'HTML',
@@ -1537,7 +1563,7 @@ app.post('/api/telegram/webhook', async function (req, res) {
           }
         }
 
-        await telegramApiCall('sendMessage', {
+        await tgCall('sendMessage', {
           chat_id: tgChatId,
           text: '\u0412\u0430\u0448\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u043f\u043e\u043b\u0443\u0447\u0435\u043d\u043e! \u041c\u044b \u043e\u0442\u0432\u0435\u0442\u0438\u043c \u0432\u0430\u043c \u0432 \u0431\u043b\u0438\u0436\u0430\u0439\u0448\u0435\u0435 \u0432\u0440\u0435\u043c\u044f.',
           reply_markup: BOT_MAIN_KEYBOARD
@@ -1600,8 +1626,8 @@ async function start() {
       console.warn('[Tochka] Webhook registration skipped: missing/invalid JWT or client config.');
     }
 
-    if (BOT_TOKEN && BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE' && PUBLIC_URL) {
-      setTimeout(function () { registerTelegramBotWebhook(); }, 3000);
+    if ((isRealBotToken(CLIENT_BOT_TOKEN) || isRealBotToken(getAdminBotToken())) && PUBLIC_URL) {
+      setTimeout(function () { registerTelegramBotWebhooks(); }, 3000);
     }
   });
 }
@@ -1637,22 +1663,41 @@ async function registerTochkaWebhook() {
   }
 }
 
-async function registerTelegramBotWebhook() {
+async function registerTelegramBotWebhooks() {
   try {
-    var webhookUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://') + '/api/telegram/webhook';
-    console.log('[TG Bot] Setting webhook: ' + webhookUrl);
+    var baseUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://');
+    if (isRealBotToken(CLIENT_BOT_TOKEN)) {
+      var clientWebhookUrl = baseUrl + '/api/telegram/webhook/client';
+      console.log('[TG Client Bot] Setting webhook: ' + clientWebhookUrl);
+      var clientResult = await telegramApiCallByToken(CLIENT_BOT_TOKEN, 'setWebhook', { url: clientWebhookUrl }, '[TG Client API]');
+      console.log('[TG Client Bot] Webhook result:', JSON.stringify(clientResult));
 
-    var result = await telegramApiCall('setWebhook', { url: webhookUrl });
-    console.log('[TG Bot] Webhook result:', JSON.stringify(result));
+      await telegramApiCallByToken(CLIENT_BOT_TOKEN, 'setMyCommands', {
+        commands: [
+          { command: 'start', description: 'Главное меню' },
+          { command: 'orders', description: 'Мой заказ' },
+          { command: 'help', description: 'Помощь' }
+        ]
+      }, '[TG Client API]');
+      console.log('[TG Client Bot] Commands set');
+    }
 
-    await telegramApiCall('setMyCommands', {
-      commands: [
-        { command: 'start', description: 'Главное меню' },
-        { command: 'orders', description: 'Мой заказ' },
-        { command: 'help', description: 'Помощь' }
-      ]
-    });
-    console.log('[TG Bot] Commands set');
+    var adminToken = getAdminBotToken();
+    if (isRealBotToken(adminToken)) {
+      var adminWebhookUrl = baseUrl + '/api/telegram/webhook/admin';
+      console.log('[TG Admin Bot] Setting webhook: ' + adminWebhookUrl);
+      var adminResult = await telegramApiCallByToken(adminToken, 'setWebhook', { url: adminWebhookUrl }, '[TG Admin API]');
+      console.log('[TG Admin Bot] Webhook result:', JSON.stringify(adminResult));
+
+      await telegramApiCallByToken(adminToken, 'setMyCommands', {
+        commands: [
+          { command: 'start', description: 'Меню' },
+          { command: 'orders', description: 'Заказы' },
+          { command: 'help', description: 'Помощь' }
+        ]
+      }, '[TG Admin API]');
+      console.log('[TG Admin Bot] Commands set');
+    }
   } catch (err) {
     console.error('[TG Bot] Setup error:', err.message);
   }

@@ -5,6 +5,25 @@ var SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID || '';
 var SHEET_DELIVERY = 'Доставка';
 var SHEET_PICKUP = 'Самовывоз';
 
+function formatSaratovDateTime(value) {
+  var dt = null;
+  if (value) {
+    var src = String(value).trim();
+    // SQLite CURRENT_TIMESTAMP usually stores UTC as "YYYY-MM-DD HH:MM:SS".
+    // Convert explicitly to ISO UTC to avoid locale-dependent parsing shifts.
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(src)) {
+      dt = new Date(src.replace(' ', 'T') + 'Z');
+    } else {
+      dt = new Date(src);
+    }
+  } else {
+    dt = new Date();
+  }
+
+  if (!dt || isNaN(dt.getTime())) dt = new Date();
+  return dt.toLocaleString('ru-RU', { timeZone: 'Europe/Saratov' });
+}
+
 function getAuth() {
   var email = process.env.GOOGLE_SERVICE_EMAIL;
   var key = process.env.GOOGLE_PRIVATE_KEY;
@@ -75,11 +94,7 @@ async function appendOrder(order, items) {
 
     await ensureHeaders(api, sheetName);
 
-    var date = order.created_at || new Date().toISOString();
-    try {
-      var d = new Date(date);
-      date = d.toLocaleString('ru-RU', { timeZone: 'Europe/Saratov' });
-    } catch (e) {}
+    var date = formatSaratovDateTime(order.created_at);
 
     var row = [
       order.id,
@@ -150,7 +165,7 @@ async function appendAbandonedCart(data) {
 
     await ensureAbandonedHeaders(api);
 
-    var date = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Saratov' });
+    var date = formatSaratovDateTime(null);
     var items = (data.cart || []).map(function (c) {
       return c.name + ' × ' + c.quantity + ' = ' + (c.price * c.quantity) + ' ₽';
     }).join('\n');
