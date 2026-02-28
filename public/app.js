@@ -2888,16 +2888,74 @@
         el.innerHTML = '<div class="empty-state" style="padding:12px">Заказов пока нет</div>';
         return;
       }
-      el.innerHTML = orders.map(function (o) {
-        return '<div class="order-card-mini">' +
-          '<div class="order-card-header">' +
-            '<span class="order-card-id">N ' + o.id + '</span>' +
-            '<span class="order-card-status">' + escapeHtml(o.status) + '</span>' +
+      var deliveryOrders = orders.filter(function (o) { return o.delivery_type !== 'pickup'; });
+      var pickupOrders = orders.filter(function (o) { return o.delivery_type === 'pickup'; });
+
+      function renderHistoryCard(o) {
+        var steps = getTrackSteps(o);
+        var currentIdx = steps.indexOf(o.status);
+        if (o.status === 'Выполнен') currentIdx = steps.length - 1;
+        else if (currentIdx < 0) currentIdx = -1;
+
+        var timelineHtml = '';
+        steps.forEach(function (step, idx) {
+          if (idx > 0) timelineHtml += '<div class="timeline-line' + (idx <= currentIdx ? ' filled' : '') + '"></div>';
+          var cls = 'timeline-step';
+          if (idx < currentIdx) cls += ' done';
+          if (idx === currentIdx) cls += ' current';
+          timelineHtml += '<div class="' + cls + '"><div class="timeline-dot"></div><div class="timeline-label">' + escapeHtml(step) + '</div></div>';
+        });
+
+        var isPickup = o.delivery_type === 'pickup';
+        var timeInfo = '';
+        if (isPickup && o.delivery_date) {
+          timeInfo = '<div class="track-time-info">Готовность: ' + escapeHtml(o.delivery_date) +
+            (o.delivery_interval ? ', ' + escapeHtml(o.delivery_interval) : '') + '</div>';
+        } else if (!isPickup && o.delivery_date) {
+          timeInfo = '<div class="track-time-info">Доставка: ' + escapeHtml(o.delivery_date) +
+            (o.exact_time ? ' к ' + escapeHtml(o.exact_time) : (o.delivery_interval ? ', ' + escapeHtml(o.delivery_interval) : '')) + '</div>';
+        }
+
+        var addressInfo = '';
+        if (isPickup) {
+          addressInfo = '<div class="track-detail-row"><span class="track-detail-label">Самовывоз</span></div>';
+        } else if (o.delivery_address) {
+          addressInfo = '<div class="track-detail-row"><span class="track-detail-label">Адрес:</span> ' + escapeHtml(o.delivery_address) + '</div>';
+        }
+        var receiverInfo = '';
+        if (o.receiver_name) {
+          receiverInfo = '<div class="track-detail-row"><span class="track-detail-label">Получатель:</span> ' + escapeHtml(o.receiver_name) + (o.receiver_phone ? ', ' + escapeHtml(o.receiver_phone) : '') + '</div>';
+        }
+
+        return '<div class="track-card-mini" onclick="toggleOrderDetail(this)">' +
+          '<div class="track-header"><span class="track-id">Заказ #' + o.id + '</span><span class="track-status-badge">' + escapeHtml(o.status) + '</span></div>' +
+          '<div class="track-status-row"><span class="track-total">' + formatPrice(o.total_amount) + '</span></div>' +
+          '<div class="track-time-info">Создан: ' + formatDate(o.created_at) + '</div>' +
+          timeInfo +
+          '<div class="timeline">' + timelineHtml + '</div>' +
+          '<div class="track-order-details" style="display:none">' +
+            addressInfo +
+            receiverInfo +
+            (o.comment ? '<div class="track-detail-row"><span class="track-detail-label">Комментарий:</span> ' + escapeHtml(o.comment) + '</div>' : '') +
+            (o.delivery_cost ? '<div class="track-detail-row" style="margin-top:6px"><span class="track-detail-label">Доставка:</span> ' + formatPrice(o.delivery_cost) + '</div>' : '') +
           '</div>' +
-          '<div class="order-card-date">' + formatDate(o.created_at) + '</div>' +
-          '<div class="order-card-total">' + formatPrice(o.total_amount) + '</div>' +
         '</div>';
-      }).join('');
+      }
+
+      var html = '';
+      if (deliveryOrders.length) {
+        html += '<div class="orders-split-section">' +
+          '<div class="orders-split-title">Доставка</div>' +
+          deliveryOrders.map(renderHistoryCard).join('') +
+        '</div>';
+      }
+      if (pickupOrders.length) {
+        html += '<div class="orders-split-section">' +
+          '<div class="orders-split-title">Самовывоз</div>' +
+          pickupOrders.map(renderHistoryCard).join('') +
+        '</div>';
+      }
+      el.innerHTML = html;
     });
   }
 
