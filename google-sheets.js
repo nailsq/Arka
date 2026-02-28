@@ -36,6 +36,14 @@ function formatAbandonedStep(step, stepName) {
   return 'Шаг не определён';
 }
 
+function formatAbandonedReason(reason, stepLabel) {
+  var r = String(reason || '').trim();
+  if (!r) return 'Клиент прервал оформление на этапе "' + stepLabel + '"';
+  if (r === 'Бездействие 10 мин') return 'Клиент неактивен 10 минут на этапе "' + stepLabel + '"';
+  if (r === 'Свернул/закрыл приложение') return 'Клиент свернул или закрыл мини-приложение на этапе "' + stepLabel + '"';
+  return r + ' (этап: "' + stepLabel + '")';
+}
+
 function getAuth() {
   var email = process.env.GOOGLE_SERVICE_EMAIL;
   var key = process.env.GOOGLE_PRIVATE_KEY;
@@ -184,6 +192,8 @@ async function appendAbandonedCart(data) {
 
     var stepLabel = formatAbandonedStep(data.step, data.step_name);
 
+    var reasonLabel = formatAbandonedReason(data.reason, stepLabel);
+
     var row = [
       date,
       data.username || '—',
@@ -191,7 +201,7 @@ async function appendAbandonedCart(data) {
       data.email || '—',
       String(data.user_id || ''),
       stepLabel,
-      data.reason || '—',
+      reasonLabel,
       items,
       data.total || 0
     ];
