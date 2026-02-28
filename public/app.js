@@ -730,6 +730,7 @@
       postJSON('/api/auth/telegram', {
         telegram_id: tgUser.id,
         first_name: tgUser.first_name || '',
+        username: tgUser.username || '',
         init_data: tg ? tg.initData : ''
       }).then(function (r) {
         if (r && r.user) {

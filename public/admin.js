@@ -1952,7 +1952,8 @@
       h += '<div class="card-header"><span class="card-title">Администраторы</span></div>';
       h += '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">' +
         'Добавляйте администраторов по их Telegram username. Они получат доступ к админ-панели при входе через Telegram.<br>' +
-        '<b>Чистка</b> — разрешение на удаление старых заказов (раздел в Настройках). По умолчанию выключено.</div>';
+        '<b>Чистка</b> — разрешение на удаление старых заказов (раздел в Настройках). По умолчанию выключено.<br>' +
+        '<b>Сообщения</b> — разрешение на команды в клиентском боте: <code>/msg</code> и <code>/broadcast</code>.</div>';
 
       h += '<form onsubmit="addAdmin(event)" class="admin-add-form">' +
         '<div class="form-group" style="flex:1;margin-bottom:0">' +
@@ -1970,6 +1971,9 @@
           var deleteToggle = a.can_delete_orders
             ? '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#e8d5f5;color:#5b2d8e;border-color:#d4b3e8;margin-right:6px" onclick="toggleAdminDeletePerm(' + a.id + ',0)">Чистка ✓</button>'
             : '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#f5f5f5;color:#999;border-color:#e0e0e0;margin-right:6px" onclick="toggleAdminDeletePerm(' + a.id + ',1)">Чистка</button>';
+          var messageToggle = a.can_message_users
+            ? '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#d9f2e2;color:#1e7a44;border-color:#b7e5c9;margin-right:6px" onclick="toggleAdminMessagePerm(' + a.id + ',0)">Сообщения ✓</button>'
+            : '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#f5f5f5;color:#999;border-color:#e0e0e0;margin-right:6px" onclick="toggleAdminMessagePerm(' + a.id + ',1)">Сообщения</button>';
           h += '<div class="admin-list-item" id="admin-row-' + a.id + '">' +
             '<div class="admin-list-info">' +
               '<div class="admin-list-username">@' + esc(a.telegram_username) + '</div>' +
@@ -1979,6 +1983,7 @@
               '</div>' +
             '</div>' +
             '<div style="display:flex;align-items:center">' +
+              messageToggle +
               deleteToggle +
               '<button class="btn btn-sm btn-danger" onclick="removeAdmin(' + a.id + ',\'' + esc(a.telegram_username) + '\')">Удалить</button>' +
             '</div>' +
@@ -2015,6 +2020,13 @@
   window.toggleAdminDeletePerm = function (id, newValue) {
     api('PUT', '/api/admin/admins/' + id + '/permissions', { can_delete_orders: newValue }).then(function () {
       adminToast(newValue ? 'Право на чистку заказов выдано' : 'Право на чистку заказов отозвано', 'success');
+      loadAdmins();
+    });
+  };
+
+  window.toggleAdminMessagePerm = function (id, newValue) {
+    api('PUT', '/api/admin/admins/' + id + '/permissions', { can_message_users: newValue }).then(function () {
+      adminToast(newValue ? 'Право на /msg и /broadcast выдано' : 'Право на /msg и /broadcast отозвано', 'success');
       loadAdmins();
     });
   };

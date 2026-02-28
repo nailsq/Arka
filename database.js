@@ -186,6 +186,8 @@ async function init() {
   addColumnIfMissing('product_sizes', 'image_url', "TEXT DEFAULT ''");
   addColumnIfMissing('orders', 'delivery_distance', 'REAL DEFAULT 0');
   addColumnIfMissing('admin_users', 'can_delete_orders', 'INTEGER DEFAULT 0');
+  addColumnIfMissing('admin_users', 'can_message_users', 'INTEGER DEFAULT 0');
+  addColumnIfMissing('users', 'telegram_username', 'TEXT');
 
   var cityCount = getDb().prepare('SELECT COUNT(*) as cnt FROM cities').get();
   if (!cityCount || cityCount.cnt === 0) {

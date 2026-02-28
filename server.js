@@ -309,6 +309,22 @@ function isSuperAdmin(telegramId) {
   return ADMIN_TELEGRAM_IDS.includes(String(telegramId));
 }
 
+async function canUseBroadcastTools(telegramId, username) {
+  if (isSuperAdmin(telegramId)) return true;
+  var clean = (username || '').replace(/^@/, '').toLowerCase();
+  var row = await db.prepare(
+    'SELECT can_message_users FROM admin_users WHERE telegram_id = ? OR LOWER(telegram_username) = ?'
+  ).get(String(telegramId), clean);
+  return !!(row && row.can_message_users);
+}
+
+function escapeHtmlText(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function superAdminAuth(req, res, next) {
   var token = req.headers['x-admin-token'];
   if (!token || !adminTokens.has(token)) {
@@ -454,6 +470,7 @@ app.get('/api/settings', async function (req, res) {
 app.post('/api/auth/telegram', async function (req, res) {
   var telegramId = req.body.telegram_id;
   var firstName = req.body.first_name || '';
+  var telegramUsername = (req.body.username || '').replace(/^@/, '').trim().toLowerCase();
   var initData = req.body.init_data || '';
 
   if (!telegramId) {
@@ -469,14 +486,17 @@ app.post('/api/auth/telegram', async function (req, res) {
 
   var existing = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
   if (existing) {
-    if (firstName && firstName !== existing.first_name) {
-      await db.prepare('UPDATE users SET first_name = ? WHERE id = ?').run(firstName, existing.id);
-      existing.first_name = firstName;
+    if ((firstName && firstName !== existing.first_name) || telegramUsername !== (existing.telegram_username || '')) {
+      await db.prepare('UPDATE users SET first_name = ?, telegram_username = ? WHERE id = ?')
+        .run(firstName || existing.first_name || '', telegramUsername, existing.id);
+      if (firstName) existing.first_name = firstName;
+      existing.telegram_username = telegramUsername;
     }
     return res.json({ user: existing });
   }
 
-  var info = await db.prepare('INSERT INTO users (telegram_id, first_name) VALUES (?, ?)').run(String(telegramId), firstName);
+  var info = await db.prepare('INSERT INTO users (telegram_id, first_name, telegram_username) VALUES (?, ?, ?)')
+    .run(String(telegramId), firstName, telegramUsername);
   var user = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
   res.json({ user: user });
 });
@@ -925,16 +945,21 @@ app.post('/api/admin/telegram-login', async function (req, res) {
     }
   }
   var canDelete = false;
+  var canMessageUsers = false;
   if (!isSuperAdmin(telegramId)) {
     var clean2 = (username || '').replace(/^@/, '').toLowerCase();
-    var adminRow = await db.prepare('SELECT can_delete_orders FROM admin_users WHERE telegram_id = ? OR LOWER(telegram_username) = ?').get(String(telegramId), clean2);
-    if (adminRow) canDelete = !!adminRow.can_delete_orders;
+    var adminRow = await db.prepare('SELECT can_delete_orders, can_message_users FROM admin_users WHERE telegram_id = ? OR LOWER(telegram_username) = ?').get(String(telegramId), clean2);
+    if (adminRow) {
+      canDelete = !!adminRow.can_delete_orders;
+      canMessageUsers = !!adminRow.can_message_users;
+    }
   } else {
     canDelete = true;
+    canMessageUsers = true;
   }
   var token = crypto.randomBytes(32).toString('hex');
   adminTokens.add(token);
-  res.json({ token: token, is_super_admin: isSuperAdmin(telegramId), can_delete_orders: canDelete });
+  res.json({ token: token, is_super_admin: isSuperAdmin(telegramId), can_delete_orders: canDelete, can_message_users: canMessageUsers });
 });
 
 app.get('/api/user/is-admin', async function (req, res) {
@@ -1314,8 +1339,12 @@ app.put('/api/admin/admins/:id/permissions', adminAuth, async function (req, res
   if (!isSuperAdmin(telegramId)) {
     return res.status(403).json({ error: 'Super admin only' });
   }
-  var canDelete = parseInt(req.body.can_delete_orders) ? 1 : 0;
-  await db.prepare('UPDATE admin_users SET can_delete_orders = ? WHERE id = ?').run(canDelete, req.params.id);
+  var existingPerms = await db.prepare('SELECT can_delete_orders, can_message_users FROM admin_users WHERE id = ?').get(req.params.id);
+  if (!existingPerms) return res.status(404).json({ error: 'Admin not found' });
+  var canDelete = (req.body.can_delete_orders === undefined) ? (existingPerms.can_delete_orders ? 1 : 0) : (parseInt(req.body.can_delete_orders) ? 1 : 0);
+  var canMessageUsers = (req.body.can_message_users === undefined) ? (existingPerms.can_message_users ? 1 : 0) : (parseInt(req.body.can_message_users) ? 1 : 0);
+  await db.prepare('UPDATE admin_users SET can_delete_orders = ?, can_message_users = ? WHERE id = ?')
+    .run(canDelete, canMessageUsers, req.params.id);
   res.json({ ok: true });
 });
 
@@ -1401,6 +1430,13 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
       var tgUsername = (tgMsg.from && tgMsg.from.username) || '';
       var tgIsAdmin = await isAdminUser(String(tgChatId), tgUsername);
 
+      try {
+        await db.prepare(
+          "INSERT INTO users (telegram_id, first_name, telegram_username) VALUES (?, ?, ?) " +
+          "ON CONFLICT(telegram_id) DO UPDATE SET first_name=excluded.first_name, telegram_username=excluded.telegram_username"
+        ).run(String(tgChatId), tgFirstName, (tgUsername || '').toLowerCase());
+      } catch (e) {}
+
       if (tgText === '/start') {
         await tgCall('sendMessage', {
           chat_id: tgChatId,
@@ -1482,6 +1518,79 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
           text: '<b>\u041f\u043e\u043c\u043e\u0449\u044c</b>\n\n\u041a\u0410\u0422\u0410\u041b\u041e\u0413 \u2014 \u043e\u0442\u043a\u0440\u043e\u0435\u0442\u0441\u044f \u043c\u0430\u0433\u0430\u0437\u0438\u043d\n\u041c\u043e\u0438 \u0437\u0430\u043a\u0430\u0437\u044b \u2014 \u0441\u0442\u0430\u0442\u0443\u0441 \u0437\u0430\u043a\u0430\u0437\u043e\u0432\n\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438 \u2014 \u043d\u0430\u043f\u0438\u0441\u0430\u0442\u044c \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435\n\u041e \u043d\u0430\u0441 \u2014 \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f\n\n\u0418\u043b\u0438 \u043f\u0440\u043e\u0441\u0442\u043e \u043d\u0430\u043f\u0438\u0448\u0438\u0442\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u2014 \u043c\u044b \u043e\u0442\u0432\u0435\u0442\u0438\u043c!',
           parse_mode: 'HTML',
           reply_markup: BOT_MAIN_KEYBOARD
+        });
+        return;
+      }
+
+      if (!isAdminBot && tgIsAdmin && tgText.indexOf('/msg ') === 0) {
+        if (!(await canUseBroadcastTools(String(tgChatId), tgUsername))) {
+          await tgCall('sendMessage', { chat_id: tgChatId, text: 'Нет прав для /msg. Обратитесь к главному администратору.' });
+          return;
+        }
+        var msgMatch = tgText.match(/^\/msg\s+(@?[A-Za-z0-9_]{3,}|[0-9]{5,})\s+([\s\S]+)$/);
+        if (!msgMatch) {
+          await tgCall('sendMessage', { chat_id: tgChatId, text: 'Формат: /msg @username Текст сообщения' });
+          return;
+        }
+        var targetRaw = msgMatch[1].trim();
+        var outText = msgMatch[2].trim();
+        if (!outText) {
+          await tgCall('sendMessage', { chat_id: tgChatId, text: 'Текст сообщения пустой.' });
+          return;
+        }
+        var targetUser = null;
+        if (/^\d+$/.test(targetRaw)) {
+          targetUser = await db.prepare('SELECT telegram_id, telegram_username FROM users WHERE telegram_id = ?').get(targetRaw);
+        } else {
+          var cleanUsername = targetRaw.replace(/^@/, '').toLowerCase();
+          targetUser = await db.prepare('SELECT telegram_id, telegram_username FROM users WHERE LOWER(telegram_username) = ?').get(cleanUsername);
+        }
+        if (!targetUser || !targetUser.telegram_id) {
+          await tgCall('sendMessage', { chat_id: tgChatId, text: 'Пользователь не найден. Он должен хотя бы раз открыть бота/мини‑приложение.' });
+          return;
+        }
+        await clientTelegramApiCall('sendMessage', {
+          chat_id: targetUser.telegram_id,
+          text: '<b>Сообщение от ARKA STUDIO:</b>\n\n' + escapeHtmlText(outText),
+          parse_mode: 'HTML'
+        });
+        await tgCall('sendMessage', {
+          chat_id: tgChatId,
+          text: 'Отправлено: @' + (targetUser.telegram_username || targetRaw.replace(/^@/, '')) + ' (ID ' + targetUser.telegram_id + ')'
+        });
+        return;
+      }
+
+      if (!isAdminBot && tgIsAdmin && tgText.indexOf('/broadcast ') === 0) {
+        if (!(await canUseBroadcastTools(String(tgChatId), tgUsername))) {
+          await tgCall('sendMessage', { chat_id: tgChatId, text: 'Нет прав для /broadcast. Обратитесь к главному администратору.' });
+          return;
+        }
+        var broadcastText = tgText.replace(/^\/broadcast\s+/, '').trim();
+        if (!broadcastText) {
+          await tgCall('sendMessage', { chat_id: tgChatId, text: 'Формат: /broadcast Текст рассылки' });
+          return;
+        }
+        var users = await db.prepare('SELECT DISTINCT telegram_id FROM users WHERE telegram_id IS NOT NULL AND telegram_id != ""').all();
+        if (!users.length) {
+          await tgCall('sendMessage', { chat_id: tgChatId, text: 'Нет пользователей для рассылки.' });
+          return;
+        }
+        var sent = 0;
+        var failed = 0;
+        for (var ui = 0; ui < users.length; ui++) {
+          var uId = users[ui].telegram_id;
+          var r = await clientTelegramApiCall('sendMessage', {
+            chat_id: uId,
+            text: '<b>Сообщение от ARKA STUDIO:</b>\n\n' + escapeHtmlText(broadcastText),
+            parse_mode: 'HTML'
+          });
+          if (r && r.ok) sent++;
+          else failed++;
+        }
+        await tgCall('sendMessage', {
+          chat_id: tgChatId,
+          text: 'Рассылка завершена.\nОтправлено: ' + sent + '\nОшибок: ' + failed
         });
         return;
       }
