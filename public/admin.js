@@ -154,43 +154,12 @@
     render(
       '<div class="login-wrap">' +
         '<div class="login-card">' +
-          '<h2>Вход</h2>' +
-          '<div class="login-sub">Панель управления АРКА</div>' +
-          '<div class="login-error" id="login-error">Неверный логин или пароль</div>' +
-          '<form onsubmit="doLogin(event)">' +
-            '<div class="form-group">' +
-              '<label class="form-label">Логин</label>' +
-              '<input type="text" class="form-input" id="login-user" placeholder="admin" required>' +
-            '</div>' +
-            '<div class="form-group">' +
-              '<label class="form-label">Пароль</label>' +
-              '<input type="password" class="form-input" id="login-pass" placeholder="Пароль" required>' +
-            '</div>' +
-            '<button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px">Войти</button>' +
-          '</form>' +
+          '<h2>Вход через Telegram</h2>' +
+          '<div class="login-sub">Логин/пароль отключены.<br>Откройте админ-панель из Telegram-бота кнопкой <b>Админ-панель</b>.</div>' +
         '</div>' +
       '</div>'
     );
   }
-
-  window.doLogin = function (e) {
-    e.preventDefault();
-    var login = document.getElementById('login-user').value;
-    var pass = document.getElementById('login-pass').value;
-    fetch('/api/admin/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login: login, password: pass })
-    }).then(function (r) { return r.json(); }).then(function (data) {
-      if (data.token) {
-        token = data.token;
-        localStorage.setItem('arka_admin_token', token);
-        showDashboard();
-      } else {
-        document.getElementById('login-error').style.display = 'block';
-      }
-    });
-  };
 
   window.adminLogout = function () {
     api('POST', '/api/admin/logout').catch(function () {});

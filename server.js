@@ -11,8 +11,6 @@ var gsheets = require('./google-sheets');
 var app = express();
 var PORT = process.env.PORT || 3000;
 
-var ADMIN_LOGIN = process.env.ADMIN_LOGIN || 'admin';
-var ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 var CLIENT_BOT_TOKEN = process.env.CLIENT_BOT_TOKEN || process.env.BOT_TOKEN || '';
 var ADMIN_BOT_TOKEN = process.env.ADMIN_BOT_TOKEN || '';
 var PAYMENT_PROVIDER = process.env.PAYMENT_PROVIDER || 'test';
@@ -932,14 +930,7 @@ app.post('/api/payments/webhook', async function (req, res) {
 // ============================================================
 
 app.post('/api/admin/login', function (req, res) {
-  var login = req.body.login;
-  var password = req.body.password;
-  if (login === ADMIN_LOGIN && password === ADMIN_PASSWORD) {
-    var token = crypto.randomBytes(32).toString('hex');
-    adminTokens.add(token);
-    return res.json({ token: token });
-  }
-  res.status(401).json({ error: 'Invalid credentials' });
+  res.status(403).json({ error: 'Login/password disabled. Use Telegram admin login.' });
 });
 
 app.post('/api/admin/logout', adminAuth, function (req, res) {
