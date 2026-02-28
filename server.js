@@ -117,6 +117,7 @@ function sendTelegramMessage(chatId, text) {
 // ============================================================
 
 var adminReplyState = {};
+var adminComposeState = {};
 
 function telegramApiCallByToken(token, method, body, logPrefix) {
   return new Promise(function (resolve, reject) {
@@ -153,6 +154,15 @@ var BOT_MAIN_KEYBOARD = JSON.stringify({
   keyboard: [
     [{ text: '\u041c\u043e\u0439 \u0437\u0430\u043a\u0430\u0437' }, { text: '\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438' }],
     [{ text: '\u041e \u043d\u0430\u0441' }]
+  ],
+  resize_keyboard: true,
+  is_persistent: true
+});
+
+var BOT_CLIENT_ADMIN_KEYBOARD = JSON.stringify({
+  keyboard: [
+    [{ text: '\u041d\u0430\u043f\u0438\u0441\u0430\u0442\u044c \u043a\u043b\u0438\u0435\u043d\u0442\u0443' }, { text: 'Push-Post' }],
+    [{ text: '\u041e\u0442\u043c\u0435\u043d\u0430' }]
   ],
   resize_keyboard: true,
   is_persistent: true
@@ -1432,8 +1442,66 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
         adminReplyState[String(cbChatId)] = targetChatId;
         await tgCall('sendMessage', {
           chat_id: cbChatId,
-          text: '\u041d\u0430\u043f\u0438\u0448\u0438\u0442\u0435 \u043e\u0442\u0432\u0435\u0442 \u2014 \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0435\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0431\u0443\u0434\u0435\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e \u043a\u043b\u0438\u0435\u043d\u0442\u0443.\n\n\u0414\u043b\u044f \u043e\u0442\u043c\u0435\u043d\u044b: /cancel'
+          text: '\u041d\u0430\u043f\u0438\u0448\u0438\u0442\u0435 \u043e\u0442\u0432\u0435\u0442 \u2014 \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0435\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0431\u0443\u0434\u0435\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e \u043a\u043b\u0438\u0435\u043d\u0442\u0443.\n\n\u0414\u043b\u044f \u043e\u0442\u043c\u0435\u043d\u044b \u043d\u0430\u0436\u043c\u0438\u0442\u0435 \u043a\u043d\u043e\u043f\u043a\u0443 "\u041e\u0442\u043c\u0435\u043d\u0430".'
         });
+      }
+
+      if (!isAdminBot && (cbData === 'clientmsg_send' || cbData === 'clientmsg_cancel' || cbData === 'broadcast_send' || cbData === 'broadcast_cancel')) {
+        var cbUsername = (cbq.from && cbq.from.username) || '';
+        var cbIsAdmin = await isAdminUser(String(cbChatId), cbUsername);
+        var cbCanMessage = cbIsAdmin && await canUseBroadcastTools(String(cbChatId), cbUsername);
+        if (!cbCanMessage) return;
+
+        var cst = adminComposeState[String(cbChatId)];
+        if (!cst) return;
+
+        if (cbData === 'clientmsg_cancel' || cbData === 'broadcast_cancel') {
+          delete adminComposeState[String(cbChatId)];
+          await tgCall('sendMessage', {
+            chat_id: cbChatId,
+            text: 'Операция отменена.',
+            reply_markup: BOT_CLIENT_ADMIN_KEYBOARD
+          });
+          return;
+        }
+
+        if (cbData === 'clientmsg_send' && cst.mode === 'confirm_msg' && cst.targetId && cst.text) {
+          await clientTelegramApiCall('sendMessage', {
+            chat_id: cst.targetId,
+            text: '<b>Сообщение от ARKA STUDIO:</b>\n\n' + escapeHtmlText(cst.text),
+            parse_mode: 'HTML'
+          });
+          await tgCall('sendMessage', {
+            chat_id: cbChatId,
+            text: 'Сообщение отправлено пользователю @' + (cst.targetUsername || String(cst.targetId)) + '.',
+            reply_markup: BOT_CLIENT_ADMIN_KEYBOARD
+          });
+          delete adminComposeState[String(cbChatId)];
+          return;
+        }
+
+        if (cbData === 'broadcast_send' && cst.mode === 'confirm_broadcast' && cst.text) {
+          var users = await db.prepare('SELECT DISTINCT telegram_id FROM users WHERE telegram_id IS NOT NULL AND telegram_id != ""').all();
+          var sent = 0;
+          var failed = 0;
+          for (var ui = 0; ui < users.length; ui++) {
+            var uId = users[ui].telegram_id;
+            var r = await clientTelegramApiCall('sendMessage', {
+              chat_id: uId,
+              text: '<b>Сообщение от ARKA STUDIO:</b>\n\n' + escapeHtmlText(cst.text),
+              parse_mode: 'HTML'
+            });
+            if (r && r.ok) sent++;
+            else failed++;
+          }
+          await tgCall('sendMessage', {
+            chat_id: cbChatId,
+            text: 'Рассылка завершена.\nОтправлено: ' + sent + '\nОшибок: ' + failed,
+            reply_markup: BOT_CLIENT_ADMIN_KEYBOARD
+          });
+          delete adminComposeState[String(cbChatId)];
+          return;
+        }
       }
       return;
     }
@@ -1445,6 +1513,8 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
       var tgFirstName = (tgMsg.from && tgMsg.from.first_name) || '';
       var tgUsername = (tgMsg.from && tgMsg.from.username) || '';
       var tgIsAdmin = await isAdminUser(String(tgChatId), tgUsername);
+      var tgCanMessageUsers = (!isAdminBot && tgIsAdmin) ? await canUseBroadcastTools(String(tgChatId), tgUsername) : false;
+      var clientReplyKeyboard = tgCanMessageUsers ? BOT_CLIENT_ADMIN_KEYBOARD : BOT_MAIN_KEYBOARD;
 
       try {
         await db.prepare(
@@ -1461,6 +1531,12 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
             'Используйте кнопки ниже:\n' +
             '• <b>Новые заказы</b> — список активных заказов\n' +
             '• <b>Админ-панель</b> — открыть управление магазином';
+        } else if (!isAdminBot && tgCanMessageUsers) {
+          startText = '<b>Режим администратора ARKA</b>\n\n' +
+            'Доступные действия:\n' +
+            '• <b>Написать клиенту</b> — личное сообщение по username\n' +
+            '• <b>Push-Post</b> — массовая рассылка\n\n' +
+            'Используйте кнопки ниже.';
         } else {
           startText = '<b>\u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u043e\u0432\u0430\u0442\u044c \u0432 ARKA STUDIO FLOWERS!</b>\n\n\u0417\u0434\u0435\u0441\u044c \u0432\u044b \u043c\u043e\u0436\u0435\u0442\u0435 \u0437\u0430\u043a\u0430\u0437\u0430\u0442\u044c \u043a\u0440\u0430\u0441\u0438\u0432\u044b\u0435 \u0431\u0443\u043a\u0435\u0442\u044b \u0438 \u0446\u0432\u0435\u0442\u043e\u0447\u043d\u044b\u0435 \u043a\u043e\u043c\u043f\u043e\u0437\u0438\u0446\u0438\u0438.\n\n\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439\u0442\u0435 \u043a\u043d\u043e\u043f\u043a\u0438 \u043d\u0438\u0436\u0435 \u0438\u043b\u0438 \u043d\u0430\u0436\u043c\u0438\u0442\u0435 \u041a\u0410\u0422\u0410\u041b\u041e\u0413 \u0434\u043b\u044f \u043e\u0442\u043a\u0440\u044b\u0442\u0438\u044f \u043c\u0430\u0433\u0430\u0437\u0438\u043d\u0430.';
         }
@@ -1468,7 +1544,7 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
           chat_id: tgChatId,
           text: startText,
           parse_mode: 'HTML',
-          reply_markup: (isAdminBot && tgIsAdmin) ? BOT_ADMIN_KEYBOARD : BOT_MAIN_KEYBOARD
+          reply_markup: (isAdminBot && tgIsAdmin) ? BOT_ADMIN_KEYBOARD : clientReplyKeyboard
         });
         return;
       }
@@ -1476,7 +1552,7 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
       if (tgText === 'Мой заказ' || tgText === '/orders') {
         var ordUser = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(tgChatId));
         if (!ordUser) {
-          await tgCall('sendMessage', { chat_id: tgChatId, text: 'У вас нет активных заказов.', reply_markup: BOT_MAIN_KEYBOARD });
+          await tgCall('sendMessage', { chat_id: tgChatId, text: 'У вас нет активных заказов.', reply_markup: clientReplyKeyboard });
           return;
         }
         var activeStatuses = ['Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Готов к выдаче'];
@@ -1485,7 +1561,7 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
         ).get(ordUser.id);
 
         if (!activeOrder) {
-          await tgCall('sendMessage', { chat_id: tgChatId, text: 'У вас нет активных заказов.', reply_markup: BOT_MAIN_KEYBOARD });
+          await tgCall('sendMessage', { chat_id: tgChatId, text: 'У вас нет активных заказов.', reply_markup: clientReplyKeyboard });
           return;
         }
 
@@ -1516,7 +1592,7 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
           }
         }
 
-        await tgCall('sendMessage', { chat_id: tgChatId, text: ordMsg, parse_mode: 'HTML', reply_markup: BOT_MAIN_KEYBOARD });
+        await tgCall('sendMessage', { chat_id: tgChatId, text: ordMsg, parse_mode: 'HTML', reply_markup: clientReplyKeyboard });
         return;
       }
       if (tgText === '\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438') {
@@ -1524,7 +1600,7 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
           chat_id: tgChatId,
           text: '<b>\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438</b>\n\n\u041d\u0430\u043f\u0438\u0448\u0438\u0442\u0435 \u0432\u0430\u0448\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u043f\u0440\u044f\u043c\u043e \u0441\u044e\u0434\u0430 \u2014 \u043c\u044b \u043f\u043e\u043b\u0443\u0447\u0438\u043c \u0435\u0433\u043e \u0438 \u043e\u0442\u0432\u0435\u0442\u0438\u043c \u0432\u0430\u043c!',
           parse_mode: 'HTML',
-          reply_markup: BOT_MAIN_KEYBOARD
+          reply_markup: clientReplyKeyboard
         });
         return;
       }
@@ -1534,7 +1610,7 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
         if (!aboutText) {
           aboutText = '<b>ARKA STUDIO FLOWERS</b>\n\n\u041c\u044b \u0441\u043e\u0437\u0434\u0430\u0451\u043c \u043a\u0440\u0430\u0441\u0438\u0432\u044b\u0435 \u0431\u0443\u043a\u0435\u0442\u044b \u0438 \u0446\u0432\u0435\u0442\u043e\u0447\u043d\u044b\u0435 \u043a\u043e\u043c\u043f\u043e\u0437\u0438\u0446\u0438\u0438.\n\n\u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u041a\u0410\u0422\u0410\u041b\u041e\u0413, \u0447\u0442\u043e\u0431\u044b \u043f\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u0442\u044c \u043d\u0430\u0448\u0438 \u0440\u0430\u0431\u043e\u0442\u044b!';
         }
-        await tgCall('sendMessage', { chat_id: tgChatId, text: aboutText, parse_mode: 'HTML', reply_markup: BOT_MAIN_KEYBOARD });
+        await tgCall('sendMessage', { chat_id: tgChatId, text: aboutText, parse_mode: 'HTML', reply_markup: clientReplyKeyboard });
         return;
       }
 
@@ -1543,82 +1619,122 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
           chat_id: tgChatId,
           text: '<b>\u041f\u043e\u043c\u043e\u0449\u044c</b>\n\n\u041a\u0410\u0422\u0410\u041b\u041e\u0413 \u2014 \u043e\u0442\u043a\u0440\u043e\u0435\u0442\u0441\u044f \u043c\u0430\u0433\u0430\u0437\u0438\u043d\n\u041c\u043e\u0438 \u0437\u0430\u043a\u0430\u0437\u044b \u2014 \u0441\u0442\u0430\u0442\u0443\u0441 \u0437\u0430\u043a\u0430\u0437\u043e\u0432\n\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438 \u2014 \u043d\u0430\u043f\u0438\u0441\u0430\u0442\u044c \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435\n\u041e \u043d\u0430\u0441 \u2014 \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f\n\n\u0418\u043b\u0438 \u043f\u0440\u043e\u0441\u0442\u043e \u043d\u0430\u043f\u0438\u0448\u0438\u0442\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u2014 \u043c\u044b \u043e\u0442\u0432\u0435\u0442\u0438\u043c!',
           parse_mode: 'HTML',
-          reply_markup: BOT_MAIN_KEYBOARD
+          reply_markup: clientReplyKeyboard
         });
         return;
       }
 
-      if (!isAdminBot && tgIsAdmin && tgText.indexOf('/msg ') === 0) {
-        if (!(await canUseBroadcastTools(String(tgChatId), tgUsername))) {
-          await tgCall('sendMessage', { chat_id: tgChatId, text: 'Нет прав для /msg. Обратитесь к главному администратору.' });
-          return;
-        }
-        var msgMatch = tgText.match(/^\/msg\s+(@?[A-Za-z0-9_]{3,}|[0-9]{5,})\s+([\s\S]+)$/);
-        if (!msgMatch) {
-          await tgCall('sendMessage', { chat_id: tgChatId, text: 'Формат: /msg @username Текст сообщения' });
-          return;
-        }
-        var targetRaw = msgMatch[1].trim();
-        var outText = msgMatch[2].trim();
-        if (!outText) {
-          await tgCall('sendMessage', { chat_id: tgChatId, text: 'Текст сообщения пустой.' });
-          return;
-        }
-        var targetUser = null;
-        if (/^\d+$/.test(targetRaw)) {
-          targetUser = await db.prepare('SELECT telegram_id, telegram_username FROM users WHERE telegram_id = ?').get(targetRaw);
-        } else {
-          var cleanUsername = targetRaw.replace(/^@/, '').toLowerCase();
-          targetUser = await db.prepare('SELECT telegram_id, telegram_username FROM users WHERE LOWER(telegram_username) = ?').get(cleanUsername);
-        }
-        if (!targetUser || !targetUser.telegram_id) {
-          await tgCall('sendMessage', { chat_id: tgChatId, text: 'Пользователь не найден. Он должен хотя бы раз открыть бота/мини‑приложение.' });
-          return;
-        }
-        await clientTelegramApiCall('sendMessage', {
-          chat_id: targetUser.telegram_id,
-          text: '<b>Сообщение от ARKA STUDIO:</b>\n\n' + escapeHtmlText(outText),
-          parse_mode: 'HTML'
-        });
+      if (!isAdminBot && tgCanMessageUsers && (tgText.indexOf('/msg') === 0 || tgText.indexOf('/broadcast') === 0 || tgText.indexOf('/gms') === 0)) {
         await tgCall('sendMessage', {
           chat_id: tgChatId,
-          text: 'Отправлено: @' + (targetUser.telegram_username || targetRaw.replace(/^@/, '')) + ' (ID ' + targetUser.telegram_id + ')'
+          text: 'Slash-команды отключены. Используйте кнопки: "Написать клиенту" и "Push-Post".',
+          reply_markup: BOT_CLIENT_ADMIN_KEYBOARD
         });
         return;
       }
 
-      if (!isAdminBot && tgIsAdmin && tgText.indexOf('/broadcast ') === 0) {
-        if (!(await canUseBroadcastTools(String(tgChatId), tgUsername))) {
-          await tgCall('sendMessage', { chat_id: tgChatId, text: 'Нет прав для /broadcast. Обратитесь к главному администратору.' });
-          return;
-        }
-        var broadcastText = tgText.replace(/^\/broadcast\s+/, '').trim();
-        if (!broadcastText) {
-          await tgCall('sendMessage', { chat_id: tgChatId, text: 'Формат: /broadcast Текст рассылки' });
-          return;
-        }
-        var users = await db.prepare('SELECT DISTINCT telegram_id FROM users WHERE telegram_id IS NOT NULL AND telegram_id != ""').all();
-        if (!users.length) {
-          await tgCall('sendMessage', { chat_id: tgChatId, text: 'Нет пользователей для рассылки.' });
-          return;
-        }
-        var sent = 0;
-        var failed = 0;
-        for (var ui = 0; ui < users.length; ui++) {
-          var uId = users[ui].telegram_id;
-          var r = await clientTelegramApiCall('sendMessage', {
-            chat_id: uId,
-            text: '<b>Сообщение от ARKA STUDIO:</b>\n\n' + escapeHtmlText(broadcastText),
-            parse_mode: 'HTML'
+      if (!isAdminBot && tgCanMessageUsers && tgText === '\u041d\u0430\u043f\u0438\u0441\u0430\u0442\u044c \u043a\u043b\u0438\u0435\u043d\u0442\u0443') {
+        adminComposeState[String(tgChatId)] = { mode: 'await_username' };
+        await tgCall('sendMessage', {
+          chat_id: tgChatId,
+          text: 'Введите username клиента в формате @username (или Telegram ID).',
+          reply_markup: BOT_CLIENT_ADMIN_KEYBOARD
+        });
+        return;
+      }
+
+      if (!isAdminBot && tgCanMessageUsers && tgText === 'Push-Post') {
+        adminComposeState[String(tgChatId)] = { mode: 'await_broadcast_text' };
+        await tgCall('sendMessage', {
+          chat_id: tgChatId,
+          text: 'Введите текст рассылки для всех пользователей.',
+          reply_markup: BOT_CLIENT_ADMIN_KEYBOARD
+        });
+        return;
+      }
+
+      if (!isAdminBot && tgCanMessageUsers && tgText === '\u041e\u0442\u043c\u0435\u043d\u0430') {
+        delete adminComposeState[String(tgChatId)];
+        delete adminReplyState[String(tgChatId)];
+        await tgCall('sendMessage', {
+          chat_id: tgChatId,
+          text: 'Операция отменена.',
+          reply_markup: BOT_CLIENT_ADMIN_KEYBOARD
+        });
+        return;
+      }
+
+      if (!isAdminBot && tgCanMessageUsers && adminComposeState[String(tgChatId)]) {
+        var st = adminComposeState[String(tgChatId)];
+        if (st.mode === 'await_username') {
+          var targetRaw = tgText.trim();
+          var targetUser = null;
+          if (/^\d+$/.test(targetRaw)) {
+            targetUser = await db.prepare('SELECT telegram_id, telegram_username FROM users WHERE telegram_id = ?').get(targetRaw);
+          } else {
+            var cleanUsername = targetRaw.replace(/^@/, '').toLowerCase();
+            targetUser = await db.prepare('SELECT telegram_id, telegram_username FROM users WHERE LOWER(telegram_username) = ?').get(cleanUsername);
+          }
+          if (!targetUser || !targetUser.telegram_id) {
+            await tgCall('sendMessage', {
+              chat_id: tgChatId,
+              text: 'Пользователь не найден. Он должен хотя бы раз открыть бота/мини‑приложение.\nПопробуйте снова или нажмите "Отмена".',
+              reply_markup: BOT_CLIENT_ADMIN_KEYBOARD
+            });
+            return;
+          }
+          st.mode = 'await_message_text';
+          st.targetId = String(targetUser.telegram_id);
+          st.targetUsername = targetUser.telegram_username || targetRaw.replace(/^@/, '');
+          await tgCall('sendMessage', {
+            chat_id: tgChatId,
+            text: 'Получатель: @' + st.targetUsername + ' (ID ' + st.targetId + ')\nТеперь введите текст сообщения.',
+            reply_markup: BOT_CLIENT_ADMIN_KEYBOARD
           });
-          if (r && r.ok) sent++;
-          else failed++;
+          return;
         }
-        await tgCall('sendMessage', {
-          chat_id: tgChatId,
-          text: 'Рассылка завершена.\nОтправлено: ' + sent + '\nОшибок: ' + failed
-        });
-        return;
+
+        if (st.mode === 'await_message_text') {
+          var dmText = tgText.trim();
+          if (!dmText) {
+            await tgCall('sendMessage', { chat_id: tgChatId, text: 'Текст сообщения пустой. Введите текст или нажмите "Отмена".' });
+            return;
+          }
+          st.mode = 'confirm_msg';
+          st.text = dmText;
+          await tgCall('sendMessage', {
+            chat_id: tgChatId,
+            text: '<b>Проверьте сообщение</b>\nКому: @' + escapeHtmlText(st.targetUsername || st.targetId) + '\n\n' + escapeHtmlText(dmText),
+            parse_mode: 'HTML',
+            reply_markup: JSON.stringify({ inline_keyboard: [[
+              { text: 'Отправить', callback_data: 'clientmsg_send' },
+              { text: 'Отмена', callback_data: 'clientmsg_cancel' }
+            ]] })
+          });
+          return;
+        }
+
+        if (st.mode === 'await_broadcast_text') {
+          var bcText = tgText.trim();
+          if (!bcText) {
+            await tgCall('sendMessage', { chat_id: tgChatId, text: 'Текст рассылки пустой. Введите текст или нажмите "Отмена".' });
+            return;
+          }
+          st.mode = 'confirm_broadcast';
+          st.text = bcText;
+          var cntRow = await db.prepare('SELECT COUNT(DISTINCT telegram_id) as c FROM users WHERE telegram_id IS NOT NULL AND telegram_id != ""').get();
+          var usersCount = (cntRow && cntRow.c) ? cntRow.c : 0;
+          await tgCall('sendMessage', {
+            chat_id: tgChatId,
+            text: '<b>Подтвердите рассылку</b>\nПолучателей: ' + usersCount + '\n\n' + escapeHtmlText(bcText),
+            parse_mode: 'HTML',
+            reply_markup: JSON.stringify({ inline_keyboard: [[
+              { text: 'Отправить всем', callback_data: 'broadcast_send' },
+              { text: 'Отмена', callback_data: 'broadcast_cancel' }
+            ]] })
+          });
+          return;
+        }
       }
 
       if (isAdminBot && tgText === 'Новые заказы' && tgIsAdmin) {
@@ -1653,6 +1769,7 @@ app.post(['/api/telegram/webhook', '/api/telegram/webhook/:botType'], async func
 
       if (!isAdminBot && tgText === '/cancel' && tgIsAdmin) {
         delete adminReplyState[String(tgChatId)];
+        delete adminComposeState[String(tgChatId)];
         await tgCall('sendMessage', { chat_id: tgChatId, text: '\u0420\u0435\u0436\u0438\u043c \u043e\u0442\u0432\u0435\u0442\u0430 \u043e\u0442\u043c\u0435\u043d\u0451\u043d.' });
         return;
       }
