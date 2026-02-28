@@ -334,6 +334,14 @@ function normalizeRuPhone(phone) {
   return '';
 }
 
+function buildFallbackClientEmail(order) {
+  var tg = String(order && order.user_telegram || '').replace(/[^a-zA-Z0-9_.-]/g, '');
+  if (tg) return tg + '@shoparkaflowers.ru';
+  var ph = String(order && order.user_phone || '').replace(/\D/g, '');
+  if (ph) return 'u' + ph + '@shoparkaflowers.ru';
+  return 'order' + String(order && order.id || Date.now()) + '@shoparkaflowers.ru';
+}
+
 function superAdminAuth(req, res, next) {
   var token = req.headers['x-admin-token'];
   if (!token || !adminTokens.has(token)) {
@@ -772,8 +780,9 @@ app.post('/api/payments/create', async function (req, res) {
       var clientEmail = String(order.user_email || '').trim();
       var clientPhone = normalizeRuPhone(order.user_phone);
       var clientData = {};
-      if (clientEmail) clientData.email = clientEmail;
-      if (!clientEmail && clientPhone) clientData.phone = clientPhone;
+      if (!clientEmail) clientEmail = buildFallbackClientEmail(order);
+      clientData.email = clientEmail;
+      if (clientPhone) clientData.phone = clientPhone;
       var tochkaBody = {
         Data: {
           customerCode: TOCHKA_CUSTOMER_CODE,
