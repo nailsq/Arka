@@ -1491,7 +1491,6 @@
     var df = (draft && draft.fields) || {};
     var userName = (dbUser && dbUser.first_name) || (tgUser && tgUser.first_name) || '';
     var userPhone = df['field-phone'] || (dbUser && dbUser.phone) || '';
-    var userEmail = df['field-email'] || '';
     var userAddr = (dbUser && dbUser.default_address) || '';
     var tgUsername = df['field-tg'] || ((tgUser && tgUser.username) ? '@' + tgUser.username : '');
 
@@ -1543,8 +1542,6 @@
           '<input type="text" id="field-tg" placeholder="@username" value="' + escapeHtml(tgUsername) + '" oninput="updateStepButtons()"></div>' +
           '<div class="form-group"><label>Контактный телефон</label>' +
           '<input type="tel" id="field-phone" placeholder="+7 (___) ___-__-__" value="' + escapeHtml(userPhone) + '" oninput="formatPhoneInput(this); updateStepButtons()" maxlength="18"></div>' +
-          '<div class="form-group"><label>Электронная почта</label>' +
-          '<input type="email" id="field-email" placeholder="mail@example.com" value="' + escapeHtml(userEmail) + '" oninput="filterEmailInput(this); updateStepButtons()"></div>' +
           '<button type="button" class="step-next-btn" id="step1-next" onclick="goToStep(2)">Далее</button>' +
         '</div>' +
 
@@ -1896,17 +1893,11 @@
       if (currentStep === 1) {
         var phone = document.getElementById('field-phone').value.trim();
         var tg = document.getElementById('field-tg').value.trim();
-        var email = document.getElementById('field-email').value.trim();
         if (!phone || !tg) {
           showToast('Заполните Telegram и телефон');
           return;
         }
         if (!validatePhone(phone)) return;
-        if (!email) {
-          showToast('Заполните электронную почту');
-          return;
-        }
-        if (!validateEmail(email)) return;
       }
       if (currentStep === 2) {
         if (checkoutState.deliveryType === 'delivery') {
@@ -2012,9 +2003,7 @@
     if (btn1) {
       var tg = (document.getElementById('field-tg') || {}).value || '';
       var phone = (document.getElementById('field-phone') || {}).value || '';
-      var email = (document.getElementById('field-email') || {}).value || '';
-      var emailOk = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
-      var ready1 = tg.trim().length > 0 && phone.replace(/\D/g, '').length >= 11 && emailOk;
+      var ready1 = tg.trim().length > 0 && phone.replace(/\D/g, '').length >= 11;
       btn1.classList.toggle('btn-dimmed', !ready1);
     }
 
@@ -2493,7 +2482,6 @@
     var isSelf = document.getElementById('self-receiver-cb') && document.getElementById('self-receiver-cb').checked;
     var tgVal = document.getElementById('field-tg') ? document.getElementById('field-tg').value.trim() : '';
     var phoneVal = document.getElementById('field-phone') ? document.getElementById('field-phone').value.trim() : '';
-    var emailVal = document.getElementById('field-email') ? document.getElementById('field-email').value.trim() : '';
     var rcvName = isSelf ? tgVal : (document.getElementById('field-rcv-name') ? document.getElementById('field-rcv-name').value.trim() : '');
     var rcvPhone = isSelf ? phoneVal : (document.getElementById('field-rcv-phone') ? document.getElementById('field-rcv-phone').value.trim() : '');
     var dateVal = document.getElementById('field-date') ? document.getElementById('field-date').value : '';
@@ -2511,7 +2499,7 @@
     var data = {
       user_name: tgVal || phoneVal,
       user_phone: phoneVal,
-      user_email: emailVal,
+      user_email: '',
       user_telegram: tgVal,
       receiver_name: rcvName,
       receiver_phone: rcvPhone,
