@@ -325,6 +325,15 @@ function escapeHtmlText(s) {
     .replace(/>/g, '&gt;');
 }
 
+function normalizeRuPhone(phone) {
+  var digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length === 11 && digits[0] === '8') digits = '7' + digits.slice(1);
+  if (digits.length === 10) digits = '7' + digits;
+  if (digits.length >= 11) return '+' + digits;
+  return '';
+}
+
 function superAdminAuth(req, res, next) {
   var token = req.headers['x-admin-token'];
   if (!token || !adminTokens.has(token)) {
@@ -760,6 +769,11 @@ app.post('/api/payments/create', async function (req, res) {
 
       // Tochka requires unique paymentLinkId; reusing orderId causes 424 "already exists" on repeated attempts.
       var paymentLinkId = String(orderId) + '_' + Date.now();
+      var clientEmail = String(order.user_email || '').trim();
+      var clientPhone = normalizeRuPhone(order.user_phone);
+      var clientData = {};
+      if (clientEmail) clientData.email = clientEmail;
+      if (!clientEmail && clientPhone) clientData.phone = clientPhone;
       var tochkaBody = {
         Data: {
           customerCode: TOCHKA_CUSTOMER_CODE,
@@ -769,9 +783,7 @@ app.post('/api/payments/create', async function (req, res) {
           redirectUrl: redirectUrl,
           ttl: 60,
           paymentLinkId: paymentLinkId,
-          Client: {
-            email: order.user_email || undefined
-          },
+          Client: clientData,
           Items: receiptItems
         }
       };
