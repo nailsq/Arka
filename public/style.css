@@ -399,18 +399,7 @@ body.web-mode #header {
 }
 
 body.web-mode #tab-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  max-width: none;
-  margin: 0;
-  z-index: 300;
-  border-bottom: none !important;
-  background: transparent !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  box-shadow: none !important;
+  display: none !important;
 }
 
 body.web-mode .tab-btn {
@@ -421,6 +410,74 @@ body.web-mode .tab-btn {
 body.web-mode .tab-btn.active {
   color: #fff;
   border-bottom-color: #fff;
+}
+
+.web-quick-nav {
+  display: none;
+}
+
+body.web-mode .web-quick-nav {
+  position: fixed;
+  right: 20px;
+  bottom: 22px;
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 999px;
+  background: rgba(18, 18, 24, 0.82);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.26);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+body.telegram-mode .web-quick-nav {
+  display: none !important;
+}
+
+.web-quick-nav-btn {
+  position: relative;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px 14px;
+  line-height: 1;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.12s ease;
+}
+
+.web-quick-nav-btn:hover {
+  color: #fff;
+}
+
+.web-quick-nav-btn:active {
+  transform: scale(0.97);
+}
+
+.web-quick-nav-btn.active {
+  background: #fff;
+  color: #0f0f13;
+  font-weight: 600;
+}
+
+.web-quick-badge {
+  position: absolute;
+  top: -4px;
+  right: -1px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #ff2f4d;
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  font-weight: 700;
 }
 
 body.web-mode #footer {
@@ -465,9 +522,20 @@ body.web-mode .product-list {
   body.web-mode #header {
     padding: 14px 14px 8px;
   }
-  body.web-mode #tab-bar {
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+  body.web-mode .web-quick-nav {
+    right: 10px;
+    left: 10px;
+    bottom: 10px;
+    justify-content: space-between;
+    gap: 6px;
+    border-radius: 18px;
+    padding: 7px;
+  }
+  .web-quick-nav-btn {
+    flex: 1;
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    padding: 10px 8px;
   }
   .site-hero-title {
     font-size: clamp(20px, 8vw, 30px);

@@ -144,13 +144,23 @@
 
   function updateFavBadge() {
     var badge = document.getElementById('fav-badge');
-    if (!badge) return;
+    var webBadge = document.getElementById('web-fav-badge');
     var count = getFavorites().length;
-    if (count > 0) {
-      badge.textContent = count;
-      badge.style.display = 'inline-block';
-    } else {
-      badge.style.display = 'none';
+    if (badge) {
+      if (count > 0) {
+        badge.textContent = count;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+    if (webBadge) {
+      if (count > 0) {
+        webBadge.textContent = count;
+        webBadge.style.display = 'inline-block';
+      } else {
+        webBadge.style.display = 'none';
+      }
     }
   }
 
@@ -569,18 +579,32 @@
     btns.forEach(function (b) {
       b.classList.toggle('active', b.getAttribute('data-tab') === tab);
     });
+    var webBtns = document.querySelectorAll('#web-quick-nav .web-quick-nav-btn');
+    webBtns.forEach(function (b) {
+      b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+    });
   }
 
   function updateCartBadge() {
     var badge = document.getElementById('cart-badge');
-    if (!badge) return;
+    var webBadge = document.getElementById('web-cart-badge');
     var cart = getCart();
     var count = cart.reduce(function (s, i) { return s + i.quantity; }, 0);
-    if (count > 0) {
-      badge.textContent = count;
-      badge.style.display = 'inline-block';
-    } else {
-      badge.style.display = 'none';
+    if (badge) {
+      if (count > 0) {
+        badge.textContent = count;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+    if (webBadge) {
+      if (count > 0) {
+        webBadge.textContent = count;
+        webBadge.style.display = 'inline-block';
+      } else {
+        webBadge.style.display = 'none';
+      }
     }
   }
 

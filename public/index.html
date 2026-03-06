@@ -40,6 +40,17 @@
     <button class="tab-btn" data-tab="account" onclick="navigateTo('account')">Профиль</button>
   </nav>
 
+  <nav id="web-quick-nav" class="web-quick-nav" aria-label="Веб-навигация">
+    <button class="web-quick-nav-btn active" data-tab="home" onclick="navigateTo('home')">Каталог</button>
+    <button class="web-quick-nav-btn" data-tab="favorites" onclick="navigateTo('favorites')">
+      Избранное<span id="web-fav-badge" class="web-quick-badge" style="display:none"></span>
+    </button>
+    <button class="web-quick-nav-btn" data-tab="cart" onclick="navigateTo('cart')">
+      Корзина<span id="web-cart-badge" class="web-quick-badge" style="display:none"></span>
+    </button>
+    <button class="web-quick-nav-btn" data-tab="account" onclick="navigateTo('account')">Профиль</button>
+  </nav>
+
   <main id="app"></main>
 
   <footer id="footer">
