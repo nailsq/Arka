@@ -846,7 +846,7 @@
       var duration = heroVideo.duration;
       if (!isFinite(duration) || duration <= 0.05) return;
       var target = Math.max(0, Math.min(duration - 0.03, progress * duration));
-      if (Math.abs(target - lastVideoTime) < 0.03) return;
+      if (Math.abs(target - lastVideoTime) < 0.008) return;
       try {
         heroVideo.currentTime = target;
         lastVideoTime = target;
@@ -882,7 +882,7 @@
         if (rawProgress > 1) rawProgress = 1;
 
         // Slow cinematic reveal: starts slower, ends a bit faster.
-        var heroProgress = Math.pow(rawProgress, 1.35);
+        var heroProgress = Math.pow(rawProgress, 1.08);
         var textProgress = 0;
         var ctaProgress = 0;
 

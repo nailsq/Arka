@@ -222,7 +222,7 @@ button, select {
   --hero-text-progress: 0;
   --hero-cta-progress: 0;
   margin: 0 0 26px;
-  min-height: 220vh;
+  min-height: 165vh;
   position: relative;
 }
 
@@ -269,7 +269,7 @@ button, select {
   width: min(360px, 84vw);
   aspect-ratio: 1 / 1;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 45%, #f8dce8 0%, #f6eef4 45%, #ece7ef 100%);
+  background: transparent;
   transform:
     rotate(calc(-24deg + (42deg * var(--hero-progress))))
     scale(calc(0.78 + (0.22 * var(--hero-progress))));
@@ -278,9 +278,7 @@ button, select {
     brightness(calc(0.72 + (0.28 * var(--hero-progress))))
     blur(calc((1 - var(--hero-progress)) * 1.7px));
   transition: transform 0.25s linear, filter 0.25s linear;
-  box-shadow:
-    0 28px 64px rgba(0, 0, 0, calc(0.45 - (0.2 * var(--hero-progress)))),
-    0 0 0 1px rgba(255, 255, 255, calc(0.1 + (0.15 * var(--hero-progress)))) inset;
+  box-shadow: none;
   z-index: 2;
 }
 
@@ -293,13 +291,7 @@ button, select {
 }
 
 .site-hero-bouquet::after {
-  content: '';
-  position: absolute;
-  inset: -16% -10% auto;
-  height: 55%;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.68), rgba(255,255,255,0));
-  pointer-events: none;
+  content: none;
 }
 
 .site-hero-bouquet-img {
@@ -530,7 +522,7 @@ body.web-mode .product-list {
 
 @media (max-width: 560px) {
   .site-hero {
-    min-height: 190vh;
+    min-height: 150vh;
   }
   .site-hero-stage {
     padding: 18px 14px 24px;
