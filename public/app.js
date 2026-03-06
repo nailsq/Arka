@@ -860,7 +860,6 @@
             '<img src="/images/hero-bouquet.jpg" alt="Букет ARKA STUDIO" class="site-hero-bouquet-img" onerror="this.style.display=\'none\'; this.parentNode.classList.add(\'site-hero-bouquet--fallback\');">' +
           '</div>' +
           '<div class="site-hero-brand">' +
-            '<img src="/images/logo.svg" alt="АРКА СТУДИЯ ЦВЕТОВ" class="site-hero-brand-logo" onerror="this.style.display=\'none\'">' +
             '<div class="site-hero-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
             '<div class="site-hero-subtitle">доставка по Саратову и Энгельсу</div>' +
             '<button class="site-hero-cta" onclick="scrollToCatalog()">В каталог</button>' +

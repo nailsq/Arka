@@ -263,7 +263,7 @@ button, select {
 
 .site-hero-bouquet {
   position: relative;
-  margin: 6vh auto 0;
+  margin: 10vh auto 0;
   width: min(360px, 84vw);
   aspect-ratio: 1 / 1;
   border-radius: 50%;
@@ -313,11 +313,9 @@ button, select {
   position: relative;
   z-index: 2;
   text-align: center;
-  opacity: calc(0.02 + (0.98 * var(--hero-progress)));
-  transform:
-    translateX(calc(-46px + (46px * var(--hero-progress))))
-    translateY(calc(12px - (12px * var(--hero-progress))));
-  transition: opacity 0.35s ease, transform 0.35s ease;
+  opacity: calc(0.01 + (0.99 * var(--hero-progress)));
+  transform: translateY(calc(18px - (18px * var(--hero-progress))));
+  transition: opacity 0.3s linear, transform 0.3s linear;
 }
 
 .site-hero-brand-logo {
@@ -334,6 +332,9 @@ button, select {
   margin-bottom: 8px;
   color: #0f0f13;
   text-transform: uppercase;
+  opacity: calc(var(--hero-progress));
+  transform: translateX(calc(-65px + (65px * var(--hero-progress))));
+  transition: opacity 0.25s linear, transform 0.25s linear;
 }
 
 .site-hero-subtitle {
@@ -342,6 +343,9 @@ button, select {
   text-transform: uppercase;
   color: #6f6a74;
   margin-bottom: 16px;
+  opacity: calc(max(0, (var(--hero-progress) - 0.2) * 1.25));
+  transform: translateX(calc(-36px + (36px * var(--hero-progress))));
+  transition: opacity 0.25s linear, transform 0.25s linear;
 }
 
 .site-hero-cta {
@@ -359,6 +363,7 @@ button, select {
   text-transform: uppercase;
   cursor: pointer;
   transition: transform 0.15s ease, opacity 0.2s ease;
+  opacity: calc(max(0, (var(--hero-progress) - 0.4) * 1.7));
 }
 
 .site-hero-cta:active {
@@ -386,15 +391,34 @@ button, select {
 body.web-mode #app {
   max-width: none;
   padding: 0 0 24px;
+  background: #fff;
 }
 
 body.web-mode #header {
-  padding: 20px 20px 10px;
+  display: none;
 }
 
 body.web-mode #tab-bar {
-  max-width: 1280px;
-  margin: 0 auto;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  max-width: none;
+  margin: 0;
+  z-index: 300;
+  border-bottom: none;
+  background: rgba(6, 6, 11, 0.52);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+body.web-mode .tab-btn {
+  color: rgba(255, 255, 255, 0.58);
+}
+
+body.web-mode .tab-btn.active {
+  color: #fff;
+  border-bottom-color: #fff;
 }
 
 body.web-mode #footer {
@@ -438,6 +462,10 @@ body.web-mode .product-list {
   }
   body.web-mode #header {
     padding: 14px 14px 8px;
+  }
+  body.web-mode #tab-bar {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
   }
   .site-hero-title {
     font-size: clamp(20px, 8vw, 30px);
