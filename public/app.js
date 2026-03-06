@@ -839,12 +839,32 @@
     }
     var heroSection = document.getElementById('site-hero');
     if (!heroSection) return;
+    var heroVideo = document.getElementById('site-hero-video');
+    var lastVideoTime = -1;
+    var syncVideoToProgress = function (progress) {
+      if (!heroVideo) return;
+      var duration = heroVideo.duration;
+      if (!isFinite(duration) || duration <= 0.05) return;
+      var target = Math.max(0, Math.min(duration - 0.03, progress * duration));
+      if (Math.abs(target - lastVideoTime) < 0.03) return;
+      try {
+        heroVideo.currentTime = target;
+        lastVideoTime = target;
+      } catch (e) {}
+    };
+    if (heroVideo) {
+      try { heroVideo.pause(); } catch (e) {}
+      heroVideo.addEventListener('loadedmetadata', function () {
+        syncVideoToProgress(parseFloat(getComputedStyle(heroSection).getPropertyValue('--hero-progress')) || 0);
+      }, { once: true });
+    }
     var reducedMotion = false;
     try { reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
     if (reducedMotion) {
       heroSection.style.setProperty('--hero-progress', '1');
       heroSection.style.setProperty('--hero-text-progress', '1');
       heroSection.style.setProperty('--hero-cta-progress', '1');
+      syncVideoToProgress(1);
       return;
     }
     var ticking = false;
@@ -879,6 +899,7 @@
           heroSection.style.setProperty('--hero-progress', heroProgress.toFixed(3));
           heroSection.style.setProperty('--hero-text-progress', textProgress.toFixed(3));
           heroSection.style.setProperty('--hero-cta-progress', ctaProgress.toFixed(3));
+          syncVideoToProgress(heroProgress);
           lastProgress = heroProgress;
         }
       });
@@ -900,6 +921,9 @@
             '<div class="site-hero-city">' + escapeHtml(cityName || 'Саратов и Энгельс') + '</div>' +
           '</div>' +
           '<div class="site-hero-bouquet">' +
+            '<video id="site-hero-video" class="site-hero-video" playsinline muted preload="auto" poster="/images/hero-bouquet.jpg" onerror="this.style.display=\'none\'; this.parentNode.classList.add(\'site-hero-bouquet--fallback\');">' +
+              '<source src="/images/flower_unfold.mp4" type="video/mp4">' +
+            '</video>' +
             '<img src="/images/hero-bouquet.jpg" alt="Букет ARKA STUDIO" class="site-hero-bouquet-img" onerror="this.style.display=\'none\'; this.parentNode.classList.add(\'site-hero-bouquet--fallback\');">' +
           '</div>' +
           '<div class="site-hero-brand">' +
