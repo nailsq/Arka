@@ -843,6 +843,8 @@
     try { reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
     if (reducedMotion) {
       heroSection.style.setProperty('--hero-progress', '1');
+      heroSection.style.setProperty('--hero-text-progress', '1');
+      heroSection.style.setProperty('--hero-cta-progress', '1');
       return;
     }
     var ticking = false;
@@ -855,12 +857,29 @@
         var rect = heroSection.getBoundingClientRect();
         var viewH = window.innerHeight || 1;
         var travel = Math.max((heroSection.offsetHeight || 1) - viewH, 1);
-        var progress = (-rect.top) / travel;
-        if (progress < 0) progress = 0;
-        if (progress > 1) progress = 1;
-        if (Math.abs(progress - lastProgress) > 0.003) {
-          heroSection.style.setProperty('--hero-progress', progress.toFixed(3));
-          lastProgress = progress;
+        var rawProgress = (-rect.top) / travel;
+        if (rawProgress < 0) rawProgress = 0;
+        if (rawProgress > 1) rawProgress = 1;
+
+        // Slow cinematic reveal: starts slower, ends a bit faster.
+        var heroProgress = Math.pow(rawProgress, 1.35);
+        var textProgress = 0;
+        var ctaProgress = 0;
+
+        if (rawProgress > 0.78) {
+          textProgress = (rawProgress - 0.78) / 0.18;
+          if (textProgress > 1) textProgress = 1;
+        }
+        if (rawProgress > 0.9) {
+          ctaProgress = (rawProgress - 0.9) / 0.1;
+          if (ctaProgress > 1) ctaProgress = 1;
+        }
+
+        if (Math.abs(heroProgress - lastProgress) > 0.003) {
+          heroSection.style.setProperty('--hero-progress', heroProgress.toFixed(3));
+          heroSection.style.setProperty('--hero-text-progress', textProgress.toFixed(3));
+          heroSection.style.setProperty('--hero-cta-progress', ctaProgress.toFixed(3));
+          lastProgress = heroProgress;
         }
       });
     };

@@ -219,8 +219,10 @@ button, select {
 
 .site-hero {
   --hero-progress: 0;
+  --hero-text-progress: 0;
+  --hero-cta-progress: 0;
   margin: 0 0 26px;
-  min-height: 185vh;
+  min-height: 220vh;
   position: relative;
 }
 
@@ -240,7 +242,7 @@ button, select {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(120% 100% at 50% 0%, #fff 0%, #f8f6fa 46%, #fff 100%);
+  background: #fff;
   opacity: var(--hero-progress);
   transition: opacity 0.18s linear;
   z-index: 0;
@@ -313,7 +315,7 @@ button, select {
   position: relative;
   z-index: 2;
   text-align: center;
-  opacity: calc(0.01 + (0.99 * var(--hero-progress)));
+  opacity: calc(var(--hero-text-progress));
   transform: translateY(calc(18px - (18px * var(--hero-progress))));
   transition: opacity 0.3s linear, transform 0.3s linear;
 }
@@ -332,8 +334,8 @@ button, select {
   margin-bottom: 8px;
   color: #0f0f13;
   text-transform: uppercase;
-  opacity: calc(var(--hero-progress));
-  transform: translateX(calc(-65px + (65px * var(--hero-progress))));
+  opacity: calc(var(--hero-text-progress));
+  transform: translateX(calc(-70px + (70px * var(--hero-text-progress))));
   transition: opacity 0.25s linear, transform 0.25s linear;
 }
 
@@ -343,8 +345,8 @@ button, select {
   text-transform: uppercase;
   color: #6f6a74;
   margin-bottom: 16px;
-  opacity: calc(max(0, (var(--hero-progress) - 0.2) * 1.25));
-  transform: translateX(calc(-36px + (36px * var(--hero-progress))));
+  opacity: calc(var(--hero-text-progress));
+  transform: translateX(calc(-42px + (42px * var(--hero-text-progress))));
   transition: opacity 0.25s linear, transform 0.25s linear;
 }
 
@@ -363,11 +365,12 @@ button, select {
   text-transform: uppercase;
   cursor: pointer;
   transition: transform 0.15s ease, opacity 0.2s ease;
-  opacity: calc(max(0, (var(--hero-progress) - 0.4) * 1.7));
+  opacity: calc(var(--hero-cta-progress));
+  transform: translateY(calc(10px - (10px * var(--hero-cta-progress))));
 }
 
 .site-hero-cta:active {
-  transform: scale(0.97);
+  transform: scale(0.97) translateY(calc(10px - (10px * var(--hero-cta-progress))));
 }
 
 .site-hero-hint {
@@ -378,7 +381,7 @@ button, select {
   font-size: 11px;
   color: #a09ca6;
   letter-spacing: 0.08em;
-  opacity: calc(1 - (0.82 * var(--hero-progress)));
+  opacity: calc(1 - (0.86 * var(--hero-progress)));
 }
 
 .home-catalog-block {
@@ -511,7 +514,7 @@ body.web-mode .product-list {
 
 @media (max-width: 560px) {
   .site-hero {
-    min-height: 165vh;
+    min-height: 190vh;
   }
   .site-hero-stage {
     padding: 18px 14px 24px;
