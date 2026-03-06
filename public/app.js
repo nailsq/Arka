@@ -14,9 +14,12 @@
   // ============================================================
 
   var tg = window.Telegram && window.Telegram.WebApp;
+  var isTelegramRuntime = false;
+  var detachHomeHeroScroll = null;
   if (tg) {
     tg.ready();
     tg.expand();
+    isTelegramRuntime = !!(tg.initData && tg.initData.length);
     if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
       tgUser = tg.initDataUnsafe.user;
     }
@@ -717,6 +720,8 @@
   // ============================================================
 
   function init() {
+    initSitePreloader();
+
     fetchJSON('/api/settings').then(function (s) {
       appSettings = s || {};
       updateSocialLinks();
@@ -772,6 +777,83 @@
 
   var homeActiveCategory = null;
   var homeCategoriesById = {};
+
+  function shouldShowSiteHero() {
+    return !isTelegramRuntime;
+  }
+
+  function initSitePreloader() {
+    var pre = document.getElementById('site-preloader');
+    if (!pre) return;
+    if (isTelegramRuntime) {
+      pre.style.display = 'none';
+      return;
+    }
+    var wasShown = false;
+    try { wasShown = sessionStorage.getItem('arka_site_preloader') === '1'; } catch (e) {}
+    var delay = wasShown ? 220 : 1050;
+    setTimeout(function () {
+      pre.classList.add('site-preloader--hidden');
+      try { sessionStorage.setItem('arka_site_preloader', '1'); } catch (e) {}
+      setTimeout(function () {
+        if (pre && pre.parentNode) pre.parentNode.removeChild(pre);
+      }, 900);
+    }, delay);
+  }
+
+  function bindHomeHeroAnimation() {
+    if (detachHomeHeroScroll) {
+      detachHomeHeroScroll();
+      detachHomeHeroScroll = null;
+    }
+    var hero = document.getElementById('site-hero');
+    if (!hero) return;
+    var reducedMotion = false;
+    try { reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+    if (reducedMotion) {
+      hero.style.setProperty('--hero-progress', '1');
+      return;
+    }
+    var ticking = false;
+    var onScroll = function () {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(function () {
+        ticking = false;
+        var rect = hero.getBoundingClientRect();
+        var viewH = window.innerHeight || 1;
+        var heroH = Math.max(hero.offsetHeight || 1, 1);
+        var progress = (viewH - rect.top) / (viewH + heroH * 0.35);
+        if (progress < 0) progress = 0;
+        if (progress > 1) progress = 1;
+        hero.style.setProperty('--hero-progress', progress.toFixed(3));
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    detachHomeHeroScroll = function () {
+      window.removeEventListener('scroll', onScroll);
+    };
+  }
+
+  function buildHomeHero(cityName) {
+    return '' +
+      '<section id="site-hero" class="site-hero">' +
+        '<div class="site-hero-top">' +
+          '<div class="site-hero-city">' + escapeHtml(cityName || 'Саратов и Энгельс') + '</div>' +
+        '</div>' +
+        '<div class="site-hero-bouquet">' +
+          '<img src="/images/hero-bouquet.jpg" alt="Букет ARKA STUDIO" class="site-hero-bouquet-img" onerror="this.style.display=\'none\'; this.parentNode.classList.add(\'site-hero-bouquet--fallback\');">' +
+        '</div>' +
+        '<div class="site-hero-brand">' +
+          '<img src="/images/logo.svg" alt="АРКА СТУДИЯ ЦВЕТОВ" class="site-hero-brand-logo" onerror="this.style.display=\'none\'">' +
+          '<div class="site-hero-title">АРКА</div>' +
+          '<div class="site-hero-subtitle">СТУДИЯ ЦВЕТОВ</div>' +
+          '<button class="site-hero-cta" onclick="scrollToCatalog()">В каталог</button>' +
+        '</div>' +
+        '<div class="site-hero-hint">Прокрутите вниз</div>' +
+      '</section>';
+  }
 
   function getProductMinPrice(p) {
     if (!p) return 0;
@@ -854,17 +936,23 @@
     var cityLine = cityName
       ? '<span class="city-current" onclick="changeCityClick()">' + escapeHtml(cityName) + '</span>'
       : '<span class="city-current" onclick="changeCityClick()">Выбрать город</span>';
+    var siteHero = shouldShowSiteHero() ? buildHomeHero(cityName) : '';
+    var catalogHeader = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
+      '<div class="category-title">Каталог</div>' +
+      cityLine +
+    '</div>';
 
     setActiveTab('home');
     render(
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
-        '<div class="category-title">Каталог</div>' +
-        cityLine +
-      '</div>' +
-      '<div class="category-select-wrap" id="category-select-wrap">Загрузка...</div>' +
-      '<div id="active-cat-title" class="category-title" style="font-size:16px;margin-bottom:14px;display:none"></div>' +
-      '<div class="product-list" id="home-product-list">Загрузка...</div>'
+      siteHero +
+      '<section id="home-catalog" class="home-catalog-block">' +
+        catalogHeader +
+        '<div class="category-select-wrap" id="category-select-wrap">Загрузка...</div>' +
+        '<div id="active-cat-title" class="category-title" style="font-size:16px;margin-bottom:14px;display:none"></div>' +
+        '<div class="product-list" id="home-product-list">Загрузка...</div>' +
+      '</section>'
     );
+    bindHomeHeroAnimation();
 
     fetchJSON('/api/categories').then(function (cats) {
       var el = document.getElementById('category-select-wrap');
@@ -3496,7 +3584,21 @@
   // Navigation
   // ============================================================
 
+  window.scrollToCatalog = function () {
+    var el = document.getElementById('home-catalog');
+    if (!el) return;
+    try {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) {
+      el.scrollIntoView(true);
+    }
+  };
+
   window.navigateTo = function (page, param) {
+    if (page !== 'home' && detachHomeHeroScroll) {
+      detachHomeHeroScroll();
+      detachHomeHeroScroll = null;
+    }
     if (page !== 'account') stopTrackingPoll();
     if (page !== 'checkout' && _inCheckout) {
       sendAbandonedCart('Ушёл на: ' + page);
