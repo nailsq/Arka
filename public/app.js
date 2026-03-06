@@ -841,12 +841,16 @@
     if (!heroSection) return;
     var heroVideo = document.getElementById('site-hero-video');
     var lastVideoTime = -1;
+    var targetRawProgress = 0;
+    var currentRawProgress = 0;
+    var rafId = 0;
+    var running = true;
     var syncVideoToProgress = function (progress) {
       if (!heroVideo) return;
       var duration = heroVideo.duration;
       if (!isFinite(duration) || duration <= 0.05) return;
       var target = Math.max(0, Math.min(duration - 0.03, progress * duration));
-      if (Math.abs(target - lastVideoTime) < 0.008) return;
+      if (Math.abs(target - lastVideoTime) < 0.004) return;
       try {
         heroVideo.currentTime = target;
         lastVideoTime = target;
@@ -867,49 +871,51 @@
       syncVideoToProgress(1);
       return;
     }
-    var ticking = false;
-    var lastProgress = -1;
+    var updateTargetsFromScroll = function () {
+      var rect = heroSection.getBoundingClientRect();
+      var viewH = window.innerHeight || 1;
+      var travel = Math.max((heroSection.offsetHeight || 1) - viewH, 1);
+      var raw = (-rect.top) / travel;
+      if (raw < 0) raw = 0;
+      if (raw > 1) raw = 1;
+      targetRawProgress = raw;
+    };
+    var tick = function () {
+      if (!running) return;
+      currentRawProgress += (targetRawProgress - currentRawProgress) * 0.16;
+      if (Math.abs(targetRawProgress - currentRawProgress) < 0.0008) {
+        currentRawProgress = targetRawProgress;
+      }
+      var rawProgress = currentRawProgress;
+      var heroProgress = Math.pow(rawProgress, 1.08);
+      var textProgress = 0;
+      var ctaProgress = 0;
+      if (rawProgress > 0.78) {
+        textProgress = (rawProgress - 0.78) / 0.18;
+        if (textProgress > 1) textProgress = 1;
+      }
+      if (rawProgress > 0.9) {
+        ctaProgress = (rawProgress - 0.9) / 0.1;
+        if (ctaProgress > 1) ctaProgress = 1;
+      }
+      heroSection.style.setProperty('--hero-progress', heroProgress.toFixed(3));
+      heroSection.style.setProperty('--hero-text-progress', textProgress.toFixed(3));
+      heroSection.style.setProperty('--hero-cta-progress', ctaProgress.toFixed(3));
+      syncVideoToProgress(heroProgress);
+      rafId = requestAnimationFrame(tick);
+    };
     var onScroll = function () {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(function () {
-        ticking = false;
-        var rect = heroSection.getBoundingClientRect();
-        var viewH = window.innerHeight || 1;
-        var travel = Math.max((heroSection.offsetHeight || 1) - viewH, 1);
-        var rawProgress = (-rect.top) / travel;
-        if (rawProgress < 0) rawProgress = 0;
-        if (rawProgress > 1) rawProgress = 1;
-
-        // Slow cinematic reveal: starts slower, ends a bit faster.
-        var heroProgress = Math.pow(rawProgress, 1.08);
-        var textProgress = 0;
-        var ctaProgress = 0;
-
-        if (rawProgress > 0.78) {
-          textProgress = (rawProgress - 0.78) / 0.18;
-          if (textProgress > 1) textProgress = 1;
-        }
-        if (rawProgress > 0.9) {
-          ctaProgress = (rawProgress - 0.9) / 0.1;
-          if (ctaProgress > 1) ctaProgress = 1;
-        }
-
-        if (Math.abs(heroProgress - lastProgress) > 0.003) {
-          heroSection.style.setProperty('--hero-progress', heroProgress.toFixed(3));
-          heroSection.style.setProperty('--hero-text-progress', textProgress.toFixed(3));
-          heroSection.style.setProperty('--hero-cta-progress', ctaProgress.toFixed(3));
-          syncVideoToProgress(heroProgress);
-          lastProgress = heroProgress;
-        }
-      });
+      updateTargetsFromScroll();
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
-    onScroll();
+    updateTargetsFromScroll();
+    tick();
     detachHomeHeroScroll = function () {
+      running = false;
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
+      if (rafId) cancelAnimationFrame(rafId);
     };
   }
 
