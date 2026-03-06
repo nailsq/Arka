@@ -220,22 +220,32 @@ async function notifyAdminsNewOrder(order) {
     ).all(order.id);
 
     var msg = '<b>\u041d\u043e\u0432\u044b\u0439 \u043e\u043f\u043b\u0430\u0447\u0435\u043d\u043d\u044b\u0439 \u0437\u0430\u043a\u0430\u0437 #' + order.id + '</b>\n\n';
-    msg += '\u041a\u043b\u0438\u0435\u043d\u0442: ' + (order.user_name || '-') + '\n';
-    msg += '\u0422\u0435\u043b\u0435\u0444\u043e\u043d: ' + (order.user_phone || '-') + '\n';
+    msg += '\u041a\u043b\u0438\u0435\u043d\u0442: ' + escapeHtmlText(order.user_name || '-') + '\n';
+    msg += '\u0422\u0435\u043b\u0435\u0444\u043e\u043d \u043a\u043b\u0438\u0435\u043d\u0442\u0430: ' + escapeHtmlText(order.user_phone || '-') + '\n';
+    if (order.user_telegram) msg += 'Telegram: ' + escapeHtmlText(order.user_telegram) + '\n';
+    if (order.user_email) msg += 'Email: ' + escapeHtmlText(order.user_email) + '\n';
+    msg += '\u041f\u043e\u043b\u0443\u0447\u0430\u0442\u0435\u043b\u044c: ' + escapeHtmlText(order.receiver_name || '-') + '\n';
+    msg += '\u0422\u0435\u043b\u0435\u0444\u043e\u043d \u043f\u043e\u043b\u0443\u0447\u0430\u0442\u0435\u043b\u044f: ' + escapeHtmlText(order.receiver_phone || '-') + '\n';
     if (order.delivery_type === 'pickup') {
       msg += '\u0422\u0438\u043f: \u0421\u0430\u043c\u043e\u0432\u044b\u0432\u043e\u0437\n';
     } else {
       msg += '\u0422\u0438\u043f: \u0414\u043e\u0441\u0442\u0430\u0432\u043a\u0430\n';
-      if (order.delivery_address) msg += '\u0410\u0434\u0440\u0435\u0441: ' + order.delivery_address + '\n';
+      if (order.delivery_address) msg += '\u0410\u0434\u0440\u0435\u0441: ' + escapeHtmlText(order.delivery_address) + '\n';
+      if (order.delivery_zone) msg += '\u0417\u043e\u043d\u0430: ' + escapeHtmlText(order.delivery_zone) + '\n';
     }
-    if (order.delivery_date) msg += '\u0414\u0430\u0442\u0430: ' + order.delivery_date + '\n';
-    if (order.delivery_interval) msg += '\u0412\u0440\u0435\u043c\u044f: ' + order.delivery_interval + '\n';
-    msg += '\u0421\u0443\u043c\u043c\u0430: ' + order.total_amount + ' \u0440\u0443\u0431.\n';
+    if (order.delivery_date) msg += '\u0414\u0430\u0442\u0430: ' + escapeHtmlText(order.delivery_date) + '\n';
+    if (order.delivery_interval) msg += '\u0412\u0440\u0435\u043c\u044f: ' + escapeHtmlText(order.delivery_interval) + '\n';
+    if (order.exact_time) msg += '\u0422\u043e\u0447\u043d\u043e\u0435 \u0432\u0440\u0435\u043c\u044f: ' + escapeHtmlText(order.exact_time) + '\n';
+    if (order.comment) msg += '\u041a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0439: ' + escapeHtmlText(order.comment) + '\n';
+    msg += '\u0414\u043e\u0441\u0442\u0430\u0432\u043a\u0430: ' + (parseInt(order.delivery_cost, 10) || 0) + ' \u0440\u0443\u0431.\n';
+    msg += '\u0421\u0443\u043c\u043c\u0430: ' + (parseInt(order.total_amount, 10) || 0) + ' \u0440\u0443\u0431.\n';
 
     if (items.length) {
       msg += '\n\u0422\u043e\u0432\u0430\u0440\u044b:\n';
       for (var i = 0; i < items.length; i++) {
-        msg += '  ' + (items[i].product_name || '\u0422\u043e\u0432\u0430\u0440') + ' x' + items[i].quantity + ' \u2014 ' + items[i].price + ' \u0440\u0443\u0431.\n';
+        var itemName = escapeHtmlText(items[i].product_name || '\u0422\u043e\u0432\u0430\u0440');
+        var itemSize = items[i].size_label ? ' (' + escapeHtmlText(items[i].size_label) + ')' : '';
+        msg += '  ' + itemName + itemSize + ' x' + (items[i].quantity || 0) + ' \u2014 ' + (items[i].price || 0) + ' \u0440\u0443\u0431.\n';
       }
     }
 
