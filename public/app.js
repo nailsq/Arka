@@ -720,6 +720,7 @@
   // ============================================================
 
   function init() {
+    applyRuntimeLayoutMode();
     initSitePreloader();
 
     fetchJSON('/api/settings').then(function (s) {
@@ -782,6 +783,12 @@
     return !isTelegramRuntime;
   }
 
+  function applyRuntimeLayoutMode() {
+    if (!document || !document.body) return;
+    document.body.classList.toggle('web-mode', !isTelegramRuntime);
+    document.body.classList.toggle('telegram-mode', isTelegramRuntime);
+  }
+
   function initSitePreloader() {
     var pre = document.getElementById('site-preloader');
     if (!pre) return;
@@ -806,52 +813,60 @@
       detachHomeHeroScroll();
       detachHomeHeroScroll = null;
     }
-    var hero = document.getElementById('site-hero');
-    if (!hero) return;
+    var heroSection = document.getElementById('site-hero');
+    if (!heroSection) return;
     var reducedMotion = false;
     try { reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
     if (reducedMotion) {
-      hero.style.setProperty('--hero-progress', '1');
+      heroSection.style.setProperty('--hero-progress', '1');
       return;
     }
     var ticking = false;
+    var lastProgress = -1;
     var onScroll = function () {
       if (ticking) return;
       ticking = true;
       requestAnimationFrame(function () {
         ticking = false;
-        var rect = hero.getBoundingClientRect();
+        var rect = heroSection.getBoundingClientRect();
         var viewH = window.innerHeight || 1;
-        var heroH = Math.max(hero.offsetHeight || 1, 1);
-        var progress = (viewH - rect.top) / (viewH + heroH * 0.35);
+        var travel = Math.max((heroSection.offsetHeight || 1) - viewH, 1);
+        var progress = (-rect.top) / travel;
         if (progress < 0) progress = 0;
         if (progress > 1) progress = 1;
-        hero.style.setProperty('--hero-progress', progress.toFixed(3));
+        if (Math.abs(progress - lastProgress) > 0.003) {
+          heroSection.style.setProperty('--hero-progress', progress.toFixed(3));
+          lastProgress = progress;
+        }
       });
     };
     window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
     onScroll();
     detachHomeHeroScroll = function () {
       window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
     };
   }
 
   function buildHomeHero(cityName) {
     return '' +
       '<section id="site-hero" class="site-hero">' +
-        '<div class="site-hero-top">' +
-          '<div class="site-hero-city">' + escapeHtml(cityName || 'Саратов и Энгельс') + '</div>' +
+        '<div class="site-hero-stage">' +
+          '<div class="site-hero-top">' +
+            '<div class="site-hero-city">' + escapeHtml(cityName || 'Саратов и Энгельс') + '</div>' +
+          '</div>' +
+          '<div class="site-hero-bouquet">' +
+            '<img src="/images/hero-bouquet.jpg" alt="Букет ARKA STUDIO" class="site-hero-bouquet-img" onerror="this.style.display=\'none\'; this.parentNode.classList.add(\'site-hero-bouquet--fallback\');">' +
+          '</div>' +
+          '<div class="site-hero-brand">' +
+            '<img src="/images/logo.svg" alt="АРКА СТУДИЯ ЦВЕТОВ" class="site-hero-brand-logo" onerror="this.style.display=\'none\'">' +
+            '<div class="site-hero-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
+            '<div class="site-hero-subtitle">доставка по Саратову и Энгельсу</div>' +
+            '<button class="site-hero-cta" onclick="scrollToCatalog()">В каталог</button>' +
+          '</div>' +
+          '<div class="site-hero-hint">Скролл вниз</div>' +
         '</div>' +
-        '<div class="site-hero-bouquet">' +
-          '<img src="/images/hero-bouquet.jpg" alt="Букет ARKA STUDIO" class="site-hero-bouquet-img" onerror="this.style.display=\'none\'; this.parentNode.classList.add(\'site-hero-bouquet--fallback\');">' +
-        '</div>' +
-        '<div class="site-hero-brand">' +
-          '<img src="/images/logo.svg" alt="АРКА СТУДИЯ ЦВЕТОВ" class="site-hero-brand-logo" onerror="this.style.display=\'none\'">' +
-          '<div class="site-hero-title">АРКА</div>' +
-          '<div class="site-hero-subtitle">СТУДИЯ ЦВЕТОВ</div>' +
-          '<button class="site-hero-cta" onclick="scrollToCatalog()">В каталог</button>' +
-        '</div>' +
-        '<div class="site-hero-hint">Прокрутите вниз</div>' +
       '</section>';
   }
 
