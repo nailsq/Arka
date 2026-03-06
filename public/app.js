@@ -771,6 +771,82 @@
   // ============================================================
 
   var homeActiveCategory = null;
+  var homeCategoriesById = {};
+
+  function getProductMinPrice(p) {
+    if (!p) return 0;
+    var base = parseInt(p.price, 10);
+    if (isNaN(base) || base < 0) base = 0;
+    if (!p.sizes || !p.sizes.length) return base;
+    var min = null;
+    for (var i = 0; i < p.sizes.length; i++) {
+      var sp = parseInt(p.sizes[i].price, 10);
+      if (isNaN(sp) || sp < 0) continue;
+      if (min === null || sp < min) min = sp;
+    }
+    return min === null ? base : min;
+  }
+
+  function parseCategoryPriceRange(catName) {
+    var raw = String(catName || '').trim();
+    if (!raw) return null;
+
+    var normalized = raw
+      .toLowerCase()
+      .replace(/\u00a0/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    var hasRangeHints = /(до|от|руб|₽|тыс|к\b)/.test(normalized) || /\d\s*[-–—]\s*\d/.test(normalized);
+    if (!hasRangeHints) return null;
+
+    var nums = normalized.match(/\d[\d\s]*/g);
+    if (!nums || !nums.length) return null;
+
+    var values = nums.map(function (n) {
+      return parseInt(String(n).replace(/\s+/g, ''), 10);
+    }).filter(function (v) { return !isNaN(v); });
+    if (!values.length) return null;
+
+    var min = null;
+    var max = null;
+
+    if (/\bдо\b/.test(normalized) && /\bот\b/.test(normalized) && values.length >= 2) {
+      min = Math.min(values[0], values[1]);
+      max = Math.max(values[0], values[1]);
+    } else if (/\bдо\b/.test(normalized)) {
+      max = values[0];
+      if (values.length >= 2) min = Math.min(values[0], values[1]);
+    } else if (/\bот\b/.test(normalized)) {
+      min = values[0];
+      if (values.length >= 2) max = Math.max(values[0], values[1]);
+    } else if (values.length >= 2) {
+      min = Math.min(values[0], values[1]);
+      max = Math.max(values[0], values[1]);
+    } else {
+      return null;
+    }
+
+    if (min !== null && max !== null && min > max) {
+      var t = min;
+      min = max;
+      max = t;
+    }
+
+    return { min: min, max: max };
+  }
+
+  function filterProductsByCategoryPriceRange(products, catName) {
+    if (!products || !products.length) return products || [];
+    var range = parseCategoryPriceRange(catName);
+    if (!range) return products;
+    return products.filter(function (p) {
+      var price = getProductMinPrice(p);
+      if (range.min !== null && price < range.min) return false;
+      if (range.max !== null && price > range.max) return false;
+      return true;
+    });
+  }
 
   function showHome(filterCatId) {
     homeActiveCategory = filterCatId || null;
@@ -794,6 +870,8 @@
       var el = document.getElementById('category-select-wrap');
       if (!el) return;
       if (!cats || !cats.length) { el.innerHTML = ''; return; }
+      homeCategoriesById = {};
+      cats.forEach(function (c) { homeCategoriesById[c.id] = c.name; });
       var html = '<button class="cat-chip' + (!homeActiveCategory ? ' active' : '') + '" onclick="filterHome(null)">Все</button>';
       html += cats.map(function (c) {
         return '<button class="cat-chip' + (homeActiveCategory === c.id ? ' active' : '') + '" onclick="filterHome(' + c.id + ',\'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\')">' + escapeHtml(c.name) + '</button>';
@@ -812,6 +890,8 @@
     fetchJSON(productsUrl).then(function (prods) {
       var el = document.getElementById('home-product-list');
       if (!el) return;
+      var selectedName = homeActiveCategory ? homeCategoriesById[homeActiveCategory] : '';
+      prods = filterProductsByCategoryPriceRange(prods || [], selectedName);
       if (!prods || !prods.length) { el.innerHTML = '<div class="empty-state">Товаров пока нет</div>'; return; }
       prods.sort(function (a, b) { return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0); });
       el.innerHTML = prods.map(buildProductCard).join('');
@@ -847,6 +927,8 @@
     fetchJSON(productsUrl).then(function (prods) {
       var el = document.getElementById('home-product-list');
       if (!el) return;
+      var selectedName = catName || homeCategoriesById[catId] || '';
+      prods = filterProductsByCategoryPriceRange(prods || [], selectedName);
       if (!prods || !prods.length) { el.innerHTML = '<div class="empty-state">В этой категории пока нет товаров</div>'; return; }
       prods.sort(function (a, b) { return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0); });
       el.innerHTML = prods.map(buildProductCard).join('');
