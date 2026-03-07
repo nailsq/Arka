@@ -8,6 +8,8 @@
   var appSettings = {};
   var selectedCity = null;
   var citiesList = [];
+  var webTelegramBotUsername = '';
+  var webTelegramBotChecked = false;
 
   // ============================================================
   // Telegram Web App
@@ -309,13 +311,14 @@
   // ============================================================
 
   function fetchJSON(url) {
-    return fetch(url).then(function (r) { return r.json(); });
+    return fetch(url, { credentials: 'include' }).then(function (r) { return r.json(); });
   }
 
   function postJSON(url, data) {
     return fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(data)
     }).then(function (r) {
       if (!r.ok) {
@@ -324,6 +327,47 @@
         });
       }
       return r.json();
+    });
+  }
+
+  function ensureWebTelegramBotUsername() {
+    if (webTelegramBotChecked) {
+      return Promise.resolve(webTelegramBotUsername || '');
+    }
+    return fetchJSON('/api/auth/telegram-web-config')
+      .then(function (cfg) {
+        webTelegramBotChecked = true;
+        if (cfg && cfg.enabled && cfg.bot_username) {
+          webTelegramBotUsername = String(cfg.bot_username).replace(/^@/, '').trim();
+        }
+        return webTelegramBotUsername || '';
+      })
+      .catch(function () {
+        webTelegramBotChecked = true;
+        return '';
+      });
+  }
+
+  function mountWebTelegramLoginWidget(containerId) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '<div class="empty-state" style="padding:12px">Подключаем Telegram...</div>';
+    ensureWebTelegramBotUsername().then(function (botUsername) {
+      if (!container || !container.parentNode) return;
+      if (!botUsername) {
+        container.innerHTML = '<div class="empty-state" style="padding:12px">Вход через Telegram временно недоступен. Напишите, и мы быстро включим его.</div>';
+        return;
+      }
+      container.innerHTML = '';
+      var script = document.createElement('script');
+      script.async = true;
+      script.src = 'https://telegram.org/js/telegram-widget.js?22';
+      script.setAttribute('data-telegram-login', botUsername);
+      script.setAttribute('data-size', 'large');
+      script.setAttribute('data-userpic', 'false');
+      script.setAttribute('data-request-access', 'write');
+      script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+      container.appendChild(script);
     });
   }
 
@@ -816,6 +860,14 @@
       citiesList = cities || [];
     });
 
+    function finishInitUI() {
+      var hasCity = checkCityOnStart();
+      showHome();
+      updateCartBadge();
+      updateFavBadge();
+      if (!hasCity) showCityOverlay();
+    }
+
     if (tgUser) {
       postJSON('/api/auth/telegram', {
         telegram_id: tgUser.id,
@@ -828,22 +880,27 @@
           try { localStorage.setItem('arka_tg_id', String(tgUser.id)); } catch (e) {}
           try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
         }
-      }).catch(function () {});
-    } else {
-      try {
-        var savedUser = localStorage.getItem('arka_user');
-        if (savedUser) dbUser = JSON.parse(savedUser);
-      } catch (e) {}
+      }).catch(function () {}).finally(function () {
+        finishInitUI();
+      });
+      return;
     }
 
-    var hasCity = checkCityOnStart();
-    showHome();
-    updateCartBadge();
-    updateFavBadge();
+    try {
+      var savedUser = localStorage.getItem('arka_user');
+      if (savedUser) dbUser = JSON.parse(savedUser);
+    } catch (e) {}
 
-    if (!hasCity) {
-      showCityOverlay();
-    }
+    ensureWebTelegramBotUsername();
+    fetchJSON('/api/auth/session').then(function (r) {
+      if (r && r.user) {
+        dbUser = r.user;
+        try { localStorage.setItem('arka_tg_id', String(r.user.telegram_id || '')); } catch (e) {}
+        try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
+      }
+    }).catch(function () {}).finally(function () {
+      finishInitUI();
+    });
   }
 
   function updateSocialLinks() {
@@ -2920,12 +2977,23 @@
   function showAccount() {
     setActiveTab('account');
     if (!tgUser && !dbUser && !getTelegramId()) {
-      render(
-        '<div class="section-title">Профиль</div>' +
-        '<div class="account-section">' +
-          '<p>Откройте приложение через Telegram для доступа к профилю.</p>' +
-        '</div>'
-      );
+      if (!isTelegramRuntime) {
+        render(
+          '<div class="section-title">Профиль</div>' +
+          '<div class="account-section">' +
+            '<p style="margin-bottom:10px">Войдите через Telegram, чтобы открыть профиль и синхронизировать данные с Mini App.</p>' +
+            '<div id="web-telegram-login-widget"></div>' +
+          '</div>'
+        );
+        mountWebTelegramLoginWidget('web-telegram-login-widget');
+      } else {
+        render(
+          '<div class="section-title">Профиль</div>' +
+          '<div class="account-section">' +
+            '<p>Откройте приложение через Telegram для доступа к профилю.</p>' +
+          '</div>'
+        );
+      }
       return;
     }
 
@@ -3316,7 +3384,9 @@
   };
 
   window.deleteAddress = function (id) {
-    fetch('/api/user/addresses/' + id, { method: 'DELETE' }).then(function (r) { return r.json(); }).then(function () {
+    var tgid = getTelegramId();
+    var q = tgid ? ('?telegram_id=' + encodeURIComponent(tgid)) : '';
+    fetch('/api/user/addresses/' + id + q, { method: 'DELETE', credentials: 'include' }).then(function (r) { return r.json(); }).then(function () {
       showToast('Адрес удалён');
       loadProfileAddresses();
     });
@@ -3720,6 +3790,26 @@
     } catch (e) {
       el.scrollIntoView(true);
     }
+  };
+
+  window.onTelegramAuth = function (user) {
+    if (!user || !user.id || !user.hash) {
+      showToast('Ошибка входа через Telegram');
+      return;
+    }
+    postJSON('/api/auth/telegram-web', user).then(function (r) {
+      if (!r || !r.user) {
+        showToast('Не удалось выполнить вход');
+        return;
+      }
+      dbUser = r.user;
+      try { localStorage.setItem('arka_tg_id', String(r.user.telegram_id || user.id)); } catch (e) {}
+      try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
+      showToast('Вход выполнен');
+      navigateTo('account');
+    }).catch(function () {
+      showToast('Не удалось выполнить вход');
+    });
   };
 
   window.navigateTo = function (page, param) {

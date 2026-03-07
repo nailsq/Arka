@@ -25,6 +25,12 @@ var TOCHKA_MERCHANT_ID = process.env.TOCHKA_MERCHANT_ID || '';
 var TOCHKA_CLIENT_ID = process.env.TOCHKA_CLIENT_ID || '';
 
 var adminTokens = new Set();
+var SESSION_COOKIE_NAME = 'arka_session';
+var SESSION_TTL_SEC = Math.max(3600, parseInt(process.env.SESSION_TTL_SEC || '2592000', 10) || 2592000);
+var SESSION_SECRET = process.env.SESSION_SECRET ||
+  (isRealBotToken(CLIENT_BOT_TOKEN)
+    ? crypto.createHash('sha256').update(CLIENT_BOT_TOKEN).digest('hex')
+    : 'change_me_session_secret');
 
 var upload = multer({
   storage: multer.memoryStorage(),
@@ -305,6 +311,142 @@ function validateTelegramInitData(initData) {
   return null;
 }
 
+function parseCookies(req) {
+  var out = {};
+  var raw = String((req && req.headers && req.headers.cookie) || '');
+  if (!raw) return out;
+  raw.split(';').forEach(function (pair) {
+    var idx = pair.indexOf('=');
+    if (idx <= 0) return;
+    var k = pair.slice(0, idx).trim();
+    var v = pair.slice(idx + 1).trim();
+    if (!k) return;
+    try { out[k] = decodeURIComponent(v); } catch (e) { out[k] = v; }
+  });
+  return out;
+}
+
+function b64urlEncode(buf) {
+  return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function b64urlDecode(str) {
+  var normalized = String(str || '').replace(/-/g, '+').replace(/_/g, '/');
+  while (normalized.length % 4) normalized += '=';
+  return Buffer.from(normalized, 'base64');
+}
+
+function signSession(payloadObj) {
+  var payload = b64urlEncode(Buffer.from(JSON.stringify(payloadObj), 'utf8'));
+  var sig = b64urlEncode(crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest());
+  return payload + '.' + sig;
+}
+
+function verifySession(token) {
+  try {
+    var parts = String(token || '').split('.');
+    if (parts.length !== 2) return null;
+    var payloadPart = parts[0];
+    var sigPart = parts[1];
+    var expected = b64urlEncode(crypto.createHmac('sha256', SESSION_SECRET).update(payloadPart).digest());
+    var a = Buffer.from(sigPart);
+    var b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    var payload = JSON.parse(b64urlDecode(payloadPart).toString('utf8'));
+    if (!payload || !payload.tg || !payload.exp) return null;
+    if (Date.now() > Number(payload.exp) * 1000) return null;
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setSessionCookie(res, token) {
+  var secure = /^https:\/\//i.test(PUBLIC_URL) || process.env.COOKIE_SECURE === '1';
+  var cookie = SESSION_COOKIE_NAME + '=' + encodeURIComponent(token) +
+    '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + SESSION_TTL_SEC + (secure ? '; Secure' : '');
+  res.setHeader('Set-Cookie', cookie);
+}
+
+function clearSessionCookie(res) {
+  var secure = /^https:\/\//i.test(PUBLIC_URL) || process.env.COOKIE_SECURE === '1';
+  var cookie = SESSION_COOKIE_NAME + '=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0' + (secure ? '; Secure' : '');
+  res.setHeader('Set-Cookie', cookie);
+}
+
+async function getSessionUser(req) {
+  var cookies = parseCookies(req);
+  var token = cookies[SESSION_COOKIE_NAME];
+  if (!token) return null;
+  var payload = verifySession(token);
+  if (!payload || !payload.tg) return null;
+  var user = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(payload.tg));
+  return user || null;
+}
+
+function validateTelegramLoginWidgetData(data) {
+  if (!isRealBotToken(CLIENT_BOT_TOKEN)) return null;
+  try {
+    if (!data || typeof data !== 'object') return null;
+    var hash = String(data.hash || '');
+    if (!hash) return null;
+    var authDate = parseInt(data.auth_date, 10);
+    if (!authDate) return null;
+    // Telegram Login Widget payload should be short-lived.
+    if (Math.abs(Math.floor(Date.now() / 1000) - authDate) > 86400) return null;
+    var check = {};
+    Object.keys(data).forEach(function (k) {
+      if (k === 'hash') return;
+      if (data[k] === undefined || data[k] === null || data[k] === '') return;
+      check[k] = String(data[k]);
+    });
+    var checkString = Object.keys(check).sort().map(function (k) { return k + '=' + check[k]; }).join('\n');
+    var secret = crypto.createHash('sha256').update(CLIENT_BOT_TOKEN).digest();
+    var computed = crypto.createHmac('sha256', secret).update(checkString).digest('hex');
+    var a = Buffer.from(hash);
+    var b = Buffer.from(computed);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    return {
+      id: String(check.id || ''),
+      first_name: String(check.first_name || ''),
+      username: String(check.username || '').replace(/^@/, '').trim().toLowerCase(),
+      auth_date: authDate
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+async function upsertTelegramUser(telegramId, firstName, telegramUsername) {
+  if (!telegramId) return null;
+  var existing = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
+  if (existing) {
+    var shouldUpdate =
+      ((firstName && firstName !== existing.first_name) ||
+        (telegramUsername || '') !== (existing.telegram_username || ''));
+    if (shouldUpdate) {
+      await db.prepare('UPDATE users SET first_name = ?, telegram_username = ? WHERE id = ?')
+        .run(firstName || existing.first_name || '', telegramUsername || '', existing.id);
+      if (firstName) existing.first_name = firstName;
+      existing.telegram_username = telegramUsername || '';
+    }
+    return existing;
+  }
+  var info = await db.prepare('INSERT INTO users (telegram_id, first_name, telegram_username) VALUES (?, ?, ?)')
+    .run(String(telegramId), firstName || '', telegramUsername || '');
+  return db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+}
+
+async function resolveRequestTelegramId(req, sourceId) {
+  var fromRequest = String(sourceId || '').trim();
+  var sessionUser = await getSessionUser(req);
+  if (sessionUser && sessionUser.telegram_id) {
+    if (fromRequest && fromRequest !== String(sessionUser.telegram_id)) return null;
+    return String(sessionUser.telegram_id);
+  }
+  return fromRequest || '';
+}
+
 function adminAuth(req, res, next) {
   var token = req.headers['x-admin-token'];
   if (!token || !adminTokens.has(token)) {
@@ -523,21 +665,52 @@ app.post('/api/auth/telegram', async function (req, res) {
     }
   }
 
-  var existing = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
-  if (existing) {
-    if ((firstName && firstName !== existing.first_name) || telegramUsername !== (existing.telegram_username || '')) {
-      await db.prepare('UPDATE users SET first_name = ?, telegram_username = ? WHERE id = ?')
-        .run(firstName || existing.first_name || '', telegramUsername, existing.id);
-      if (firstName) existing.first_name = firstName;
-      existing.telegram_username = telegramUsername;
-    }
-    return res.json({ user: existing });
-  }
-
-  var info = await db.prepare('INSERT INTO users (telegram_id, first_name, telegram_username) VALUES (?, ?, ?)')
-    .run(String(telegramId), firstName, telegramUsername);
-  var user = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+  var user = await upsertTelegramUser(String(telegramId), firstName, telegramUsername);
+  var token = signSession({
+    tg: String(user.telegram_id),
+    exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SEC
+  });
+  setSessionCookie(res, token);
   res.json({ user: user });
+});
+
+app.get('/api/auth/telegram-web-config', async function (req, res) {
+  try {
+    if (!isRealBotToken(CLIENT_BOT_TOKEN)) {
+      return res.json({ enabled: false, reason: 'bot_token_missing' });
+    }
+    var me = await telegramApiCallByToken(CLIENT_BOT_TOKEN, 'getMe', {}, '[TG Client API]');
+    var username = me && me.ok && me.result && me.result.username ? String(me.result.username) : '';
+    if (!username) return res.json({ enabled: false, reason: 'bot_username_missing' });
+    res.json({ enabled: true, bot_username: username });
+  } catch (e) {
+    res.json({ enabled: false, reason: 'bot_resolve_failed' });
+  }
+});
+
+app.post('/api/auth/telegram-web', async function (req, res) {
+  var validated = validateTelegramLoginWidgetData(req.body || {});
+  if (!validated || !validated.id) {
+    return res.status(403).json({ error: 'Invalid Telegram login payload' });
+  }
+  var user = await upsertTelegramUser(validated.id, validated.first_name, validated.username);
+  var token = signSession({
+    tg: String(user.telegram_id),
+    exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SEC
+  });
+  setSessionCookie(res, token);
+  res.json({ user: user });
+});
+
+app.get('/api/auth/session', async function (req, res) {
+  var user = await getSessionUser(req);
+  if (!user) return res.json({ user: null });
+  res.json({ user: user });
+});
+
+app.post('/api/auth/logout', async function (req, res) {
+  clearSessionCookie(res);
+  res.json({ ok: true });
 });
 
 // ============================================================
@@ -545,7 +718,7 @@ app.post('/api/auth/telegram', async function (req, res) {
 // ============================================================
 
 app.post('/api/user/update', async function (req, res) {
-  var telegramId = req.body.telegram_id;
+  var telegramId = await resolveRequestTelegramId(req, req.body.telegram_id);
   if (!telegramId) return res.status(400).json({ error: 'telegram_id required' });
   var user = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
   if (!user) return res.status(404).json({ error: 'User not found' });
@@ -564,7 +737,7 @@ app.post('/api/user/update', async function (req, res) {
 // ============================================================
 
 app.get('/api/user/addresses', async function (req, res) {
-  var telegramId = req.query.telegram_id;
+  var telegramId = await resolveRequestTelegramId(req, req.query.telegram_id);
   if (!telegramId) return res.json([]);
   var user = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
   if (!user) return res.json([]);
@@ -573,7 +746,7 @@ app.get('/api/user/addresses', async function (req, res) {
 });
 
 app.post('/api/user/addresses', async function (req, res) {
-  var telegramId = req.body.telegram_id;
+  var telegramId = await resolveRequestTelegramId(req, req.body.telegram_id);
   if (!telegramId) return res.status(400).json({ error: 'telegram_id required' });
   var user = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
   if (!user) return res.status(404).json({ error: 'User not found' });
@@ -587,7 +760,11 @@ app.post('/api/user/addresses', async function (req, res) {
 });
 
 app.delete('/api/user/addresses/:id', async function (req, res) {
-  await db.prepare('DELETE FROM user_addresses WHERE id = ?').run(req.params.id);
+  var telegramId = await resolveRequestTelegramId(req, req.query.telegram_id);
+  if (!telegramId) return res.status(400).json({ error: 'telegram_id required' });
+  var user = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  await db.prepare('DELETE FROM user_addresses WHERE id = ? AND user_id = ?').run(req.params.id, user.id);
   res.json({ ok: true });
 });
 
@@ -596,7 +773,7 @@ app.delete('/api/user/addresses/:id', async function (req, res) {
 // ============================================================
 
 app.get('/api/user/orders', async function (req, res) {
-  var telegramId = req.query.telegram_id;
+  var telegramId = await resolveRequestTelegramId(req, req.query.telegram_id);
   if (!telegramId) return res.status(400).json({ error: 'telegram_id required' });
   var user = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
   console.log('[UserOrders] telegram_id=' + telegramId + ', user=' + (user ? 'id=' + user.id : 'NOT FOUND'));
