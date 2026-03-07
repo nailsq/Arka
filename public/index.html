@@ -41,14 +41,21 @@
   </nav>
 
   <nav id="web-quick-nav" class="web-quick-nav" aria-label="Веб-навигация">
-    <button class="web-quick-nav-btn active" data-tab="home" onclick="navigateTo('home')">Каталог</button>
-    <button class="web-quick-nav-btn" data-tab="favorites" onclick="navigateTo('favorites')">
-      Избранное<span id="web-fav-badge" class="web-quick-badge" style="display:none"></span>
+    <button id="web-quick-toggle" class="web-quick-toggle" type="button" aria-label="Открыть меню" aria-expanded="false">
+      <span></span>
+      <span></span>
+      <span></span>
     </button>
-    <button class="web-quick-nav-btn" data-tab="cart" onclick="navigateTo('cart')">
-      Корзина<span id="web-cart-badge" class="web-quick-badge" style="display:none"></span>
-    </button>
-    <button class="web-quick-nav-btn" data-tab="account" onclick="navigateTo('account')">Профиль</button>
+    <div class="web-quick-nav-panel">
+      <button class="web-quick-nav-btn active" data-tab="home" onclick="navigateTo('home')">Каталог</button>
+      <button class="web-quick-nav-btn" data-tab="favorites" onclick="navigateTo('favorites')">
+        Избранное<span id="web-fav-badge" class="web-quick-badge" style="display:none"></span>
+      </button>
+      <button class="web-quick-nav-btn" data-tab="cart" onclick="navigateTo('cart')">
+        Корзина<span id="web-cart-badge" class="web-quick-badge" style="display:none"></span>
+      </button>
+      <button class="web-quick-nav-btn" data-tab="account" onclick="navigateTo('account')">Профиль</button>
+    </div>
   </nav>
 
   <main id="app"></main>

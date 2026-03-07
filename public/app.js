@@ -585,6 +585,15 @@
     });
   }
 
+  function setWebQuickNavOpen(open) {
+    var nav = document.getElementById('web-quick-nav');
+    var toggle = document.getElementById('web-quick-toggle');
+    if (!nav || !toggle) return;
+    var isOpen = !!open;
+    nav.classList.toggle('web-quick-nav--open', isOpen);
+    toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  }
+
   function setWebQuickNavHidden(hidden) {
     var nav = document.getElementById('web-quick-nav');
     if (!nav) return;
@@ -593,22 +602,30 @@
 
   function syncWebQuickNavVisibility(page) {
     if (isTelegramRuntime) return;
-    if (page && page !== 'home') {
-      setWebQuickNavHidden(false);
-      return;
-    }
-    var hero = document.getElementById('site-hero');
-    if (!hero) {
-      setWebQuickNavHidden(false);
-      return;
-    }
-    var rect = hero.getBoundingClientRect();
-    var viewH = window.innerHeight || 1;
-    var travel = Math.max((hero.offsetHeight || 1) - viewH, 1);
-    var progress = (-rect.top) / travel;
-    if (progress < 0) progress = 0;
-    if (progress > 1) progress = 1;
-    setWebQuickNavHidden(progress < 0.58);
+    setWebQuickNavHidden(false);
+  }
+
+  function initWebQuickNav() {
+    if (isTelegramRuntime) return;
+    var nav = document.getElementById('web-quick-nav');
+    var toggle = document.getElementById('web-quick-toggle');
+    if (!nav || !toggle) return;
+    if (nav.getAttribute('data-ready') === '1') return;
+    toggle.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      setWebQuickNavOpen(!nav.classList.contains('web-quick-nav--open'));
+    });
+    document.addEventListener('click', function (e) {
+      if (!nav.classList.contains('web-quick-nav--open')) return;
+      if (!nav.contains(e.target)) {
+        setWebQuickNavOpen(false);
+      }
+    });
+    window.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') setWebQuickNavOpen(false);
+    });
+    nav.setAttribute('data-ready', '1');
   }
 
   function updateCartBadge() {
@@ -772,6 +789,7 @@
   function init() {
     applyRuntimeLayoutMode();
     initSitePreloader();
+    initWebQuickNav();
 
     fetchJSON('/api/settings').then(function (s) {
       appSettings = s || {};
@@ -3689,6 +3707,7 @@
   };
 
   window.navigateTo = function (page, param) {
+    setWebQuickNavOpen(false);
     if (page !== 'home' && detachHomeHeroScroll) {
       detachHomeHeroScroll();
       detachHomeHeroScroll = null;
