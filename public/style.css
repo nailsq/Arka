@@ -498,6 +498,15 @@ body.web-mode .web-quick-nav {
   box-shadow: 0 10px 35px rgba(0, 0, 0, 0.26);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+
+body.web-mode .web-quick-nav.web-quick-nav--hidden {
+  opacity: 0;
+  transform: translateY(16px);
+  pointer-events: none;
 }
 
 body.telegram-mode .web-quick-nav {

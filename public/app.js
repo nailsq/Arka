@@ -585,6 +585,32 @@
     });
   }
 
+  function setWebQuickNavHidden(hidden) {
+    var nav = document.getElementById('web-quick-nav');
+    if (!nav) return;
+    nav.classList.toggle('web-quick-nav--hidden', !!hidden);
+  }
+
+  function syncWebQuickNavVisibility(page) {
+    if (isTelegramRuntime) return;
+    if (page && page !== 'home') {
+      setWebQuickNavHidden(false);
+      return;
+    }
+    var hero = document.getElementById('site-hero');
+    if (!hero) {
+      setWebQuickNavHidden(false);
+      return;
+    }
+    var rect = hero.getBoundingClientRect();
+    var viewH = window.innerHeight || 1;
+    var travel = Math.max((hero.offsetHeight || 1) - viewH, 1);
+    var progress = (-rect.top) / travel;
+    if (progress < 0) progress = 0;
+    if (progress > 1) progress = 1;
+    setWebQuickNavHidden(progress < 0.58);
+  }
+
   function updateCartBadge() {
     var badge = document.getElementById('cart-badge');
     var webBadge = document.getElementById('web-cart-badge');
@@ -890,16 +916,19 @@
     };
     var onScroll = function () {
       updateTargetsFromScroll();
+      syncWebQuickNavVisibility('home');
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
     updateTargetsFromScroll();
+    syncWebQuickNavVisibility('home');
     tick();
     detachHomeHeroScroll = function () {
       running = false;
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
       if (rafId) cancelAnimationFrame(rafId);
+      syncWebQuickNavVisibility(activeTab);
     };
   }
 
@@ -3688,6 +3717,7 @@
       case 'page-offer': showPageOffer(); break;
       default: showHome();
     }
+    syncWebQuickNavVisibility(page);
   };
 
   // ============================================================
