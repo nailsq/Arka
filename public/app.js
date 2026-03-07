@@ -900,6 +900,10 @@
     return '' +
       '<section id="site-hero" class="site-hero">' +
         '<div class="site-hero-stage">' +
+          '<div class="site-hero-intro">' +
+            '<div class="site-hero-intro-title">Выразите свои чувства</div>' +
+            '<div class="site-hero-intro-arrow" aria-hidden="true">&#8595;</div>' +
+          '</div>' +
           '<div class="site-hero-brand site-hero-brand--textonly">' +
             '<div class="site-hero-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
             '<div class="site-hero-subtitle">Доставка по Саратову и Энгельсу</div>' +

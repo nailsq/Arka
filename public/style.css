@@ -246,6 +246,37 @@ button, select {
   padding: 26px 20px 34px;
 }
 
+.site-hero-intro {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  pointer-events: none;
+  opacity: calc(1 - (1.7 * var(--hero-title-progress)));
+  transform: translateY(calc(-16px * var(--hero-title-progress)));
+  transition: opacity 0.25s linear, transform 0.25s linear;
+}
+
+.site-hero-intro-title {
+  font-family: 'Waverly CF', 'Playfair Display', serif;
+  font-size: clamp(26px, 5.3vw, 64px);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0e0e11;
+}
+
+.site-hero-intro-arrow {
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1;
+  color: rgba(14, 14, 17, 0.76);
+  animation: heroArrowFloat 1.9s ease-in-out infinite;
+}
+
 .site-hero-stage::before {
   content: '';
   position: absolute;
@@ -591,6 +622,12 @@ body.web-mode .product-list {
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes heroArrowFloat {
+  0% { transform: translateY(0); opacity: 0.82; }
+  50% { transform: translateY(8px); opacity: 1; }
+  100% { transform: translateY(0); opacity: 0.82; }
 }
 
 /* Footer */
