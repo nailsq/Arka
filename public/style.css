@@ -218,6 +218,7 @@ button, select {
 }
 
 .site-hero {
+  --hero-intro-progress: 0;
   --hero-title-progress: 0;
   --hero-subtitle-progress: 0;
   --hero-section-progress: 0;
@@ -257,8 +258,8 @@ button, select {
   gap: 18px;
   text-align: center;
   pointer-events: none;
-  opacity: calc(1 - (1.7 * var(--hero-title-progress)));
-  transform: translateY(calc(-16px * var(--hero-title-progress)));
+  opacity: calc(1 - (1.15 * var(--hero-intro-progress)));
+  transform: translateY(calc(-22px * var(--hero-intro-progress)));
   transition: opacity 0.25s linear, transform 0.25s linear;
 }
 
@@ -371,8 +372,8 @@ button, select {
   z-index: 2;
   text-align: center;
   margin: auto 0;
-  opacity: calc(0.1 + (0.9 * var(--hero-title-progress)));
-  transform: translateY(calc(12px - (12px * var(--hero-title-progress))));
+  opacity: calc(0.02 + (0.98 * var(--hero-title-progress)));
+  transform: translateY(calc(18px - (18px * var(--hero-title-progress))));
   transition: opacity 0.2s linear, transform 0.2s linear;
 }
 
@@ -396,8 +397,8 @@ button, select {
   margin-bottom: 12px;
   color: #0e0e11;
   text-transform: uppercase;
-  opacity: calc(0.12 + (0.88 * var(--hero-title-progress)));
-  transform: translateX(calc(-42px + (42px * var(--hero-title-progress))));
+  opacity: calc(0.02 + (0.98 * var(--hero-title-progress)));
+  transform: translateX(calc(-52px + (52px * var(--hero-title-progress))));
   clip-path: inset(0 calc((1 - var(--hero-title-progress)) * 100%) 0 0);
   transition: opacity 0.22s linear, transform 0.22s linear, clip-path 0.22s linear;
   line-height: 1.08;
@@ -410,7 +411,7 @@ button, select {
   color: rgba(14, 14, 17, 0.74);
   margin-bottom: 0;
   opacity: calc(var(--hero-subtitle-progress));
-  transform: translateX(calc(-24px + (24px * var(--hero-subtitle-progress))));
+  transform: translateX(calc(-30px + (30px * var(--hero-subtitle-progress))));
   transition: opacity 0.22s linear, transform 0.22s linear;
 }
 

@@ -846,8 +846,10 @@
     var reducedMotion = false;
     try { reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
     if (reducedMotion) {
+      heroSection.style.setProperty('--hero-intro-progress', '1');
       heroSection.style.setProperty('--hero-title-progress', '1');
       heroSection.style.setProperty('--hero-subtitle-progress', '1');
+      heroSection.style.setProperty('--hero-section-progress', '1');
       return;
     }
     var updateTargetsFromScroll = function () {
@@ -861,21 +863,26 @@
     };
     var tick = function () {
       if (!running) return;
-      currentRawProgress += (targetRawProgress - currentRawProgress) * 0.11;
+      currentRawProgress += (targetRawProgress - currentRawProgress) * 0.085;
       if (Math.abs(targetRawProgress - currentRawProgress) < 0.0008) {
         currentRawProgress = targetRawProgress;
       }
       var rawProgress = currentRawProgress;
-      var titleProgress = (rawProgress - 0.12) / 0.76;
+      var introProgress = rawProgress / 0.52;
+      if (introProgress > 1) introProgress = 1;
+      if (introProgress < 0) introProgress = 0;
+
+      var titleProgress = (rawProgress - 0.44) / 0.42;
       if (titleProgress > 1) titleProgress = 1;
       if (titleProgress < 0) titleProgress = 0;
 
       var subProgress = 0;
-      if (rawProgress > 0.72) {
-        subProgress = (rawProgress - 0.72) / 0.24;
+      if (rawProgress > 0.79) {
+        subProgress = (rawProgress - 0.79) / 0.2;
         if (subProgress > 1) subProgress = 1;
       }
 
+      heroSection.style.setProperty('--hero-intro-progress', introProgress.toFixed(3));
       heroSection.style.setProperty('--hero-title-progress', titleProgress.toFixed(3));
       heroSection.style.setProperty('--hero-subtitle-progress', subProgress.toFixed(3));
       heroSection.style.setProperty('--hero-section-progress', titleProgress.toFixed(3));
