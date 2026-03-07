@@ -218,11 +218,12 @@ button, select {
 }
 
 .site-hero {
-  --hero-progress: 0;
-  --hero-text-progress: 0;
-  --hero-cta-progress: 0;
+  --hero-title-progress: 0;
+  --hero-subtitle-progress: 0;
+  --hero-progress: var(--hero-title-progress);
+  --hero-cta-progress: var(--hero-subtitle-progress);
   margin: 0 0 26px;
-  min-height: 165vh;
+  min-height: 135vh;
   position: relative;
 }
 
@@ -239,13 +240,7 @@ button, select {
 }
 
 .site-hero-stage::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: #fff;
-  opacity: var(--hero-progress);
-  transition: opacity 0.18s linear;
-  z-index: 0;
+  content: none;
 }
 
 .site-hero-top {
@@ -325,9 +320,16 @@ button, select {
   position: relative;
   z-index: 2;
   text-align: center;
-  opacity: calc(var(--hero-text-progress));
-  transform: translateY(calc(18px - (18px * var(--hero-progress))));
-  transition: opacity 0.3s linear, transform 0.3s linear;
+  margin: auto 0;
+  opacity: calc(0.1 + (0.9 * var(--hero-title-progress)));
+  transform: translateY(calc(12px - (12px * var(--hero-title-progress))));
+  transition: opacity 0.2s linear, transform 0.2s linear;
+}
+
+.site-hero-brand--textonly {
+  max-width: min(1100px, 92vw);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .site-hero-brand-logo {
@@ -339,25 +341,27 @@ button, select {
 
 .site-hero-title {
   font-family: 'Waverly CF', 'Playfair Display', serif;
-  letter-spacing: 0.06em;
-  font-size: clamp(22px, 6vw, 42px);
-  margin-bottom: 8px;
-  color: #0f0f13;
+  letter-spacing: 0.08em;
+  font-size: clamp(28px, 6.5vw, 84px);
+  margin-bottom: 12px;
+  color: #fff;
   text-transform: uppercase;
-  opacity: calc(var(--hero-text-progress));
-  transform: translateX(calc(-70px + (70px * var(--hero-text-progress))));
-  transition: opacity 0.25s linear, transform 0.25s linear;
+  opacity: calc(0.12 + (0.88 * var(--hero-title-progress)));
+  transform: translateX(calc(-42px + (42px * var(--hero-title-progress))));
+  clip-path: inset(0 calc((1 - var(--hero-title-progress)) * 100%) 0 0);
+  transition: opacity 0.22s linear, transform 0.22s linear, clip-path 0.22s linear;
+  line-height: 1.08;
 }
 
 .site-hero-subtitle {
-  font-size: 12px;
-  letter-spacing: 0.15em;
+  font-size: clamp(12px, 1.3vw, 18px);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #6f6a74;
-  margin-bottom: 16px;
-  opacity: calc(var(--hero-text-progress));
-  transform: translateX(calc(-42px + (42px * var(--hero-text-progress))));
-  transition: opacity 0.25s linear, transform 0.25s linear;
+  color: rgba(255, 255, 255, 0.78);
+  margin-bottom: 0;
+  opacity: calc(var(--hero-subtitle-progress));
+  transform: translateX(calc(-24px + (24px * var(--hero-subtitle-progress))));
+  transition: opacity 0.22s linear, transform 0.22s linear;
 }
 
 .site-hero-cta {
@@ -391,7 +395,7 @@ button, select {
   font-size: 11px;
   color: #a09ca6;
   letter-spacing: 0.08em;
-  opacity: calc(1 - (0.86 * var(--hero-progress)));
+  opacity: calc(1 - (0.72 * var(--hero-title-progress)));
 }
 
 .home-catalog-block {
@@ -524,7 +528,7 @@ body.web-mode .product-list {
 
 @media (max-width: 560px) {
   .site-hero {
-    min-height: 150vh;
+    min-height: 120vh;
   }
   .site-hero-stage {
     padding: 18px 14px 24px;
@@ -551,11 +555,11 @@ body.web-mode .product-list {
     padding: 10px 8px;
   }
   .site-hero-title {
-    font-size: clamp(20px, 8vw, 30px);
+    font-size: clamp(24px, 9vw, 44px);
     letter-spacing: 0.05em;
   }
   .site-hero-subtitle {
-    letter-spacing: 0.12em;
+    letter-spacing: 0.1em;
     font-size: 11px;
   }
 }

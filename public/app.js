@@ -839,36 +839,15 @@
     }
     var heroSection = document.getElementById('site-hero');
     if (!heroSection) return;
-    var heroVideo = document.getElementById('site-hero-video');
-    var lastVideoTime = -1;
     var targetRawProgress = 0;
     var currentRawProgress = 0;
     var rafId = 0;
     var running = true;
-    var syncVideoToProgress = function (progress) {
-      if (!heroVideo) return;
-      var duration = heroVideo.duration;
-      if (!isFinite(duration) || duration <= 0.05) return;
-      var target = Math.max(0, Math.min(duration - 0.03, progress * duration));
-      if (Math.abs(target - lastVideoTime) < 0.004) return;
-      try {
-        heroVideo.currentTime = target;
-        lastVideoTime = target;
-      } catch (e) {}
-    };
-    if (heroVideo) {
-      try { heroVideo.pause(); } catch (e) {}
-      heroVideo.addEventListener('loadedmetadata', function () {
-        syncVideoToProgress(parseFloat(getComputedStyle(heroSection).getPropertyValue('--hero-progress')) || 0);
-      }, { once: true });
-    }
     var reducedMotion = false;
     try { reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
     if (reducedMotion) {
-      heroSection.style.setProperty('--hero-progress', '1');
-      heroSection.style.setProperty('--hero-text-progress', '1');
-      heroSection.style.setProperty('--hero-cta-progress', '1');
-      syncVideoToProgress(1);
+      heroSection.style.setProperty('--hero-title-progress', '1');
+      heroSection.style.setProperty('--hero-subtitle-progress', '1');
       return;
     }
     var updateTargetsFromScroll = function () {
@@ -887,21 +866,18 @@
         currentRawProgress = targetRawProgress;
       }
       var rawProgress = currentRawProgress;
-      var heroProgress = Math.pow(rawProgress, 1.08);
-      var textProgress = 0;
-      var ctaProgress = 0;
-      if (rawProgress > 0.78) {
-        textProgress = (rawProgress - 0.78) / 0.18;
-        if (textProgress > 1) textProgress = 1;
+      var titleProgress = rawProgress / 0.68;
+      if (titleProgress > 1) titleProgress = 1;
+      if (titleProgress < 0) titleProgress = 0;
+
+      var subProgress = 0;
+      if (rawProgress > 0.58) {
+        subProgress = (rawProgress - 0.58) / 0.35;
+        if (subProgress > 1) subProgress = 1;
       }
-      if (rawProgress > 0.9) {
-        ctaProgress = (rawProgress - 0.9) / 0.1;
-        if (ctaProgress > 1) ctaProgress = 1;
-      }
-      heroSection.style.setProperty('--hero-progress', heroProgress.toFixed(3));
-      heroSection.style.setProperty('--hero-text-progress', textProgress.toFixed(3));
-      heroSection.style.setProperty('--hero-cta-progress', ctaProgress.toFixed(3));
-      syncVideoToProgress(heroProgress);
+
+      heroSection.style.setProperty('--hero-title-progress', titleProgress.toFixed(3));
+      heroSection.style.setProperty('--hero-subtitle-progress', subProgress.toFixed(3));
       rafId = requestAnimationFrame(tick);
     };
     var onScroll = function () {
@@ -923,19 +899,9 @@
     return '' +
       '<section id="site-hero" class="site-hero">' +
         '<div class="site-hero-stage">' +
-          '<div class="site-hero-top">' +
-            '<div class="site-hero-city">' + escapeHtml(cityName || 'Саратов и Энгельс') + '</div>' +
-          '</div>' +
-          '<div class="site-hero-bouquet">' +
-            '<video id="site-hero-video" class="site-hero-video" playsinline muted preload="auto" poster="/images/hero-bouquet.jpg" onerror="this.style.display=\'none\'; this.parentNode.classList.add(\'site-hero-bouquet--fallback\');">' +
-              '<source src="/images/flower_unfold.mp4" type="video/mp4">' +
-            '</video>' +
-            '<img src="/images/hero-bouquet.jpg" alt="Букет ARKA STUDIO" class="site-hero-bouquet-img" onerror="this.style.display=\'none\'; this.parentNode.classList.add(\'site-hero-bouquet--fallback\');">' +
-          '</div>' +
-          '<div class="site-hero-brand">' +
+          '<div class="site-hero-brand site-hero-brand--textonly">' +
             '<div class="site-hero-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
-            '<div class="site-hero-subtitle">доставка по Саратову и Энгельсу</div>' +
-            '<button class="site-hero-cta" onclick="scrollToCatalog()">В каталог</button>' +
+            '<div class="site-hero-subtitle">Доставка по Саратову и Энгельсу</div>' +
           '</div>' +
           '<div class="site-hero-hint">Скролл вниз</div>' +
         '</div>' +
