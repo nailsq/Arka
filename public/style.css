@@ -455,12 +455,12 @@ button, select {
   scroll-margin-top: 90px;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 0 26px;
+  padding: 0 32px;
   background: #fff;
 }
 
 .web-category-section {
-  margin-bottom: 42px;
+  margin-bottom: 52px;
   opacity: 0;
   transform: translateY(18px);
   animation: sectionReveal 0.5s ease forwards;
@@ -472,7 +472,7 @@ button, select {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 
 .web-category-title {
@@ -507,8 +507,8 @@ button, select {
 
 .web-shop-toolbar {
   max-width: 1280px;
-  margin: 0 auto 18px;
-  padding: 0 24px;
+  margin: 0 auto 22px;
+  padding: 0 28px;
   background: #fff;
   border: 1px solid #eff0f3;
   border-radius: 12px;
@@ -518,13 +518,13 @@ button, select {
 .web-quick-cats {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 14px;
   padding-bottom: 12px;
   border-bottom: 1px solid #ececf0;
-  margin-bottom: 12px;
-  padding-top: 10px;
-  padding-left: 12px;
-  padding-right: 12px;
+  margin-bottom: 14px;
+  padding-top: 14px;
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 .web-quick-cat-chip {
@@ -820,7 +820,7 @@ body.web-mode .footer-inner {
 
 body.web-mode .product-list {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 30px;
+  gap: 34px;
 }
 
 @media (max-width: 1200px) {
@@ -832,7 +832,7 @@ body.web-mode .product-list {
 @media (max-width: 900px) {
   body.web-mode .product-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 22px;
+    gap: 24px;
   }
   body.web-mode #app {
     padding-bottom: 14px;
@@ -857,10 +857,10 @@ body.web-mode .product-list {
     padding: 18px 14px 24px;
   }
   .home-catalog-block {
-    padding: 0 16px;
+    padding: 0 18px;
   }
   .web-category-section {
-    margin-bottom: 26px;
+    margin-bottom: 30px;
   }
   .web-category-head {
     margin-bottom: 10px;
@@ -877,7 +877,7 @@ body.web-mode .product-list {
     max-width: min(96vw, 1100px);
   }
   .web-shop-toolbar {
-    padding: 0 14px;
+    padding: 0 16px;
   }
   .web-quick-cats {
     overflow-x: auto;
@@ -1302,7 +1302,7 @@ body.web-mode .product-list {
   position: relative;
   border-radius: 14px;
   overflow: hidden;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   aspect-ratio: 1 / 1;
   background: #f8f9fb;
   cursor: pointer;
@@ -1452,11 +1452,27 @@ body.web-mode .product-list {
 }
 
 .product-card-body {
-  padding: 6px 3px 0;
+  padding: 8px 4px 0;
   flex: 1;
   display: flex;
   flex-direction: column;
   cursor: pointer;
+}
+
+.product-related {
+  margin-top: 60px;
+  padding-top: 12px;
+}
+
+.product-related-title {
+  margin: 0 0 24px;
+  font-size: clamp(28px, 3.2vw, 44px);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+body.web-mode .product-list--related {
+  gap: 34px;
 }
 
 .product-card-name {

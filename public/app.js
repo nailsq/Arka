@@ -969,6 +969,29 @@
     return t.toUpperCase();
   }
 
+  function formatCategoryChipTitle(title) {
+    var t = String(title || '').trim();
+    if (!t) return 'Категория';
+    var range = parseCategoryPriceRange(t);
+    if (range) {
+      var formatMoney = function (n) {
+        var num = parseInt(n, 10);
+        if (isNaN(num) || num < 0) num = 0;
+        return num.toLocaleString('ru-RU');
+      };
+      if (range.min !== null && range.max !== null) {
+        return formatMoney(range.min) + ' - ' + formatMoney(range.max);
+      }
+      if (range.max !== null) {
+        return 'До ' + formatMoney(range.max);
+      }
+      if (range.min !== null) {
+        return 'От ' + formatMoney(range.min);
+      }
+    }
+    return t.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
   function getCategorySortMeta(catName) {
     var raw = String(catName || '').toLowerCase();
     var range = parseCategoryPriceRange(catName);
@@ -1079,7 +1102,7 @@
 
     var html = '<button class="web-quick-cat-chip' + (!homeActiveCategory ? ' active' : '') + '" onclick="webHomePickCategory(null)">Все</button>';
     html += sorted.map(function (c) {
-      return '<button class="web-quick-cat-chip' + (homeActiveCategory === c.id ? ' active' : '') + '" onclick="webHomePickCategory(' + c.id + ')">' + escapeHtml(c.name) + '</button>';
+      return '<button class="web-quick-cat-chip' + (homeActiveCategory === c.id ? ' active' : '') + '" onclick="webHomePickCategory(' + c.id + ')">' + escapeHtml(formatCategoryChipTitle(c.name)) + '</button>';
     }).join('');
     el.innerHTML = html;
   }
@@ -1271,7 +1294,9 @@
       .replace(/\s+/g, ' ')
       .trim();
 
-    var hasRangeHints = /(до|от|руб|₽|тыс|к\b)/.test(normalized) || /\d\s*[-–—]\s*\d/.test(normalized);
+    var hasFromHint = /(^|\s)от(?=\s*\d)/.test(normalized);
+    var hasToHint = /(^|\s)до(?=\s*\d)/.test(normalized);
+    var hasRangeHints = hasFromHint || hasToHint || /(руб|₽|тыс|к\b)/.test(normalized) || /\d\s*[-–—]\s*\d/.test(normalized);
     if (!hasRangeHints) return null;
 
     var nums = normalized.match(/\d[\d\s]*/g);
@@ -1285,13 +1310,13 @@
     var min = null;
     var max = null;
 
-    if (/\bдо\b/.test(normalized) && /\bот\b/.test(normalized) && values.length >= 2) {
+    if (hasToHint && hasFromHint && values.length >= 2) {
       min = Math.min(values[0], values[1]);
       max = Math.max(values[0], values[1]);
-    } else if (/\bдо\b/.test(normalized)) {
+    } else if (hasToHint) {
       max = values[0];
       if (values.length >= 2) min = Math.min(values[0], values[1]);
-    } else if (/\bот\b/.test(normalized)) {
+    } else if (hasFromHint) {
       min = values[0];
       if (values.length >= 2) max = Math.max(values[0], values[1]);
     } else if (values.length >= 2) {
@@ -1473,6 +1498,7 @@
       '<div class="product-detail-page">' +
         '<span class="back-link" onclick="navigateTo(\'home\')">К каталогу</span>' +
         '<div id="product-detail">Загрузка...</div>' +
+        (!isTelegramRuntime ? '<div id="product-related"></div>' : '') +
       '</div>'
     );
     fetchJSON('/api/products/' + id).then(function (p) {
@@ -1555,6 +1581,50 @@
       if (images.length > 1) {
         initGallery(images.length);
       }
+      renderProductRelated(p);
+    });
+  }
+
+  function renderProductRelated(product) {
+    if (isTelegramRuntime || !product || !product.id) return;
+    var host = document.getElementById('product-related');
+    if (!host) return;
+    fetchJSON('/api/products').then(function (products) {
+      if (!products || !products.length) {
+        host.innerHTML = '';
+        return;
+      }
+      var related = products.filter(function (item) {
+        return item &&
+          item.id !== product.id &&
+          item.in_stock !== 0 &&
+          item.category_id === product.category_id;
+      });
+      if (!related.length) {
+        related = products.filter(function (item) {
+          return item && item.id !== product.id && item.in_stock !== 0;
+        });
+      }
+      related.sort(function (a, b) {
+        var pa = getProductMinPrice(a);
+        var pb = getProductMinPrice(b);
+        if (pa !== pb) return pa - pb;
+        return String(a.name || '').localeCompare(String(b.name || ''), 'ru');
+      });
+      related = related.slice(0, 4);
+      if (!related.length) {
+        host.innerHTML = '';
+        return;
+      }
+      host.innerHTML =
+        '<section class="product-related">' +
+          '<h3 class="product-related-title">Смотрите также</h3>' +
+          '<div class="product-list product-list--related">' +
+            related.map(function (p, idx) { return buildProductCard(p, idx); }).join('') +
+          '</div>' +
+        '</section>';
+    }).catch(function () {
+      host.innerHTML = '';
     });
   }
 
