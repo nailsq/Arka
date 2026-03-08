@@ -147,6 +147,7 @@
   function updateFavBadge() {
     var badge = document.getElementById('fav-badge');
     var webBadge = document.getElementById('web-fav-badge');
+    var webToolbarBadge = document.getElementById('web-toolbar-fav-badge');
     var count = getFavorites().length;
     if (badge) {
       if (count > 0) {
@@ -162,6 +163,14 @@
         webBadge.style.display = 'inline-block';
       } else {
         webBadge.style.display = 'none';
+      }
+    }
+    if (webToolbarBadge) {
+      if (count > 0) {
+        webToolbarBadge.textContent = count;
+        webToolbarBadge.style.display = 'inline-block';
+      } else {
+        webToolbarBadge.style.display = 'none';
       }
     }
   }
@@ -644,6 +653,10 @@
     webBtns.forEach(function (b) {
       b.classList.toggle('active', b.getAttribute('data-tab') === tab);
     });
+    var webToolbarBtns = document.querySelectorAll('.web-toolbar-action-btn');
+    webToolbarBtns.forEach(function (b) {
+      b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+    });
   }
 
   function setWebQuickNavOpen(open) {
@@ -708,6 +721,7 @@
   function updateCartBadge() {
     var badge = document.getElementById('cart-badge');
     var webBadge = document.getElementById('web-cart-badge');
+    var webToolbarBadge = document.getElementById('web-toolbar-cart-badge');
     var cart = getCart();
     var count = cart.reduce(function (s, i) { return s + i.quantity; }, 0);
     if (badge) {
@@ -724,6 +738,14 @@
         webBadge.style.display = 'inline-block';
       } else {
         webBadge.style.display = 'none';
+      }
+    }
+    if (webToolbarBadge) {
+      if (count > 0) {
+        webToolbarBadge.textContent = count;
+        webToolbarBadge.style.display = 'inline-block';
+      } else {
+        webToolbarBadge.style.display = 'none';
       }
     }
   }
@@ -1073,7 +1095,6 @@
         '<section class="web-category-section" style="--section-delay:' + Math.min(catIdx * 40, 260) + 'ms">' +
           '<div class="web-category-head">' +
             '<div class="web-category-title">' + escapeHtml(formatCategoryTitle(c.name)) + '</div>' +
-            '<button class="web-category-link" onclick="navigateTo(\'products\',' + c.id + ')">В каталог</button>' +
           '</div>' +
           '<div class="product-list">' + cards + '</div>' +
         '</section>';
@@ -1364,16 +1385,37 @@
       render(
         siteHero +
         '<section class="web-shop-toolbar">' +
-          '<div id="web-quick-cats" class="web-quick-cats">Загрузка...</div>' +
-          '<div class="web-shop-search-wrap">' +
-            '<input id="web-shop-search" class="web-shop-search" type="search" placeholder="Поиск цветка по сайту" oninput="webHomeSearch(this.value)">' +
+          '<div class="web-shop-topline">' +
+            '<div class="web-shop-search-wrap">' +
+              '<input id="web-shop-search" class="web-shop-search" type="search" placeholder="поиск по сайту" oninput="webHomeSearch(this.value)">' +
+              '<button class="web-shop-search-btn" type="button" aria-label="Поиск" onclick="focusWebSearch()">' +
+                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 4a6.8 6.8 0 1 1 0 13.6A6.8 6.8 0 0 1 10.8 4zm0 2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6zM16.3 15l3.7 3.7-1.4 1.4-3.7-3.7z"/></svg>' +
+              '</button>' +
+            '</div>' +
+            '<div class="web-toolbar-actions">' +
+              '<button class="web-toolbar-action-btn" data-tab="account" onclick="navigateTo(\'account\')" aria-label="Профиль">' +
+                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.2 4.2 0 1 1 0-8.4A4.2 4.2 0 0 1 12 12zm0 2c4.2 0 7.6 2.6 7.6 5.8 0 .6-.4 1-1 1H5.4c-.6 0-1-.4-1-1C4.4 16.6 7.8 14 12 14zm0 2c-2.8 0-5 1.4-5.5 2.8h11c-.5-1.4-2.7-2.8-5.5-2.8z"/></svg>' +
+              '</button>' +
+              '<button class="web-toolbar-action-btn" data-tab="favorites" onclick="navigateTo(\'favorites\')" aria-label="Избранное">' +
+                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21.4l-1.4-1.3C5.6 15.4 2 12.1 2 8.3 2 5.4 4.2 3 7.1 3c1.7 0 3.3.8 4.3 2.1A5.4 5.4 0 0 1 15.7 3C18.7 3 21 5.4 21 8.3c0 3.8-3.6 7.1-8.6 11.8L12 21.4zm-4.9-16.4C5.3 5 4 6.4 4 8.3c0 2.9 3 5.7 8 10.2 5-4.5 8-7.3 8-10.2C20 6.4 18.7 5 16.9 5c-1.4 0-2.7.8-3.4 2l-1 .7-1-.7A4 4 0 0 0 7.1 5z"/></svg>' +
+                '<span id="web-toolbar-fav-badge" class="web-toolbar-badge" style="display:none"></span>' +
+              '</button>' +
+              '<button class="web-toolbar-action-btn" data-tab="cart" onclick="navigateTo(\'cart\')" aria-label="Корзина">' +
+                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18c-1.1 0-2 .9-2 2a2 2 0 1 0 4 0c0-1.1-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2a2 2 0 1 0 4 0c0-1.1-.9-2-2-2zM6.2 5l1.1 2.2h10.3a1 1 0 0 1 .9 1.5l-1.7 3.2a2 2 0 0 1-1.8 1H8.6l-.7 1.3h9.7v2H7.8a2 2 0 0 1-1.8-3l1-1.9L4.3 5H2V3h3a1 1 0 0 1 .9.6z"/></svg>' +
+                '<span id="web-toolbar-cart-badge" class="web-toolbar-badge" style="display:none"></span>' +
+              '</button>' +
+            '</div>' +
           '</div>' +
+          '<div id="web-quick-cats" class="web-quick-cats">Загрузка...</div>' +
         '</section>' +
         '<section id="home-catalog" class="home-catalog-block">' +
           '<div id="web-category-sections">Загрузка...</div>' +
         '</section>' +
         buildWebStoreInfoSection()
       );
+      setActiveTab('home');
+      updateFavBadge();
+      updateCartBadge();
       bindHomeHeroAnimation();
 
       Promise.all([fetchJSON('/api/categories'), fetchJSON('/api/products')]).then(function (res) {
@@ -1483,6 +1525,12 @@
   window.webHomeSearch = function (query) {
     webHomeSearchQuery = String(query || '');
     renderWebCategorySectionsFromCache();
+  };
+
+  window.focusWebSearch = function () {
+    var input = document.getElementById('web-shop-search');
+    if (!input) return;
+    input.focus();
   };
 
   function showCatalog() {
