@@ -520,6 +520,7 @@
     }
 
     var delayMs = Math.min((idx || 0) * 32, 260);
+    var addBtnHtml = outOfStock ? '' : '<button class="card-add-btn" onclick="addToCartById(' + p.id + ',event)">В корзину</button>';
     return '<div class="' + cardClass + ' reveal-card" style="--card-reveal-delay:' + delayMs + 'ms">' +
       '<div class="product-card-img-wrap" onclick="navigateTo(\'product\',' + p.id + ')"' +
         (images.length > 1 ? ' data-slide-count="' + images.length + '"' : '') + '>' +
@@ -536,6 +537,7 @@
         sizeBtnsHtml +
         '<div class="product-card-price" id="card-price-' + p.id + '">' + priceLabel + '</div>' +
         desc +
+        addBtnHtml +
       '</div>' +
     '</div>';
   }
@@ -950,6 +952,15 @@
     return t.toUpperCase();
   }
 
+  function getCategoryPriceSortScore(catName) {
+    var range = parseCategoryPriceRange(catName);
+    if (!range) return -1;
+    if (range.min !== null && range.max === null) return range.min + 1000000;
+    if (range.max !== null) return range.max;
+    if (range.min !== null) return range.min;
+    return -1;
+  }
+
   function shouldShowSiteHero() {
     return !isTelegramRuntime;
   }
@@ -966,6 +977,14 @@
     });
     var visibleCats = cats.filter(function (c) {
       return grouped[c.id] && grouped[c.id].length;
+    });
+    var indexedCats = {};
+    cats.forEach(function (c, i) { indexedCats[c.id] = i; });
+    visibleCats.sort(function (a, b) {
+      var sa = getCategoryPriceSortScore(a.name);
+      var sb = getCategoryPriceSortScore(b.name);
+      if (sa !== sb) return sb - sa;
+      return (indexedCats[a.id] || 0) - (indexedCats[b.id] || 0);
     });
     if (homeActiveCategory) {
       visibleCats = visibleCats.filter(function (c) { return c.id === homeActiveCategory; });
@@ -1007,8 +1026,18 @@
       el.innerHTML = '';
       return;
     }
+    var sorted = (cats || []).slice();
+    var indexedCats = {};
+    sorted.forEach(function (c, i) { indexedCats[c.id] = i; });
+    sorted.sort(function (a, b) {
+      var sa = getCategoryPriceSortScore(a.name);
+      var sb = getCategoryPriceSortScore(b.name);
+      if (sa !== sb) return sb - sa;
+      return (indexedCats[a.id] || 0) - (indexedCats[b.id] || 0);
+    });
+
     var html = '<button class="web-quick-cat-chip' + (!homeActiveCategory ? ' active' : '') + '" onclick="webHomePickCategory(null)">Все</button>';
-    html += cats.map(function (c) {
+    html += sorted.map(function (c) {
       return '<button class="web-quick-cat-chip' + (homeActiveCategory === c.id ? ' active' : '') + '" onclick="webHomePickCategory(' + c.id + ')">' + escapeHtml(c.name) + '</button>';
     }).join('');
     el.innerHTML = html;
