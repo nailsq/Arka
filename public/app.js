@@ -952,13 +952,28 @@
     return t.toUpperCase();
   }
 
-  function getCategoryPriceSortScore(catName) {
+  function getCategorySortMeta(catName) {
+    var raw = String(catName || '').toLowerCase();
     var range = parseCategoryPriceRange(catName);
-    if (!range) return -1;
-    if (range.min !== null && range.max === null) return range.min + 1000000;
-    if (range.max !== null) return range.max;
-    if (range.min !== null) return range.min;
-    return -1;
+    if (range) {
+      var start = 0;
+      if (range.min !== null) start = range.min;
+      else if (range.max !== null) start = 0;
+      return { group: 0, rank: start, tail: range.max !== null ? range.max : 9999999 };
+    }
+    var tailMap = [
+      { key: 'ваз', rank: 1 },
+      { key: 'свеч', rank: 2 },
+      { key: 'шар', rank: 3 },
+      { key: 'подар', rank: 4 },
+      { key: 'открытк', rank: 5 }
+    ];
+    for (var i = 0; i < tailMap.length; i++) {
+      if (raw.indexOf(tailMap[i].key) >= 0) {
+        return { group: 1, rank: tailMap[i].rank, tail: tailMap[i].rank };
+      }
+    }
+    return { group: 2, rank: 9999, tail: 9999 };
   }
 
   function shouldShowSiteHero() {
@@ -981,9 +996,11 @@
     var indexedCats = {};
     cats.forEach(function (c, i) { indexedCats[c.id] = i; });
     visibleCats.sort(function (a, b) {
-      var sa = getCategoryPriceSortScore(a.name);
-      var sb = getCategoryPriceSortScore(b.name);
-      if (sa !== sb) return sb - sa;
+      var ma = getCategorySortMeta(a.name);
+      var mb = getCategorySortMeta(b.name);
+      if (ma.group !== mb.group) return ma.group - mb.group;
+      if (ma.rank !== mb.rank) return ma.rank - mb.rank;
+      if (ma.tail !== mb.tail) return ma.tail - mb.tail;
       return (indexedCats[a.id] || 0) - (indexedCats[b.id] || 0);
     });
     if (homeActiveCategory) {
@@ -1005,7 +1022,12 @@
         return hay.indexOf(q) >= 0;
       });
       if (!items.length) return '';
-      items.sort(function (a, b) { return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0); });
+      items.sort(function (a, b) {
+        var pa = getProductMinPrice(a);
+        var pb = getProductMinPrice(b);
+        if (pa !== pb) return pa - pb;
+        return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0);
+      });
       var cards = items.map(function (p, idx) { return buildProductCard(p, idx); }).join('');
       return '' +
         '<section class="web-category-section" style="--section-delay:' + Math.min(catIdx * 40, 260) + 'ms">' +
@@ -1030,9 +1052,11 @@
     var indexedCats = {};
     sorted.forEach(function (c, i) { indexedCats[c.id] = i; });
     sorted.sort(function (a, b) {
-      var sa = getCategoryPriceSortScore(a.name);
-      var sb = getCategoryPriceSortScore(b.name);
-      if (sa !== sb) return sb - sa;
+      var ma = getCategorySortMeta(a.name);
+      var mb = getCategorySortMeta(b.name);
+      if (ma.group !== mb.group) return ma.group - mb.group;
+      if (ma.rank !== mb.rank) return ma.rank - mb.rank;
+      if (ma.tail !== mb.tail) return ma.tail - mb.tail;
       return (indexedCats[a.id] || 0) - (indexedCats[b.id] || 0);
     });
 
