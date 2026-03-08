@@ -1747,7 +1747,7 @@
   }
 
   function renderCartItems(cart, keepScroll) {
-    var h = '<div class="section-title">Корзина</div>';
+    var h = '<div class="web-flow-shell web-flow-shell--cart"><div class="section-title">Корзина</div>';
     h += '<div class="cart-items">';
     cart.forEach(function (item, idx) {
       if (item.is_free_service) return;
@@ -1761,6 +1761,7 @@
     h += '<div id="cart-recommend"></div>';
     h += '<div class="cart-total">Итого: <span id="cart-total-val">' + formatPrice(getCartTotal()) + '</span></div>';
     h += '<button class="nav-btn" onclick="navigateTo(\'checkout\')">Оформить заказ</button>';
+    h += '</div>';
     if (keepScroll) {
       var scrollY = window.scrollY;
       appEl.innerHTML = h;
@@ -2199,6 +2200,7 @@
     var defaultDate = isTodayClosed ? tomorrowStr : todayStr;
 
     render(
+      '<div class="web-flow-shell web-flow-shell--checkout">' +
       '<span class="back-link" onclick="navigateTo(\'cart\')">К корзине</span>' +
       '<div class="section-title">Оформление заказа</div>' +
       (selectedCity ? '<div style="font-size:12px;margin-bottom:14px">Город: ' + escapeHtml(selectedCity.name) + '</div>' : '') +
@@ -2316,6 +2318,7 @@
           '</div>' +
         '</div>' +
 
+      '</div>' +
       '</div>'
     );
 
@@ -3256,14 +3259,16 @@
 
   function showPaymentPage(orderId, paymentUrl, totalAmount) {
     render(
-      '<div class="section-title">Оплата заказа N ' + orderId + '</div>' +
-      '<div style="margin-bottom:16px;font-size:14px;">' +
-        '<p>Сумма к оплате: ' + formatPrice(totalAmount) + '</p>' +
-      '</div>' +
-      '<a href="' + escapeHtml(paymentUrl) + '" target="_blank" class="nav-btn nav-btn--filled" style="display:block;text-align:center;margin-bottom:16px;">Оплатить</a>' +
-      '<button class="nav-btn" onclick="navigateTo(\'home\')">На главную</button>' +
-      '<div style="margin-top:16px;font-size:12px;">' +
-        '<p>После оплаты статус заказа обновится автоматически.</p>' +
+      '<div class="web-flow-shell web-flow-shell--payment">' +
+        '<div class="section-title">Оплата заказа N ' + orderId + '</div>' +
+        '<div style="margin-bottom:16px;font-size:14px;">' +
+          '<p>Сумма к оплате: ' + formatPrice(totalAmount) + '</p>' +
+        '</div>' +
+        '<button class="nav-btn nav-btn--filled" style="display:block;text-align:center;margin-bottom:16px;" onclick="openPaymentUrl(\'' + encodeURIComponent(paymentUrl) + '\')">Оплатить</button>' +
+        '<button class="nav-btn" onclick="navigateTo(\'home\')">На главную</button>' +
+        '<div style="margin-top:16px;font-size:12px;">' +
+          '<p>После оплаты статус заказа обновится автоматически.</p>' +
+        '</div>' +
       '</div>'
     );
     showToast('Заказ N ' + orderId + ' создан');
@@ -3271,16 +3276,35 @@
 
   function showPaymentInitFailed(orderId, totalAmount, errorText) {
     render(
-      '<div class="section-title">Заказ N ' + orderId + ' создан</div>' +
-      '<div style="margin-bottom:16px;font-size:14px;">' +
-        '<p>Сумма к оплате: ' + formatPrice(totalAmount) + '</p>' +
-      '</div>' +
-      '<div class="cutoff-hint" style="margin-bottom:14px">Не удалось открыть оплату: ' + escapeHtml(errorText || 'неизвестная ошибка') + '</div>' +
-      '<button class="nav-btn nav-btn--filled" onclick="retryPayment(' + orderId + ',' + totalAmount + ')" style="display:block;width:100%;margin-bottom:12px">Повторить оплату</button>' +
-      '<button class="nav-btn" onclick="navigateTo(\'account\')">Мои заказы</button>'
+      '<div class="web-flow-shell web-flow-shell--payment">' +
+        '<div class="section-title">Заказ N ' + orderId + ' создан</div>' +
+        '<div style="margin-bottom:16px;font-size:14px;">' +
+          '<p>Сумма к оплате: ' + formatPrice(totalAmount) + '</p>' +
+        '</div>' +
+        '<div class="cutoff-hint" style="margin-bottom:14px">Не удалось открыть оплату: ' + escapeHtml(errorText || 'неизвестная ошибка') + '</div>' +
+        '<button class="nav-btn nav-btn--filled" onclick="retryPayment(' + orderId + ',' + totalAmount + ')" style="display:block;width:100%;margin-bottom:12px">Повторить оплату</button>' +
+        '<button class="nav-btn" onclick="navigateTo(\'account\')">Мои заказы</button>' +
+      '</div>'
     );
     showToast('Заказ создан, но оплата не открылась');
   }
+
+  window.openPaymentUrl = function (encodedUrl) {
+    var paymentUrl = '';
+    try {
+      paymentUrl = decodeURIComponent(String(encodedUrl || ''));
+    } catch (e) {
+      paymentUrl = String(encodedUrl || '');
+    }
+    if (!paymentUrl) return;
+    var opened = null;
+    try {
+      opened = window.open(paymentUrl, '_blank', 'noopener,noreferrer');
+    } catch (e) {}
+    if (!opened) {
+      window.location.href = paymentUrl;
+    }
+  };
 
   window.retryPayment = function (orderId, totalAmount) {
     requestPaymentAndShow(orderId, totalAmount);

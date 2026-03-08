@@ -653,6 +653,20 @@ body.web-mode #app {
   background: #fff;
 }
 
+body.web-mode .web-flow-shell {
+  width: min(100%, 1080px);
+  margin: 0 auto;
+  padding: 0 24px 12px;
+}
+
+body.web-mode .web-flow-shell--checkout {
+  width: min(100%, 980px);
+}
+
+body.web-mode .web-flow-shell--payment {
+  width: min(100%, 860px);
+}
+
 body.web-mode #header {
   display: none;
 }
@@ -836,6 +850,12 @@ body.web-mode .product-list {
   }
   body.web-mode #app {
     padding-bottom: 14px;
+  }
+  body.web-mode .web-flow-shell,
+  body.web-mode .web-flow-shell--checkout,
+  body.web-mode .web-flow-shell--payment {
+    width: 100%;
+    padding: 0 14px 10px;
   }
   body.web-mode .product-detail {
     display: flex;
