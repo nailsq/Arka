@@ -1126,18 +1126,53 @@
             '<div class="site-hero-intro-title">Выразите свои чувства</div>' +
             '<div class="site-hero-intro-arrow" aria-hidden="true">&#8595;</div>' +
           '</div>' +
-          '<div class="site-hero-content">' +
-            '<div class="site-hero-brand site-hero-brand--textonly">' +
-              '<div class="site-hero-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
-              '<div class="site-hero-subtitle">Доставка по Саратову и Энгельсу</div>' +
-            '</div>' +
-            '<div class="site-hero-visual">' +
-              '<div class="site-hero-bouquet-frame">' +
-                '<img src="/images/hero-bouquet.jpg" alt="Букет ARKA FLOWERS" class="site-hero-bouquet-photo" loading="eager" decoding="async">' +
-              '</div>' +
-            '</div>' +
+          '<div class="site-hero-brand site-hero-brand--textonly">' +
+            '<div class="site-hero-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
+            '<div class="site-hero-subtitle">Доставка по Саратову и Энгельсу</div>' +
           '</div>' +
           '<div class="site-hero-hint">Скролл вниз</div>' +
+        '</div>' +
+      '</section>';
+  }
+
+  function buildWebStoreInfoSection() {
+    var phone = String(appSettings.phone_main || appSettings.contact_phone || '+7 917 212 08 78').trim();
+    var email = String(appSettings.contact_email || appSettings.email || 'arkaflowers@inbox.ru').trim();
+    var address = String(appSettings.pickup_address || 'г. Саратов, 3-й Дегтярный пр., д. 21, корп. 3').trim();
+    var hours = String(appSettings.work_hours || 'ежедневно с 10:00 до 21:00').trim();
+    var tgLink = appSettings.social_telegram ? String(appSettings.social_telegram) : '';
+    var waLink = phone ? ('https://wa.me/' + phone.replace(/\D/g, '')) : '';
+    var igLink = appSettings.social_instagram ? String(appSettings.social_instagram) : '';
+
+    var socials = '';
+    if (igLink) socials += '<a class="web-store-social-btn" href="' + escapeHtml(igLink) + '" target="_blank" rel="noopener noreferrer" aria-label="Instagram">IG</a>';
+    if (waLink) socials += '<a class="web-store-social-btn" href="' + escapeHtml(waLink) + '" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">WA</a>';
+    if (tgLink) socials += '<a class="web-store-social-btn" href="' + escapeHtml(tgLink) + '" target="_blank" rel="noopener noreferrer" aria-label="Telegram">TG</a>';
+
+    return '' +
+      '<section class="web-store-info">' +
+        '<h2 class="web-store-info-title">ВЫ МОЖЕТЕ ЗАКАЗАТЬ И ЗАБРАТЬ БУКЕТ В НАШЕМ МАГАЗИНЕ</h2>' +
+        '<div class="web-store-info-grid">' +
+          '<div class="web-store-info-col">' +
+            '<div class="web-store-info-head">ARKA FLOWERS</div>' +
+            '<div class="web-store-info-line">' + escapeHtml(address) + '</div>' +
+            '<a class="web-store-info-link" href="https://yandex.ru/maps" target="_blank" rel="noopener noreferrer">Как доехать?</a>' +
+          '</div>' +
+          '<div class="web-store-info-col">' +
+            '<div class="web-store-info-head">Связаться с нами</div>' +
+            '<div class="web-store-info-line">' + escapeHtml(phone) + '</div>' +
+            '<div class="web-store-info-line">' + escapeHtml(email) + '</div>' +
+            '<a class="web-store-call-btn" href="tel:' + escapeHtml(phone.replace(/\s+/g, '')) + '">Позвонить</a>' +
+          '</div>' +
+          '<div class="web-store-info-col">' +
+            '<div class="web-store-info-head">Режим работы</div>' +
+            '<div class="web-store-info-line">' + escapeHtml(hours) + '</div>' +
+          '</div>' +
+          '<div class="web-store-info-col">' +
+            '<div class="web-store-info-head">Социальные сети</div>' +
+            '<div class="web-store-info-line">Подписывайтесь и следите за новинками</div>' +
+            '<div class="web-store-socials">' + socials + '</div>' +
+          '</div>' +
         '</div>' +
       '</section>';
   }
@@ -1241,7 +1276,8 @@
         '</section>' +
         '<section id="home-catalog" class="home-catalog-block">' +
           '<div id="web-category-sections">Загрузка...</div>' +
-        '</section>'
+        '</section>' +
+        buildWebStoreInfoSection()
       );
       bindHomeHeroAnimation();
 
