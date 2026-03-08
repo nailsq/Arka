@@ -935,6 +935,8 @@
 
   var homeActiveCategory = null;
   var homeCategoriesById = {};
+  var webHomeDataCache = null;
+  var webHomeSearchQuery = '';
 
   function formatCategoryTitle(title) {
     var t = String(title || '').trim();
@@ -950,6 +952,66 @@
 
   function shouldShowSiteHero() {
     return !isTelegramRuntime;
+  }
+
+  function renderWebCategorySectionsFromCache() {
+    if (!webHomeDataCache) return;
+    var cats = webHomeDataCache.cats || [];
+    var products = webHomeDataCache.products || [];
+    var grouped = {};
+    products.forEach(function (p) {
+      var cid = p.category_id;
+      if (!grouped[cid]) grouped[cid] = [];
+      grouped[cid].push(p);
+    });
+    var visibleCats = cats.filter(function (c) {
+      return grouped[c.id] && grouped[c.id].length;
+    });
+    if (homeActiveCategory) {
+      visibleCats = visibleCats.filter(function (c) { return c.id === homeActiveCategory; });
+    }
+
+    var q = String(webHomeSearchQuery || '').trim().toLowerCase();
+    var el = document.getElementById('web-category-sections');
+    if (!el) return;
+    if (!visibleCats.length) {
+      el.innerHTML = '<div class="empty-state">В этой категории пока нет товаров</div>';
+      return;
+    }
+    var html = visibleCats.map(function (c, catIdx) {
+      var items = grouped[c.id].slice();
+      items = items.filter(function (p) {
+        if (!q) return true;
+        var hay = (String(p.name || '') + ' ' + String(p.description || '')).toLowerCase();
+        return hay.indexOf(q) >= 0;
+      });
+      if (!items.length) return '';
+      items.sort(function (a, b) { return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0); });
+      var cards = items.map(function (p, idx) { return buildProductCard(p, idx); }).join('');
+      return '' +
+        '<section class="web-category-section" style="--section-delay:' + Math.min(catIdx * 40, 260) + 'ms">' +
+          '<div class="web-category-head">' +
+            '<div class="web-category-title">' + escapeHtml(formatCategoryTitle(c.name)) + '</div>' +
+            '<button class="web-category-link" onclick="navigateTo(\'products\',' + c.id + ')">В каталог</button>' +
+          '</div>' +
+          '<div class="product-list">' + cards + '</div>' +
+        '</section>';
+    }).join('');
+    el.innerHTML = html || '<div class="empty-state">По вашему запросу ничего не найдено</div>';
+  }
+
+  function renderWebQuickCategories(cats) {
+    var el = document.getElementById('web-quick-cats');
+    if (!el) return;
+    if (!cats || !cats.length) {
+      el.innerHTML = '';
+      return;
+    }
+    var html = '<button class="web-quick-cat-chip' + (!homeActiveCategory ? ' active' : '') + '" onclick="webHomePickCategory(null)">Все</button>';
+    html += cats.map(function (c) {
+      return '<button class="web-quick-cat-chip' + (homeActiveCategory === c.id ? ' active' : '') + '" onclick="webHomePickCategory(' + c.id + ')">' + escapeHtml(c.name) + '</button>';
+    }).join('');
+    el.innerHTML = html;
   }
 
   function applyRuntimeLayoutMode() {
@@ -995,6 +1057,7 @@
       heroSection.style.setProperty('--hero-title-progress', '1');
       heroSection.style.setProperty('--hero-subtitle-progress', '1');
       heroSection.style.setProperty('--hero-section-progress', '1');
+      heroSection.style.setProperty('--hero-image-progress', '1');
       return;
     }
     var updateTargetsFromScroll = function () {
@@ -1026,11 +1089,15 @@
         subProgress = (rawProgress - 0.79) / 0.2;
         if (subProgress > 1) subProgress = 1;
       }
+      var imageProgress = (rawProgress - 0.34) / 0.5;
+      if (imageProgress > 1) imageProgress = 1;
+      if (imageProgress < 0) imageProgress = 0;
 
       heroSection.style.setProperty('--hero-intro-progress', introProgress.toFixed(3));
       heroSection.style.setProperty('--hero-title-progress', titleProgress.toFixed(3));
       heroSection.style.setProperty('--hero-subtitle-progress', subProgress.toFixed(3));
       heroSection.style.setProperty('--hero-section-progress', titleProgress.toFixed(3));
+      heroSection.style.setProperty('--hero-image-progress', imageProgress.toFixed(3));
       rafId = requestAnimationFrame(tick);
     };
     var onScroll = function () {
@@ -1059,9 +1126,16 @@
             '<div class="site-hero-intro-title">Выразите свои чувства</div>' +
             '<div class="site-hero-intro-arrow" aria-hidden="true">&#8595;</div>' +
           '</div>' +
-          '<div class="site-hero-brand site-hero-brand--textonly">' +
-            '<div class="site-hero-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
-            '<div class="site-hero-subtitle">Доставка по Саратову и Энгельсу</div>' +
+          '<div class="site-hero-content">' +
+            '<div class="site-hero-brand site-hero-brand--textonly">' +
+              '<div class="site-hero-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
+              '<div class="site-hero-subtitle">Доставка по Саратову и Энгельсу</div>' +
+            '</div>' +
+            '<div class="site-hero-visual">' +
+              '<div class="site-hero-bouquet-frame">' +
+                '<img src="/images/hero-bouquet.jpg" alt="Букет ARKA FLOWERS" class="site-hero-bouquet-photo" loading="eager" decoding="async">' +
+              '</div>' +
+            '</div>' +
           '</div>' +
           '<div class="site-hero-hint">Скролл вниз</div>' +
         '</div>' +
@@ -1159,6 +1233,12 @@
     if (shouldShowSiteHero()) {
       render(
         siteHero +
+        '<section class="web-shop-toolbar">' +
+          '<div id="web-quick-cats" class="web-quick-cats">Загрузка...</div>' +
+          '<div class="web-shop-search-wrap">' +
+            '<input id="web-shop-search" class="web-shop-search" type="search" placeholder="Поиск цветка по сайту" oninput="webHomeSearch(this.value)">' +
+          '</div>' +
+        '</section>' +
         '<section id="home-catalog" class="home-catalog-block">' +
           '<div id="web-category-sections">Загрузка...</div>' +
         '</section>'
@@ -1176,35 +1256,9 @@
         }
         homeCategoriesById = {};
         cats.forEach(function (c) { homeCategoriesById[c.id] = c.name; });
-        var grouped = {};
-        products.forEach(function (p) {
-          var cid = p.category_id;
-          if (!grouped[cid]) grouped[cid] = [];
-          grouped[cid].push(p);
-        });
-        var visibleCats = cats.filter(function (c) {
-          return grouped[c.id] && grouped[c.id].length;
-        });
-        if (homeActiveCategory) {
-          visibleCats = visibleCats.filter(function (c) { return c.id === homeActiveCategory; });
-        }
-        if (!visibleCats.length) {
-          el.innerHTML = '<div class="empty-state">В этой категории пока нет товаров</div>';
-          return;
-        }
-        el.innerHTML = visibleCats.map(function (c, catIdx) {
-          var items = grouped[c.id].slice();
-          items.sort(function (a, b) { return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0); });
-          var cards = items.map(function (p, idx) { return buildProductCard(p, idx); }).join('');
-          return '' +
-            '<section class="web-category-section" style="--section-delay:' + Math.min(catIdx * 40, 260) + 'ms">' +
-              '<div class="web-category-head">' +
-                '<div class="web-category-title">' + escapeHtml(formatCategoryTitle(c.name)) + '</div>' +
-                '<button class="web-category-link" onclick="navigateTo(\'products\',' + c.id + ')">В каталог</button>' +
-              '</div>' +
-              '<div class="product-list">' + cards + '</div>' +
-            '</section>';
-        }).join('');
+        webHomeDataCache = { cats: cats, products: products };
+        renderWebQuickCategories(cats);
+        renderWebCategorySectionsFromCache();
       });
       return;
     }
@@ -1287,6 +1341,17 @@
       prods.sort(function (a, b) { return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0); });
       el.innerHTML = prods.map(function (p, idx) { return buildProductCard(p, idx); }).join('');
     });
+  };
+
+  window.webHomePickCategory = function (catId) {
+    homeActiveCategory = catId || null;
+    renderWebQuickCategories((webHomeDataCache && webHomeDataCache.cats) || []);
+    renderWebCategorySectionsFromCache();
+  };
+
+  window.webHomeSearch = function (query) {
+    webHomeSearchQuery = String(query || '');
+    renderWebCategorySectionsFromCache();
   };
 
   function showCatalog() {
