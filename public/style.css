@@ -526,6 +526,7 @@ button, select {
   align-items: center;
   gap: 14px;
   padding: 14px 0 10px;
+  min-width: 0;
 }
 
 .web-quick-cats {
@@ -563,10 +564,12 @@ button, select {
   align-items: center;
   gap: 0;
   flex: 1;
+  min-width: 0;
 }
 
 .web-shop-search {
   width: 100%;
+  min-width: 0;
   height: 46px;
   border: 1px solid #d4d6dc;
   border-right: none;
@@ -1581,6 +1584,12 @@ body.web-mode .product-card.card-inview {
 
 body.web-mode .product-list--related {
   gap: 46px;
+}
+
+/* Related section cards must be visible immediately */
+body.web-mode .product-related .product-card {
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 .product-card-name {
