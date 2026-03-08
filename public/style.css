@@ -226,7 +226,7 @@ button, select {
   --hero-progress: var(--hero-title-progress);
   --hero-cta-progress: var(--hero-subtitle-progress);
   margin: 0 0 26px;
-  min-height: 155vh;
+  min-height: 130vh;
   position: relative;
 }
 
@@ -508,7 +508,7 @@ button, select {
 
 .web-shop-toolbar {
   max-width: 1280px;
-  margin: 0 auto 18px;
+  margin: -180px auto 18px;
   padding: 0 28px;
   background: rgba(255, 255, 255, 0.97);
   border: 1px solid #eff0f3;
@@ -983,6 +983,7 @@ body.web-mode .product-list {
     max-width: min(96vw, 1100px);
   }
   .web-shop-toolbar {
+    margin: -70px auto 12px;
     padding: 0 12px;
   }
   .web-shop-topline {
