@@ -578,7 +578,33 @@
       dots.forEach(function (d, i) {
         d.classList.toggle('active', i === current);
       });
-    }, 1200);
+    }, 900);
+  }
+
+  var cardRevealObserver = null;
+  function initCardScrollReveal(root) {
+    if (isTelegramRuntime) return;
+    var scope = root || document;
+    var cards = scope.querySelectorAll('.product-card');
+    if (!cards || !cards.length) return;
+    if (!('IntersectionObserver' in window)) {
+      cards.forEach(function (c) { c.classList.add('card-inview'); });
+      return;
+    }
+    if (!cardRevealObserver) {
+      cardRevealObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('card-inview');
+            cardRevealObserver.unobserve(entry.target);
+          }
+        });
+      }, { rootMargin: '0px 0px -8% 0px', threshold: 0.12 });
+    }
+    cards.forEach(function (card) {
+      card.classList.remove('card-inview');
+      cardRevealObserver.observe(card);
+    });
   }
 
   function stopCardCycle(wrap) {
@@ -641,6 +667,53 @@
   function render(html) {
     appEl.innerHTML = html;
     window.scrollTo(0, 0);
+  }
+
+  function parseRouteFromHash() {
+    var hash = String(window.location.hash || '').replace(/^#\/?/, '');
+    if (!hash) return null;
+    var parts = hash.split('/');
+    var page = decodeURIComponent(parts[0] || '');
+    if (!page) return null;
+    var param = parts.length > 1 ? decodeURIComponent(parts.slice(1).join('/')) : null;
+    if (param !== null && /^-?\d+$/.test(param)) param = parseInt(param, 10);
+    return { page: page, param: param };
+  }
+
+  function pushRouteState(page, param, replace) {
+    if (isTelegramRuntime || !window.history || !window.history.pushState) return;
+    var cur = window.history.state;
+    if (!replace && cur && cur.arkaRoute && cur.page === page && String(cur.param || '') === String(param || '')) {
+      return;
+    }
+    var url = window.location.pathname + '#' + encodeURIComponent(page) + (param !== undefined && param !== null ? '/' + encodeURIComponent(String(param)) : '');
+    var state = { arkaRoute: true, page: page, param: param === undefined ? null : param };
+    if (replace) window.history.replaceState(state, '', url);
+    else window.history.pushState(state, '', url);
+  }
+
+  var historyRoutingReady = false;
+  function initHistoryRouting(defaultPage) {
+    if (isTelegramRuntime) return;
+    if (!historyRoutingReady) {
+      window.addEventListener('popstate', function (e) {
+        var st = e.state;
+        if (st && st.arkaRoute && st.page) {
+          navigateTo(st.page, st.param, true);
+          return;
+        }
+        var parsed = parseRouteFromHash();
+        if (parsed && parsed.page) {
+          navigateTo(parsed.page, parsed.param, true);
+          return;
+        }
+        navigateTo(defaultPage || 'home', null, true);
+      });
+      historyRoutingReady = true;
+    }
+    if (!(window.history.state && window.history.state.arkaRoute)) {
+      pushRouteState(defaultPage || 'home', null, true);
+    }
   }
 
   function setActiveTab(tab) {
@@ -902,7 +975,15 @@
 
     function finishInitUI() {
       var hasCity = checkCityOnStart();
-      showHome();
+      var initialRoute = parseRouteFromHash();
+      var initialPage = 'home';
+      if (initialRoute && initialRoute.page) {
+        initialPage = initialRoute.page;
+        navigateTo(initialRoute.page, initialRoute.param, true);
+      } else {
+        showHome();
+      }
+      initHistoryRouting(initialPage);
       updateCartBadge();
       updateFavBadge();
       if (!hasCity) showCityOverlay();
@@ -973,13 +1054,13 @@
         return num.toLocaleString('ru-RU');
       };
       if (range.min !== null && range.max !== null) {
-        return (formatMoney(range.min) + ' — ' + formatMoney(range.max) + ' Р').toUpperCase();
+        return formatMoney(range.min) + ' — ' + formatMoney(range.max) + ' Р';
       }
       if (range.max !== null) {
-        return ('до ' + formatMoney(range.max) + ' Р').toUpperCase();
+        return 'До ' + formatMoney(range.max) + ' Р';
       }
       if (range.min !== null) {
-        return ('от ' + formatMoney(range.min) + ' Р').toUpperCase();
+        return 'От ' + formatMoney(range.min) + ' Р';
       }
     }
     t = t
@@ -988,7 +1069,7 @@
       .replace(/руб\.?/gi, 'Р')
       .replace(/₽/g, 'Р')
       .trim();
-    return t.toUpperCase();
+    return t;
   }
 
   function formatCategoryChipTitle(title) {
@@ -1100,6 +1181,7 @@
         '</section>';
     }).join('');
     el.innerHTML = html || '<div class="empty-state">По вашему запросу ничего не найдено</div>';
+    initCardScrollReveal(el);
   }
 
   function renderWebQuickCategories(cats) {
@@ -4008,15 +4090,19 @@
 
     if (!favIds.length) {
       render(
-        '<div class="category-title">Избранное</div>' +
-        '<div class="empty-state">Вы пока ничего не добавили в избранное</div>'
+        '<div class="web-flow-shell web-flow-shell--favorites">' +
+          '<div class="category-title">Избранное</div>' +
+          '<div class="empty-state">Вы пока ничего не добавили в избранное</div>' +
+        '</div>'
       );
       return;
     }
 
     render(
-      '<div class="category-title">Избранное</div>' +
-      '<div class="product-list" id="fav-product-list"><div class="empty-state">Загрузка...</div></div>'
+      '<div class="web-flow-shell web-flow-shell--favorites">' +
+        '<div class="category-title">Избранное</div>' +
+        '<div class="product-list" id="fav-product-list"><div class="empty-state">Загрузка...</div></div>' +
+      '</div>'
     );
 
     fetchJSON('/api/products').then(function (prods) {
@@ -4028,6 +4114,7 @@
         return;
       }
       el.innerHTML = favProds.map(function (p, idx) { return buildProductCard(p, idx); }).join('');
+      initCardScrollReveal(el);
     });
   }
 
@@ -4221,7 +4308,7 @@
     });
   };
 
-  window.navigateTo = function (page, param) {
+  window.navigateTo = function (page, param, skipHistory) {
     setWebQuickNavOpen(false);
     if (page !== 'home' && detachHomeHeroScroll) {
       detachHomeHeroScroll();
@@ -4252,6 +4339,9 @@
       default: showHome();
     }
     syncWebQuickNavVisibility(page);
+    if (!skipHistory) {
+      pushRouteState(page, param, false);
+    }
   };
 
   // ============================================================
