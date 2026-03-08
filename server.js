@@ -681,8 +681,11 @@ app.get('/api/auth/telegram-web-config', async function (req, res) {
     }
     var me = await telegramApiCallByToken(CLIENT_BOT_TOKEN, 'getMe', {}, '[TG Client API]');
     var username = me && me.ok && me.result && me.result.username ? String(me.result.username) : '';
+    var botId = me && me.ok && me.result && me.result.id ? String(me.result.id) : '';
     if (!username) return res.json({ enabled: false, reason: 'bot_username_missing' });
-    res.json({ enabled: true, bot_username: username });
+    var baseUrl = String(PUBLIC_URL || '').replace(/\/+$/, '');
+    var authUrl = (baseUrl || '') + '/api/auth/telegram-web/callback';
+    res.json({ enabled: true, bot_username: username, bot_id: botId, auth_url: authUrl });
   } catch (e) {
     res.json({ enabled: false, reason: 'bot_resolve_failed' });
   }
@@ -700,6 +703,20 @@ app.post('/api/auth/telegram-web', async function (req, res) {
   });
   setSessionCookie(res, token);
   res.json({ user: user });
+});
+
+app.get('/api/auth/telegram-web/callback', async function (req, res) {
+  var validated = validateTelegramLoginWidgetData(req.query || {});
+  if (!validated || !validated.id) {
+    return res.redirect('/#account');
+  }
+  var user = await upsertTelegramUser(validated.id, validated.first_name, validated.username);
+  var token = signSession({
+    tg: String(user.telegram_id),
+    exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SEC
+  });
+  setSessionCookie(res, token);
+  return res.redirect('/#account');
 });
 
 app.get('/api/auth/session', async function (req, res) {

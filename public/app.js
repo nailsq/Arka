@@ -9,6 +9,8 @@
   var selectedCity = null;
   var citiesList = [];
   var webTelegramBotUsername = '';
+  var webTelegramBotId = '';
+  var webTelegramAuthUrl = '';
   var webTelegramBotChecked = false;
 
   // ============================================================
@@ -348,6 +350,8 @@
         webTelegramBotChecked = true;
         if (cfg && cfg.enabled && cfg.bot_username) {
           webTelegramBotUsername = String(cfg.bot_username).replace(/^@/, '').trim();
+          webTelegramBotId = String(cfg.bot_id || '').trim();
+          webTelegramAuthUrl = String(cfg.auth_url || '').trim();
         }
         return webTelegramBotUsername || '';
       })
@@ -375,8 +379,19 @@
       script.setAttribute('data-size', 'large');
       script.setAttribute('data-userpic', 'false');
       script.setAttribute('data-request-access', 'write');
+      if (webTelegramAuthUrl) {
+        script.setAttribute('data-auth-url', webTelegramAuthUrl);
+      }
       script.setAttribute('data-onauth', 'onTelegramAuth(user)');
       container.appendChild(script);
+      if (webTelegramBotUsername) {
+        var linkWrap = document.createElement('div');
+        linkWrap.style.marginTop = '10px';
+        linkWrap.innerHTML =
+          '<a class="nav-btn" href="https://t.me/' + encodeURIComponent(webTelegramBotUsername) +
+          '" target="_blank" rel="noopener">Открыть Telegram-бота</a>';
+        container.appendChild(linkWrap);
+      }
     });
   }
 
