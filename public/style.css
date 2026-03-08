@@ -2508,6 +2508,21 @@ body.web-mode .product-detail-content {
   margin-bottom: 4px;
 }
 
+.checkout-guest-hint {
+  margin: 8px 0 2px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f6f6f7;
+  border: 1px solid #ececef;
+}
+
+.checkout-guest-hint-text {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #444;
+  margin-bottom: 10px;
+}
+
 .step-next-btn {
   width: 100%;
   padding: 14px;

@@ -2009,7 +2009,7 @@
         state: checkoutState,
         fields: {}
       };
-      var ids = ['field-tg','field-phone','field-email',
+      var ids = ['field-customer-name','field-tg','field-phone','field-email',
                  'field-addr-suggest','field-addr-apt','field-addr-note','field-address',
                  'field-date','field-exact-time','field-comment',
                  'field-rcv-name','field-rcv-phone'];
@@ -2174,10 +2174,10 @@
     currentStep = (draft && draft.step) ? draft.step : 1;
 
     var df = (draft && draft.fields) || {};
-    var userName = (dbUser && dbUser.first_name) || (tgUser && tgUser.first_name) || '';
+    var userName = df['field-customer-name'] || (dbUser && dbUser.first_name) || (tgUser && tgUser.first_name) || '';
     var userPhone = df['field-phone'] || (dbUser && dbUser.phone) || '';
     var userAddr = (dbUser && dbUser.default_address) || '';
-    var tgUsername = df['field-tg'] || ((tgUser && tgUser.username) ? '@' + tgUser.username : '');
+    var allowGuestCheckout = !getTelegramId();
 
     var intervals = getIntervals();
     var sNow = saratovNow();
@@ -2224,10 +2224,16 @@
 
         '<div class="checkout-panel active" id="step-1">' +
           '<div class="step-title">Информация о заказчике</div>' +
-          '<div class="form-group"><label>Telegram</label>' +
-          '<input type="text" id="field-tg" placeholder="@username" value="' + escapeHtml(tgUsername) + '" oninput="updateStepButtons()"></div>' +
+          '<div class="form-group"><label>Имя заказчика</label>' +
+          '<input type="text" id="field-customer-name" placeholder="Иван" value="' + escapeHtml(userName) + '" oninput="updateStepButtons()"></div>' +
           '<div class="form-group"><label>Контактный телефон</label>' +
           '<input type="tel" id="field-phone" placeholder="+7 (___) ___-__-__" value="' + escapeHtml(userPhone) + '" oninput="formatPhoneInput(this); updateStepButtons()" maxlength="18"></div>' +
+          (!isTelegramRuntime && allowGuestCheckout
+            ? '<div class="checkout-guest-hint">' +
+                '<div class="checkout-guest-hint-text">Можно оформить заказ без регистрации. Чтобы сохранялись адреса и история заказов, войдите через Telegram.</div>' +
+                '<div id="checkout-telegram-login-widget"></div>' +
+              '</div>'
+            : '') +
           '<button type="button" class="step-next-btn" id="step1-next" onclick="goToStep(2)">Далее</button>' +
         '</div>' +
 
@@ -2329,6 +2335,11 @@
         var el = document.getElementById(id);
         if (el && df[id] !== undefined) el.value = df[id];
       });
+      var nameField = document.getElementById('field-customer-name');
+      if (nameField) {
+        if (df['field-customer-name'] !== undefined) nameField.value = df['field-customer-name'];
+        else if (df['field-tg']) nameField.value = df['field-tg'];
+      }
       if (checkoutState.deliveryType === 'pickup') {
         setDeliveryType('pickup');
       }
@@ -2381,6 +2392,9 @@
 
     if (currentStep > 1) goToStep(currentStep);
     updateStepButtons();
+    if (!isTelegramRuntime && allowGuestCheckout) {
+      mountWebTelegramLoginWidget('checkout-telegram-login-widget');
+    }
     startAbandonTimer();
   }
 
@@ -2579,9 +2593,9 @@
       if (curBtn && curBtn.classList.contains('btn-dimmed')) return;
       if (currentStep === 1) {
         var phone = document.getElementById('field-phone').value.trim();
-        var tg = document.getElementById('field-tg').value.trim();
-        if (!phone || !tg) {
-          showToast('Заполните Telegram и телефон');
+        var customerName = document.getElementById('field-customer-name').value.trim();
+        if (!phone || !customerName) {
+          showToast('Заполните имя и телефон');
           return;
         }
         if (!validatePhone(phone)) return;
@@ -2688,9 +2702,9 @@
     resetAbandonTimer();
     var btn1 = document.getElementById('step1-next');
     if (btn1) {
-      var tg = (document.getElementById('field-tg') || {}).value || '';
+      var customerName = (document.getElementById('field-customer-name') || {}).value || '';
       var phone = (document.getElementById('field-phone') || {}).value || '';
-      var ready1 = tg.trim().length > 0 && phone.replace(/\D/g, '').length >= 11;
+      var ready1 = customerName.trim().length > 0 && phone.replace(/\D/g, '').length >= 11;
       btn1.classList.toggle('btn-dimmed', !ready1);
     }
 
@@ -3167,9 +3181,9 @@
     if (!cart.length) return;
 
     var isSelf = document.getElementById('self-receiver-cb') && document.getElementById('self-receiver-cb').checked;
-    var tgVal = document.getElementById('field-tg') ? document.getElementById('field-tg').value.trim() : '';
+    var customerNameVal = document.getElementById('field-customer-name') ? document.getElementById('field-customer-name').value.trim() : '';
     var phoneVal = document.getElementById('field-phone') ? document.getElementById('field-phone').value.trim() : '';
-    var rcvName = isSelf ? tgVal : (document.getElementById('field-rcv-name') ? document.getElementById('field-rcv-name').value.trim() : '');
+    var rcvName = isSelf ? customerNameVal : (document.getElementById('field-rcv-name') ? document.getElementById('field-rcv-name').value.trim() : '');
     var rcvPhone = isSelf ? phoneVal : (document.getElementById('field-rcv-phone') ? document.getElementById('field-rcv-phone').value.trim() : '');
     var dateVal = document.getElementById('field-date') ? document.getElementById('field-date').value : '';
     if (!dateVal || isPastIsoDate(dateVal)) {
@@ -3183,11 +3197,14 @@
     }
     if (!isSelf && rcvPhone && !validatePhone(rcvPhone)) return;
 
+    var tgNick = (tgUser && tgUser.username) || (dbUser && dbUser.username) || '';
+    if (tgNick && tgNick.charAt(0) !== '@') tgNick = '@' + tgNick;
+
     var data = {
-      user_name: tgVal || phoneVal,
+      user_name: customerNameVal || phoneVal,
       user_phone: phoneVal,
       user_email: '',
-      user_telegram: tgVal,
+      user_telegram: tgNick,
       receiver_name: rcvName,
       receiver_phone: rcvPhone,
       delivery_address: (checkoutState.deliveryType === 'pickup')
