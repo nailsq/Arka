@@ -371,6 +371,20 @@
     });
   }
 
+  function initCookieConsent() {
+    if (isTelegramRuntime) return;
+    var banner = document.getElementById('cookie-consent');
+    var okBtn = document.getElementById('cookie-consent-ok');
+    if (!banner || !okBtn) return;
+    var accepted = false;
+    try { accepted = localStorage.getItem('arka_cookie_consent') === '1'; } catch (e) {}
+    if (!accepted) banner.style.display = 'flex';
+    okBtn.onclick = function () {
+      try { localStorage.setItem('arka_cookie_consent', '1'); } catch (e) {}
+      banner.style.display = 'none';
+    };
+  }
+
   // ============================================================
   // Helpers
   // ============================================================
@@ -851,6 +865,7 @@
     applyRuntimeLayoutMode();
     initSitePreloader();
     initWebQuickNav();
+    initCookieConsent();
 
     fetchJSON('/api/settings').then(function (s) {
       appSettings = s || {};
@@ -920,6 +935,18 @@
 
   var homeActiveCategory = null;
   var homeCategoriesById = {};
+
+  function formatCategoryTitle(title) {
+    var t = String(title || '').trim();
+    if (!t) return 'Категория';
+    t = t
+      .replace(/\u00a0/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/руб\.?/gi, 'Р')
+      .replace(/₽/g, 'Р')
+      .trim();
+    return t.toUpperCase();
+  }
 
   function shouldShowSiteHero() {
     return !isTelegramRuntime;
@@ -1129,6 +1156,59 @@
     '</div>';
 
     setActiveTab('home');
+    if (shouldShowSiteHero()) {
+      render(
+        siteHero +
+        '<section id="home-catalog" class="home-catalog-block">' +
+          '<div id="web-category-sections">Загрузка...</div>' +
+        '</section>'
+      );
+      bindHomeHeroAnimation();
+
+      Promise.all([fetchJSON('/api/categories'), fetchJSON('/api/products')]).then(function (res) {
+        var cats = res[0] || [];
+        var products = res[1] || [];
+        var el = document.getElementById('web-category-sections');
+        if (!el) return;
+        if (!cats.length || !products.length) {
+          el.innerHTML = '<div class="empty-state">Товаров пока нет</div>';
+          return;
+        }
+        homeCategoriesById = {};
+        cats.forEach(function (c) { homeCategoriesById[c.id] = c.name; });
+        var grouped = {};
+        products.forEach(function (p) {
+          var cid = p.category_id;
+          if (!grouped[cid]) grouped[cid] = [];
+          grouped[cid].push(p);
+        });
+        var visibleCats = cats.filter(function (c) {
+          return grouped[c.id] && grouped[c.id].length;
+        });
+        if (homeActiveCategory) {
+          visibleCats = visibleCats.filter(function (c) { return c.id === homeActiveCategory; });
+        }
+        if (!visibleCats.length) {
+          el.innerHTML = '<div class="empty-state">В этой категории пока нет товаров</div>';
+          return;
+        }
+        el.innerHTML = visibleCats.map(function (c, catIdx) {
+          var items = grouped[c.id].slice();
+          items.sort(function (a, b) { return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0); });
+          var cards = items.map(function (p, idx) { return buildProductCard(p, idx); }).join('');
+          return '' +
+            '<section class="web-category-section" style="--section-delay:' + Math.min(catIdx * 40, 260) + 'ms">' +
+              '<div class="web-category-head">' +
+                '<div class="web-category-title">' + escapeHtml(formatCategoryTitle(c.name)) + '</div>' +
+                '<button class="web-category-link" onclick="navigateTo(\'products\',' + c.id + ')">В каталог</button>' +
+              '</div>' +
+              '<div class="product-list">' + cards + '</div>' +
+            '</section>';
+        }).join('');
+      });
+      return;
+    }
+
     render(
       siteHero +
       '<section id="home-catalog" class="home-catalog-block">' +
@@ -2984,23 +3064,15 @@
   function showAccount() {
     setActiveTab('account');
     if (!tgUser && !dbUser && !getTelegramId()) {
-      if (!isTelegramRuntime) {
-        render(
-          '<div class="section-title">Профиль</div>' +
-          '<div class="account-section">' +
-            '<p style="margin-bottom:10px">Войдите через Telegram, чтобы открыть профиль и синхронизировать данные с Mini App.</p>' +
-            '<div id="web-telegram-login-widget"></div>' +
-          '</div>'
-        );
-        mountWebTelegramLoginWidget('web-telegram-login-widget');
-      } else {
-        render(
-          '<div class="section-title">Профиль</div>' +
-          '<div class="account-section">' +
-            '<p>Откройте приложение через Telegram для доступа к профилю.</p>' +
-          '</div>'
-        );
-      }
+      render(
+        '<div class="section-title">Профиль</div>' +
+        '<div class="account-section">' +
+          '<p style="margin-bottom:12px">Вы в гостевом режиме. Можно покупать без входа.</p>' +
+          '<p style="margin-bottom:14px;color:#666">Если хотите синхронизацию с Mini App и историю заказов на всех устройствах, привяжите Telegram (необязательно).</p>' +
+          (!isTelegramRuntime ? '<div id="web-telegram-login-widget"></div>' : '') +
+        '</div>'
+      );
+      if (!isTelegramRuntime) mountWebTelegramLoginWidget('web-telegram-login-widget');
       return;
     }
 
