@@ -623,15 +623,22 @@
     });
   }
 
-  document.addEventListener('mouseenter', function (e) {
+  // Reliable hover start/stop for desktop browsers.
+  document.addEventListener('pointerover', function (e) {
     var wrap = e.target.closest('.product-card-img-wrap[data-slide-count]');
-    if (wrap) startCardCycle(wrap);
-  }, true);
+    if (!wrap) return;
+    var from = e.relatedTarget;
+    if (from && wrap.contains(from)) return;
+    startCardCycle(wrap);
+  });
 
-  document.addEventListener('mouseleave', function (e) {
+  document.addEventListener('pointerout', function (e) {
     var wrap = e.target.closest('.product-card-img-wrap[data-slide-count]');
-    if (wrap) stopCardCycle(wrap);
-  }, true);
+    if (!wrap) return;
+    var to = e.relatedTarget;
+    if (to && wrap.contains(to)) return;
+    stopCardCycle(wrap);
+  });
 
   document.addEventListener('touchstart', function (e) {
     var wrap = e.target.closest('.product-card-img-wrap[data-slide-count]');
@@ -3478,11 +3485,13 @@
     setActiveTab('account');
     if (!tgUser && !dbUser && !getTelegramId()) {
       render(
-        '<div class="section-title">Профиль</div>' +
-        '<div class="account-section">' +
-          '<p style="margin-bottom:12px">Вы в гостевом режиме. Можно покупать без входа.</p>' +
-          '<p style="margin-bottom:14px;color:#666">Если хотите синхронизацию с Mini App и историю заказов на всех устройствах, привяжите Telegram (необязательно).</p>' +
-          (!isTelegramRuntime ? '<div id="web-telegram-login-widget"></div>' : '') +
+        '<div class="web-flow-shell web-flow-shell--profile">' +
+          '<div class="section-title">Профиль</div>' +
+          '<div class="account-section">' +
+            '<p style="margin-bottom:12px">Вы в гостевом режиме. Можно покупать без входа.</p>' +
+            '<p style="margin-bottom:14px;color:#666">Если хотите синхронизацию с Mini App и историю заказов на всех устройствах, привяжите Telegram (необязательно).</p>' +
+            (!isTelegramRuntime ? '<div id="web-telegram-login-widget"></div>' : '') +
+          '</div>' +
         '</div>'
       );
       if (!isTelegramRuntime) mountWebTelegramLoginWidget('web-telegram-login-widget');
@@ -3503,43 +3512,45 @@
     }
 
     render(
-      '<div class="profile-header">' +
-        avatarHtml +
-        '<div class="profile-info">' +
-          '<div class="profile-name">' + escapeHtml(fullName) + '<span id="admin-crown" class="admin-crown" style="display:none"></span><span id="admin-badge" style="display:none" class="admin-badge">ADMIN</span></div>' +
-          (username ? '<div class="profile-username">@' + escapeHtml(username) + '</div>' : '') +
+      '<div class="web-flow-shell web-flow-shell--profile">' +
+        '<div class="profile-header">' +
+          avatarHtml +
+          '<div class="profile-info">' +
+            '<div class="profile-name">' + escapeHtml(fullName) + '<span id="admin-crown" class="admin-crown" style="display:none"></span><span id="admin-badge" style="display:none" class="admin-badge">ADMIN</span></div>' +
+            (username ? '<div class="profile-username">@' + escapeHtml(username) + '</div>' : '') +
+          '</div>' +
         '</div>' +
-      '</div>' +
 
-      '<div id="admin-panel-btn-wrap" style="display:none">' +
-        '<button class="admin-panel-btn" onclick="openAdminPanel()">Админ-панель</button>' +
-      '</div>' +
-
-      '<div class="profile-section profile-tracking-section">' +
-        '<div class="profile-section-header">' +
-          '<span class="profile-section-title tracking-title">Заказы</span>' +
+        '<div id="admin-panel-btn-wrap" style="display:none">' +
+          '<button class="admin-panel-btn" onclick="openAdminPanel()">Админ-панель</button>' +
         '</div>' +
-        '<div id="profile-tracking"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
-      '</div>' +
 
-      '<div class="nav-buttons">' +
-        '<button class="nav-btn" onclick="toggleProfileSection(\'addresses\')">Мои адреса</button>' +
-        '<button class="nav-btn" onclick="toggleProfileSection(\'orders\')">История заказов</button>' +
-      '</div>' +
-
-      '<div id="section-addresses" class="profile-section" style="display:none">' +
-        '<div class="profile-section-header">' +
-          '<span class="profile-section-title">Мои адреса</span>' +
-          '<button class="profile-add-btn" onclick="showAddAddress()">+ Добавить</button>' +
+        '<div class="profile-section profile-tracking-section">' +
+          '<div class="profile-section-header">' +
+            '<span class="profile-section-title tracking-title">Заказы</span>' +
+          '</div>' +
+          '<div id="profile-tracking"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
         '</div>' +
-        '<div id="profile-addresses"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
-      '</div>' +
 
-      '<div id="section-orders" class="profile-section" style="display:none">' +
-        '<div class="profile-section-header">' +
-          '<span class="profile-section-title">История заказов</span>' +
+        '<div class="nav-buttons">' +
+          '<button class="nav-btn" onclick="toggleProfileSection(\'addresses\')">Мои адреса</button>' +
+          '<button class="nav-btn" onclick="toggleProfileSection(\'orders\')">История заказов</button>' +
         '</div>' +
-        '<div id="profile-orders"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
+
+        '<div id="section-addresses" class="profile-section" style="display:none">' +
+          '<div class="profile-section-header">' +
+            '<span class="profile-section-title">Мои адреса</span>' +
+            '<button class="profile-add-btn" onclick="showAddAddress()">+ Добавить</button>' +
+          '</div>' +
+          '<div id="profile-addresses"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
+        '</div>' +
+
+        '<div id="section-orders" class="profile-section" style="display:none">' +
+          '<div class="profile-section-header">' +
+            '<span class="profile-section-title">История заказов</span>' +
+          '</div>' +
+          '<div id="profile-orders"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
+        '</div>' +
       '</div>'
     );
 

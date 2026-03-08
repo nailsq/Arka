@@ -508,7 +508,7 @@ button, select {
 
 .web-shop-toolbar {
   max-width: 1280px;
-  margin: -180px auto 18px;
+  margin: -96px auto 18px;
   padding: 0 28px;
   background: rgba(255, 255, 255, 0.97);
   border: 1px solid #eff0f3;
@@ -761,6 +761,16 @@ body.web-mode .web-flow-shell--favorites {
   width: min(100%, 1180px);
 }
 
+body.web-mode .web-flow-shell--profile {
+  width: min(100%, 980px);
+}
+
+/* Telegram widget recolor to dark mono. */
+body.web-mode #web-telegram-login-widget iframe,
+body.web-mode #checkout-telegram-login-widget iframe {
+  filter: grayscale(1) brightness(0.38) contrast(1.12);
+}
+
 body.web-mode #header {
   display: none;
 }
@@ -935,7 +945,8 @@ body.web-mode .product-list {
   body.web-mode .web-flow-shell,
   body.web-mode .web-flow-shell--checkout,
   body.web-mode .web-flow-shell--payment,
-  body.web-mode .web-flow-shell--favorites {
+  body.web-mode .web-flow-shell--favorites,
+  body.web-mode .web-flow-shell--profile {
     width: 100%;
     padding: 0 14px 10px;
   }
@@ -983,7 +994,7 @@ body.web-mode .product-list {
     max-width: min(96vw, 1100px);
   }
   .web-shop-toolbar {
-    margin: -70px auto 12px;
+    margin: -28px auto 12px;
     padding: 0 12px;
   }
   .web-shop-topline {
