@@ -455,7 +455,7 @@
 
   var cartSvg = '<svg viewBox="0 0 24 24"><path class="cart-icon-path" d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.16 14.26l.04-.12.94-1.7h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0020.04 4H5.21l-.94-2H1v2h2l3.6 7.59-1.35 2.44C4.52 15.37 5.48 17 7 17h12v-2H7.42c-.13 0-.22-.11-.22-.2l-.04-.14z"/></svg>';
 
-  function buildProductCard(p) {
+  function buildProductCard(p, idx) {
     warmProductSizeImages(p);
     var favClass = isFavorited(p.id) ? ' favorited' : '';
     var desc = p.description ? '<div class="product-card-desc">' + escapeHtml(p.description) + '</div>' : '';
@@ -505,7 +505,8 @@
       sizeBtnsHtml += '</div>';
     }
 
-    return '<div class="' + cardClass + '">' +
+    var delayMs = Math.min((idx || 0) * 32, 260);
+    return '<div class="' + cardClass + ' reveal-card" style="--card-reveal-delay:' + delayMs + 'ms">' +
       '<div class="product-card-img-wrap" onclick="navigateTo(\'product\',' + p.id + ')"' +
         (images.length > 1 ? ' data-slide-count="' + images.length + '"' : '') + '>' +
         imgHtml +
@@ -1167,7 +1168,7 @@
       prods = filterProductsByCategoryPriceRange(prods || [], selectedName);
       if (!prods || !prods.length) { el.innerHTML = '<div class="empty-state">Товаров пока нет</div>'; return; }
       prods.sort(function (a, b) { return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0); });
-      el.innerHTML = prods.map(buildProductCard).join('');
+      el.innerHTML = prods.map(function (p, idx) { return buildProductCard(p, idx); }).join('');
     });
   }
 
@@ -1204,7 +1205,7 @@
       prods = filterProductsByCategoryPriceRange(prods || [], selectedName);
       if (!prods || !prods.length) { el.innerHTML = '<div class="empty-state">В этой категории пока нет товаров</div>'; return; }
       prods.sort(function (a, b) { return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0); });
-      el.innerHTML = prods.map(buildProductCard).join('');
+      el.innerHTML = prods.map(function (p, idx) { return buildProductCard(p, idx); }).join('');
     });
   };
 
@@ -1218,8 +1219,10 @@
 
   function showProduct(id) {
     render(
-      '<span class="back-link" onclick="navigateTo(\'home\')">К каталогу</span>' +
-      '<div id="product-detail">Загрузка...</div>'
+      '<div class="product-detail-page">' +
+        '<span class="back-link" onclick="navigateTo(\'home\')">К каталогу</span>' +
+        '<div id="product-detail">Загрузка...</div>' +
+      '</div>'
     );
     fetchJSON('/api/products/' + id).then(function (p) {
       if (!p || p.error) { document.getElementById('product-detail').innerHTML = '<div class="empty-state">Товар не найден</div>'; return; }
@@ -1283,13 +1286,17 @@
 
       document.getElementById('product-detail').innerHTML =
         '<div class="product-detail' + (detailOutOfStock ? ' product-detail--soon' : '') + '">' +
-          galleryHtml +
-          '<div class="product-detail-name">' + escapeHtml(p.name) + '</div>' +
-          '<div class="product-detail-price" id="detail-price">' + formatPrice(detailPrice) + '</div>' +
-          '<div class="product-detail-desc">' + escapeHtml(p.description) + '</div>' +
-          (isBouquetCategory(p.category_name) ? '<div class="product-detail-warning">Каждый букет собирается вручную, возможны отличия от фото.</div>' : '') +
-          sizeHtml +
-          detailActions +
+          '<div class="product-detail-media">' +
+            galleryHtml +
+          '</div>' +
+          '<div class="product-detail-content">' +
+            '<div class="product-detail-name">' + escapeHtml(p.name) + '</div>' +
+            '<div class="product-detail-price" id="detail-price">' + formatPrice(detailPrice) + '</div>' +
+            '<div class="product-detail-desc">' + escapeHtml(p.description) + '</div>' +
+            (isBouquetCategory(p.category_name) ? '<div class="product-detail-warning">Каждый букет собирается вручную, возможны отличия от фото.</div>' : '') +
+            sizeHtml +
+            detailActions +
+          '</div>' +
         '</div>';
 
       window._currentProduct = p;
@@ -3618,7 +3625,7 @@
         el.innerHTML = '<div class="empty-state">Товары не найдены</div>';
         return;
       }
-      el.innerHTML = favProds.map(buildProductCard).join('');
+      el.innerHTML = favProds.map(function (p, idx) { return buildProductCard(p, idx); }).join('');
     });
   }
 
