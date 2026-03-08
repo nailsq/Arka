@@ -512,8 +512,7 @@ button, select {
   padding: 0 28px;
   background: rgba(255, 255, 255, 0.97);
   border: 1px solid #eff0f3;
-  border-top: none;
-  border-radius: 0 0 12px 12px;
+  border-radius: 12px;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.035);
   position: sticky;
   top: 0;
@@ -738,6 +737,7 @@ body.web-mode #app {
   max-width: none;
   padding: 0 0 24px;
   background: #fff;
+  overflow-x: clip;
 }
 
 body.web-mode .web-flow-shell {
@@ -931,7 +931,8 @@ body.web-mode .product-list {
   }
   body.web-mode .web-flow-shell,
   body.web-mode .web-flow-shell--checkout,
-  body.web-mode .web-flow-shell--payment {
+  body.web-mode .web-flow-shell--payment,
+  body.web-mode .web-flow-shell--favorites {
     width: 100%;
     padding: 0 14px 10px;
   }
@@ -948,6 +949,10 @@ body.web-mode .product-list {
 }
 
 @media (max-width: 560px) {
+  body.web-mode .product-list {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
   .site-hero {
     min-height: 138vh;
   }

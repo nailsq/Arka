@@ -1753,6 +1753,7 @@
             related.map(function (p, idx) { return buildProductCard(p, idx); }).join('') +
           '</div>' +
         '</section>';
+      initCardScrollReveal(host);
     }).catch(function () {
       host.innerHTML = '';
     });
