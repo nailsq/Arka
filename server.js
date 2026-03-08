@@ -392,8 +392,8 @@ function validateTelegramLoginWidgetData(data) {
     if (!hash) return null;
     var authDate = parseInt(data.auth_date, 10);
     if (!authDate) return null;
-    // Telegram Login Widget payload should be short-lived.
-    if (Math.abs(Math.floor(Date.now() / 1000) - authDate) > 86400) return null;
+    // Keep payload lifetime tolerant to server/client clock drift.
+    if (Math.abs(Math.floor(Date.now() / 1000) - authDate) > 259200) return null;
     var check = {};
     Object.keys(data).forEach(function (k) {
       if (k === 'hash') return;

@@ -4307,7 +4307,8 @@
     }
     postJSON('/api/auth/telegram-web', user).then(function (r) {
       if (!r || !r.user) {
-        showToast('Не удалось выполнить вход');
+        var msg = (r && (r.error || r.message)) ? String(r.error || r.message) : 'Не удалось выполнить вход';
+        showToast(msg);
         return;
       }
       dbUser = r.user;
@@ -4315,8 +4316,8 @@
       try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
       showToast('Вход выполнен');
       navigateTo('account');
-    }).catch(function () {
-      showToast('Не удалось выполнить вход');
+    }).catch(function (err) {
+      showToast('Не удалось выполнить вход: ' + ((err && err.message) ? err.message : 'нет соединения'));
     });
   };
 
