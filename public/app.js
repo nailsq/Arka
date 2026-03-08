@@ -943,6 +943,23 @@
   function formatCategoryTitle(title) {
     var t = String(title || '').trim();
     if (!t) return 'Категория';
+    var range = parseCategoryPriceRange(t);
+    if (range) {
+      var formatMoney = function (n) {
+        var num = parseInt(n, 10);
+        if (isNaN(num) || num < 0) num = 0;
+        return num.toLocaleString('ru-RU');
+      };
+      if (range.min !== null && range.max !== null) {
+        return (formatMoney(range.min) + ' — ' + formatMoney(range.max) + ' Р').toUpperCase();
+      }
+      if (range.max !== null) {
+        return ('до ' + formatMoney(range.max) + ' Р').toUpperCase();
+      }
+      if (range.min !== null) {
+        return ('от ' + formatMoney(range.min) + ' Р').toUpperCase();
+      }
+    }
     t = t
       .replace(/\u00a0/g, ' ')
       .replace(/\s+/g, ' ')
