@@ -1658,11 +1658,6 @@ body.web-mode .product-list {
     padding: 6px 2px 10px;
     border-bottom: none;
     margin-bottom: 6px;
-    max-height: 520px;
-    opacity: 1;
-    transform: translateY(0);
-    transform-origin: top;
-    transition: max-height 0.28s ease, opacity 0.22s ease, transform 0.22s ease, margin-bottom 0.22s ease, padding 0.22s ease;
   }
   .web-quick-cats::-webkit-scrollbar {
     display: none;
@@ -1715,16 +1710,6 @@ body.web-mode .product-list {
     background: #d8d9de;
     color: #1f222b;
     border: none;
-  }
-  body.web-mode.web-mobile-cats-collapsed .web-quick-cats {
-    max-height: 0;
-    opacity: 0;
-    transform: translateY(-8px);
-    margin-bottom: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    pointer-events: none;
-    overflow: hidden;
   }
   .web-store-info {
     padding: 18px 14px 8px;

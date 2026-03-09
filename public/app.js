@@ -1423,36 +1423,10 @@
       detachMobileQuickCatsScroll();
       detachMobileQuickCatsScroll = null;
     }
-    if (isTelegramRuntime || (window.innerWidth || 0) > 560) return;
-    var el = document.getElementById('web-quick-cats');
-    if (!el) return;
-    var setCatsCollapsed = function (collapsed, persist) {
-      document.body.classList.toggle('web-mobile-cats-collapsed', !!collapsed);
-      if (persist) {
-        try { localStorage.setItem(MOBILE_CATS_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch (e) {}
-      }
-    };
-    // Always show categories first after render/update.
-    // This prevents "empty header" when stale saved state hides the layer.
-    setCatsCollapsed(false, false);
-    var onScroll = function () {
-      var y = window.scrollY || window.pageYOffset || 0;
-      setCatsCollapsed(y > 120, true);
-    };
-    var onResize = function () {
-      if ((window.innerWidth || 0) > 560) {
-        document.body.classList.remove('web-mobile-cats-collapsed');
-      } else {
-        onScroll();
-      }
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onResize);
-    detachMobileQuickCatsScroll = function () {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onResize);
-      document.body.classList.remove('web-mobile-cats-collapsed');
-    };
+    // Keep categories always visible on mobile web.
+    // No auto-collapse on scroll.
+    document.body.classList.remove('web-mobile-cats-collapsed');
+    try { localStorage.removeItem(MOBILE_CATS_COLLAPSED_KEY); } catch (e) {}
   }
 
   function applyRuntimeLayoutMode() {
@@ -1861,6 +1835,7 @@
       var marqueeInsideToolbar = isMobileWeb ? buildWebMarqueeBar() : '';
       document.body.classList.remove('site-cover-active');
       document.body.classList.remove('mobile-toolbar-fixed');
+      document.body.classList.remove('web-mobile-cats-collapsed');
       var shopPhone = getPrimaryPhone();
       var shopPhoneEsc = escapeHtml(shopPhone);
       var shopPhoneTel = phoneToTelHref(shopPhone);
