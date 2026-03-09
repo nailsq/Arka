@@ -1403,9 +1403,9 @@
         heroSection.classList.add('site-hero--done');
         desktopHeroShownThisLoad = true;
         desktopTimers.push(setTimeout(function () {
-          if (heroSection && heroSection.parentNode) heroSection.parentNode.removeChild(heroSection);
           document.body.classList.remove('site-hero-lock');
-          syncWebQuickNavVisibility('home');
+          // Re-render home so marquee appears only after cover ends.
+          showHome(homeActiveCategory);
         }, 560));
       };
       document.body.classList.add('site-hero-lock');
@@ -1500,7 +1500,7 @@
           '<div class="site-hero-stage">' +
             '<div class="site-hero-desktop-slides">' +
               '<div class="site-hero-desktop-slide is-active">' +
-                '<div class="site-hero-desktop-title">Express your feelings</div>' +
+                '<div class="site-hero-desktop-title">Выразите свои чувства</div>' +
               '</div>' +
               '<div class="site-hero-desktop-slide">' +
                 '<div class="site-hero-desktop-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
@@ -1709,12 +1709,12 @@
     '</div>';
 
     setActiveTab('home');
-    if (shouldShowSiteHero()) {
+    if (!isTelegramRuntime) {
       var shopPhone = getPrimaryPhone();
       var shopPhoneEsc = escapeHtml(shopPhone);
       var shopPhoneTel = phoneToTelHref(shopPhone);
       render(
-        buildWebMarqueeBar() +
+        (showSiteHeroBlock ? '' : buildWebMarqueeBar()) +
         siteHero +
         '<section class="web-shop-toolbar' + (showSiteHeroBlock ? '' : ' web-shop-toolbar--no-hero') + '">' +
           '<div class="web-shop-topline web-shop-topline--header">' +
