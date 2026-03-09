@@ -759,6 +759,20 @@ body.web-mode .web-flow-shell--profile {
   width: min(100%, 980px);
 }
 
+body.web-mode .web-centered-page-card {
+  max-width: 880px;
+  margin: 8px auto 0;
+  background: #fff;
+  border: 1px solid #ececf1;
+  border-radius: 14px;
+  padding: 18px 18px 14px;
+  box-shadow: 0 10px 24px rgba(16, 18, 24, 0.04);
+}
+
+body.web-mode .web-flow-shell--favorites .web-centered-page-card {
+  max-width: 1160px;
+}
+
 body.web-mode #header {
   display: none;
 }
@@ -937,6 +951,11 @@ body.web-mode .product-list {
   body.web-mode .web-flow-shell--profile {
     width: 100%;
     padding: 0 14px 10px;
+  }
+  body.web-mode .web-centered-page-card {
+    max-width: 100%;
+    padding: 12px 12px 10px;
+    border-radius: 10px;
   }
   body.web-mode .product-detail {
     display: flex;

@@ -392,6 +392,31 @@
           '" target="_blank" rel="noopener">Открыть Telegram-бота</a>';
         container.appendChild(linkWrap);
       }
+      // Fallback OAuth link (works when embedded widget callback is blocked).
+      if (webTelegramBotId) {
+        var origin = window.location.origin;
+        var returnTo = origin + '/api/auth/telegram-web/callback';
+        var oauthUrl = 'https://oauth.telegram.org/auth?bot_id=' + encodeURIComponent(webTelegramBotId) +
+          '&origin=' + encodeURIComponent(origin) +
+          '&return_to=' + encodeURIComponent(returnTo) +
+          '&request_access=write';
+        var oauthWrap = document.createElement('div');
+        oauthWrap.style.marginTop = '8px';
+        oauthWrap.innerHTML =
+          '<a class="nav-btn nav-btn--filled" href="' + oauthUrl + '" target="_blank" rel="noopener">' +
+          'Войти через Telegram (резерв)' +
+          '</a>';
+        container.appendChild(oauthWrap);
+      }
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+        var warn = document.createElement('div');
+        warn.className = 'empty-state';
+        warn.style.padding = '8px 0 0';
+        warn.style.fontSize = '12px';
+        warn.style.color = '#7a1f1f';
+        warn.textContent = 'Для стабильного входа через Telegram нужен HTTPS-домен.';
+        container.appendChild(warn);
+      }
     });
   }
 
@@ -3501,11 +3526,13 @@
     if (!tgUser && !dbUser && !getTelegramId()) {
       render(
         '<div class="web-flow-shell web-flow-shell--profile">' +
+          '<div class="web-centered-page-card">' +
           '<div class="section-title">Профиль</div>' +
           '<div class="account-section">' +
             '<p style="margin-bottom:12px">Вы в гостевом режиме. Можно покупать без входа.</p>' +
             '<p style="margin-bottom:14px;color:#666">Если хотите синхронизацию с Mini App и историю заказов на всех устройствах, привяжите Telegram (необязательно).</p>' +
             (!isTelegramRuntime ? '<div id="web-telegram-login-widget"></div>' : '') +
+          '</div>' +
           '</div>' +
         '</div>'
       );
@@ -3528,6 +3555,7 @@
 
     render(
       '<div class="web-flow-shell web-flow-shell--profile">' +
+        '<div class="web-centered-page-card">' +
         '<div class="profile-header">' +
           avatarHtml +
           '<div class="profile-info">' +
@@ -3566,6 +3594,7 @@
           '</div>' +
           '<div id="profile-orders"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
         '</div>' +
+      '</div>' +
       '</div>'
     );
 
@@ -4118,8 +4147,10 @@
     if (!favIds.length) {
       render(
         '<div class="web-flow-shell web-flow-shell--favorites">' +
+          '<div class="web-centered-page-card">' +
           '<div class="category-title">Избранное</div>' +
           '<div class="empty-state">Вы пока ничего не добавили в избранное</div>' +
+          '</div>' +
         '</div>'
       );
       return;
@@ -4127,8 +4158,10 @@
 
     render(
       '<div class="web-flow-shell web-flow-shell--favorites">' +
+        '<div class="web-centered-page-card">' +
         '<div class="category-title">Избранное</div>' +
         '<div class="product-list" id="fav-product-list"><div class="empty-state">Загрузка...</div></div>' +
+        '</div>' +
       '</div>'
     );
 

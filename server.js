@@ -694,6 +694,7 @@ app.get('/api/auth/telegram-web-config', async function (req, res) {
 app.post('/api/auth/telegram-web', async function (req, res) {
   var validated = validateTelegramLoginWidgetData(req.body || {});
   if (!validated || !validated.id) {
+    console.warn('[TG WEB AUTH] Invalid payload from widget');
     return res.status(403).json({ error: 'Invalid Telegram login payload' });
   }
   var user = await upsertTelegramUser(validated.id, validated.first_name, validated.username);
@@ -708,8 +709,10 @@ app.post('/api/auth/telegram-web', async function (req, res) {
 app.get('/api/auth/telegram-web/callback', async function (req, res) {
   var validated = validateTelegramLoginWidgetData(req.query || {});
   if (!validated || !validated.id) {
+    console.warn('[TG WEB AUTH] Invalid callback payload');
     return res.redirect('/#account');
   }
+  console.log('[TG WEB AUTH] Callback login success for tg=' + String(validated.id));
   var user = await upsertTelegramUser(validated.id, validated.first_name, validated.username);
   var token = signSession({
     tg: String(user.telegram_id),
