@@ -1408,6 +1408,11 @@
       document.body.classList.add('site-hero-lock');
       document.body.classList.add('site-cover-active');
       activateDesktopSlide(0);
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          if (!destroyed && heroSection) heroSection.classList.add('site-hero--ready');
+        });
+      });
       desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 1300));
       desktopTimers.push(setTimeout(function () {
         heroSection.classList.add('site-hero--script-end');

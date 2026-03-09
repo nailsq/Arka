@@ -428,9 +428,14 @@ body.site-preloader-active .site-hero {
 .site-hero-script-char {
   display: inline-block;
   opacity: 0;
-  filter: blur(1.2px);
+  filter: blur(0.8px);
   transform: translateY(8px) scale(0.995);
-  animation: scriptCharIn 720ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: none;
+  will-change: transform, opacity;
+}
+
+.site-hero--desktop-script.site-hero--ready .site-hero-script-char {
+  animation: scriptCharIn 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .site-hero-script-char-spacer {
@@ -441,12 +446,17 @@ body.site-preloader-active .site-hero {
 .site-hero-script-sub-fade {
   opacity: 0;
   transform: translateY(8px);
-  animation: scriptSubIn 760ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: 1220ms;
+  animation: none;
   font-size: clamp(14px, 1.4vw, 22px);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: rgba(20, 24, 39, 0.74);
+  will-change: transform, opacity;
+}
+
+.site-hero--desktop-script.site-hero--ready .site-hero-script-sub-fade {
+  animation: scriptSubIn 680ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 1020ms;
 }
 
 .site-hero--script-end .site-hero-script-layer {
@@ -519,18 +529,14 @@ body.site-opening-after-cover .web-shop-toolbar,
 body.site-opening-after-cover #home-catalog,
 body.site-opening-after-cover .web-store-info,
 body.site-opening-after-cover #web-quick-nav {
-  animation: coverContentFadeIn 0.8s ease forwards;
+  animation: coverContentFadeIn 0.42s ease-out forwards;
 }
 
 @keyframes coverContentFadeIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  to { opacity: 1; }
 }
 
 .site-hero-desktop-slide--dark {
@@ -794,7 +800,7 @@ body.site-opening-after-cover #web-quick-nav {
 }
 
 body.web-mode .home-catalog-block {
-  padding-top: calc(var(--web-toolbar-fixed-height) + 20px);
+  padding-top: 12px;
   scroll-margin-top: calc(90px + var(--web-marquee-offset));
 }
 
@@ -805,7 +811,7 @@ body.web-mode .web-shop-toolbar {
   left: auto;
   transform: none;
   width: auto;
-  margin: -132px auto 18px;
+  margin: 10px auto 18px;
   z-index: 80;
 }
 
@@ -815,6 +821,17 @@ body.web-mode .web-shop-toolbar {
   transform: translateY(18px);
   animation: sectionReveal 0.5s ease forwards;
   animation-delay: var(--section-delay, 0ms);
+}
+
+@media (min-width: 900px) {
+  body.web-mode #home-catalog,
+  body.web-mode .web-store-info {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 1200px;
+  }
+  body.web-mode .web-category-section {
+    contain: layout paint;
+  }
 }
 
 .web-category-head {
@@ -871,12 +888,12 @@ body.web-mode .web-shop-toolbar {
 }
 
 body.web-mode .web-marquee {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
-  z-index: 2205;
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  width: auto;
+  z-index: 2;
 }
 
 .web-marquee-track {
@@ -949,13 +966,13 @@ body.web-mode .web-marquee {
 
 body.web-mode .web-shop-toolbar,
 body.web-mode .web-shop-toolbar--no-hero {
-  position: fixed;
-  top: calc(var(--web-marquee-offset) + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(1280px, calc(100% - 32px));
-  margin: 0;
-  z-index: 2200;
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  width: auto;
+  margin: 10px auto 18px;
+  z-index: 80;
 }
 
 .web-shop-topline {
@@ -1285,7 +1302,7 @@ body.web-mode #app {
 body.web-mode .web-flow-shell {
   width: min(100%, 1080px);
   margin: 0 auto;
-  padding: calc(var(--web-marquee-offset) + 12px) 24px 12px;
+  padding: 0 24px 12px;
 }
 
 body.web-mode .web-flow-shell--checkout {
@@ -1517,7 +1534,6 @@ body.web-mode .product-list {
 @media (max-width: 560px) {
   body.web-mode {
     --web-marquee-offset: 36px;
-    --web-toolbar-fixed-height: 174px;
   }
   body.web-mode .product-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1558,17 +1574,14 @@ body.web-mode .product-list {
   }
   body.web-mode .web-shop-toolbar,
   body.web-mode .web-shop-toolbar--no-hero {
-    position: fixed;
-    top: calc(var(--web-marquee-offset) + 8px);
-    left: 12px;
-    right: 12px;
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
     transform: none;
     width: auto;
-    margin: 0;
-    z-index: 96;
-  }
-  body.web-mode .home-catalog-block {
-    padding-top: calc(var(--web-toolbar-fixed-height) + 10px);
+    margin: 8px auto 12px;
+    z-index: 80;
   }
   .web-marquee-item {
     font-size: 12px;
