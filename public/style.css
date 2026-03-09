@@ -246,6 +246,67 @@ button, select {
   position: relative;
 }
 
+.site-hero--desktop-slides {
+  min-height: 100vh;
+}
+
+.site-hero--desktop-slides .site-hero-stage {
+  position: relative;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.site-hero-desktop-slides {
+  position: relative;
+  width: min(1000px, 88vw);
+  min-height: 240px;
+}
+
+.site-hero-desktop-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  opacity: 0;
+  transform: translateY(18px) scale(0.99);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+  pointer-events: none;
+}
+
+.site-hero-desktop-slide.is-active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.site-hero-desktop-title {
+  font-family: 'Waverly CF', 'Playfair Display', serif;
+  font-size: clamp(42px, 6vw, 96px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0f1014;
+  text-align: center;
+  line-height: 1.06;
+}
+
+.site-hero-desktop-subtitle {
+  font-size: clamp(14px, 1.5vw, 22px);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(15, 16, 20, 0.72);
+  text-align: center;
+}
+
+.site-hero--done {
+  opacity: 0;
+  transform: translateY(-12px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+
 .site-hero-stage {
   position: sticky;
   top: 0;
@@ -596,6 +657,10 @@ body.web-mode .web-marquee {
   z-index: 80;
   backdrop-filter: saturate(1.05) blur(6px);
   -webkit-backdrop-filter: saturate(1.05) blur(6px);
+}
+
+.web-shop-toolbar--no-hero {
+  margin: 12px auto 18px;
 }
 
 .web-shop-topline {

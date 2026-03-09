@@ -12,6 +12,7 @@
   var webTelegramBotId = '';
   var webTelegramAuthUrl = '';
   var webTelegramBotChecked = false;
+  var desktopHeroShownThisLoad = false;
 
   // ============================================================
   // Telegram Web App
@@ -1254,7 +1255,10 @@
   }
 
   function shouldShowSiteHero() {
-    return !isTelegramRuntime;
+    if (isTelegramRuntime) return false;
+    var isDesktop = (window.innerWidth || 0) >= 900;
+    if (!isDesktop) return true;
+    return !desktopHeroShownThisLoad;
   }
 
   function renderWebCategorySectionsFromCache() {
@@ -1376,6 +1380,34 @@
     }
     var heroSection = document.getElementById('site-hero');
     if (!heroSection) return;
+    if (heroSection.classList.contains('site-hero--desktop-slides')) {
+      var desktopSlides = heroSection.querySelectorAll('.site-hero-desktop-slide');
+      var desktopTimers = [];
+      var destroyed = false;
+      var activateDesktopSlide = function (idx) {
+        for (var i = 0; i < desktopSlides.length; i++) {
+          desktopSlides[i].classList.toggle('is-active', i === idx);
+        }
+      };
+      var completeDesktopHero = function () {
+        if (destroyed) return;
+        heroSection.classList.add('site-hero--done');
+        desktopHeroShownThisLoad = true;
+        desktopTimers.push(setTimeout(function () {
+          if (heroSection && heroSection.parentNode) heroSection.parentNode.removeChild(heroSection);
+          syncWebQuickNavVisibility('home');
+        }, 560));
+      };
+      activateDesktopSlide(0);
+      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 1700));
+      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 3800));
+      detachHomeHeroScroll = function () {
+        destroyed = true;
+        for (var t = 0; t < desktopTimers.length; t++) clearTimeout(desktopTimers[t]);
+        syncWebQuickNavVisibility(activeTab);
+      };
+      return;
+    }
     var targetRawProgress = 0;
     var currentRawProgress = 0;
     var rafId = 0;
@@ -1449,6 +1481,23 @@
   }
 
   function buildHomeHero(cityName) {
+    var isDesktop = !isTelegramRuntime && (window.innerWidth || 0) >= 900;
+    if (isDesktop) {
+      return '' +
+        '<section id="site-hero" class="site-hero site-hero--desktop-slides">' +
+          '<div class="site-hero-stage">' +
+            '<div class="site-hero-desktop-slides">' +
+              '<div class="site-hero-desktop-slide is-active">' +
+                '<div class="site-hero-desktop-title">Выразите свои чувства</div>' +
+              '</div>' +
+              '<div class="site-hero-desktop-slide">' +
+                '<div class="site-hero-desktop-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
+                '<div class="site-hero-desktop-subtitle">Доставка по Саратову и Энгельсу</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</section>';
+    }
     return '' +
       '<section id="site-hero" class="site-hero">' +
         '<div class="site-hero-stage">' +
@@ -1631,7 +1680,8 @@
     var cityLine = cityName
       ? '<span class="city-current" onclick="changeCityClick()">' + escapeHtml(cityName) + '</span>'
       : '<span class="city-current" onclick="changeCityClick()">Выбрать город</span>';
-    var siteHero = shouldShowSiteHero() ? buildHomeHero(cityName) : '';
+    var showSiteHeroBlock = shouldShowSiteHero();
+    var siteHero = showSiteHeroBlock ? buildHomeHero(cityName) : '';
     var catalogHeader = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
       '<div class="category-title">Каталог</div>' +
       cityLine +
@@ -1645,7 +1695,7 @@
       render(
         buildWebMarqueeBar() +
         siteHero +
-        '<section class="web-shop-toolbar">' +
+        '<section class="web-shop-toolbar' + (showSiteHeroBlock ? '' : ' web-shop-toolbar--no-hero') + '">' +
           '<div class="web-shop-topline web-shop-topline--header">' +
             '<div id="web-call-wrap" class="web-call-wrap">' +
               '<button class="web-call-btn" type="button" aria-label="Позвонить" onclick="toggleWebCallPanel(event)">' +
