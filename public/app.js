@@ -1378,15 +1378,9 @@
     }
     var heroSection = document.getElementById('site-hero');
     if (!heroSection) return;
-    if (heroSection.classList.contains('site-hero--desktop-slides')) {
-      var desktopSlides = heroSection.querySelectorAll('.site-hero-desktop-slide');
+    if (heroSection.classList.contains('site-hero--desktop-script')) {
       var desktopTimers = [];
       var destroyed = false;
-      var activateDesktopSlide = function (idx) {
-        for (var i = 0; i < desktopSlides.length; i++) {
-          desktopSlides[i].classList.toggle('is-active', i === idx);
-        }
-      };
       var completeDesktopHero = function () {
         if (destroyed) return;
         heroSection.classList.add('site-hero--done');
@@ -1402,9 +1396,10 @@
       };
       document.body.classList.add('site-hero-lock');
       document.body.classList.add('site-cover-active');
-      activateDesktopSlide(0);
-      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 1700));
-      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 3900));
+      desktopTimers.push(setTimeout(function () {
+        heroSection.classList.add('site-hero--script-end');
+      }, 4500));
+      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 5000));
       detachHomeHeroScroll = function () {
         destroyed = true;
         for (var t = 0; t < desktopTimers.length; t++) clearTimeout(desktopTimers[t]);
@@ -1490,17 +1485,31 @@
   function buildHomeHero(cityName) {
     var isDesktop = !isTelegramRuntime && (window.innerWidth || 0) >= 900;
     if (isDesktop) {
+      var scriptHeadline = 'Выразите свои чувства';
+      var scriptBrand = 'АРКА СТУДИЯ ЦВЕТОВ';
+      var scriptDelivery = 'Доставка по Саратову и Энгельсу';
+      var wrapChars = function (text, className, baseDelay, stepDelay) {
+        var safeText = String(text || '');
+        var html = '';
+        for (var i = 0; i < safeText.length; i++) {
+          var ch = safeText.charAt(i);
+          var code = safeText.charCodeAt(i);
+          var rendered = ch === ' ' ? '&nbsp;' : escapeHtml(ch);
+          var delay = baseDelay + (i * stepDelay);
+          html += '<span class="site-hero-script-char" style="animation-delay:' + delay + 'ms">' + rendered + '</span>';
+          if (code === 8212 || code === 45) {
+            html += '<span class="site-hero-script-char-spacer" aria-hidden="true"></span>';
+          }
+        }
+        return '<div class="' + className + '">' + html + '</div>';
+      };
       return '' +
-        '<section id="site-hero" class="site-hero site-hero--desktop-slides">' +
+        '<section id="site-hero" class="site-hero site-hero--desktop-script">' +
           '<div class="site-hero-stage">' +
-            '<div class="site-hero-desktop-slides">' +
-              '<div class="site-hero-desktop-slide is-active">' +
-                '<div class="site-hero-desktop-title">Выразите свои чувства</div>' +
-              '</div>' +
-              '<div class="site-hero-desktop-slide">' +
-                '<div class="site-hero-desktop-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
-                '<div class="site-hero-desktop-subtitle">Доставка по Саратову и Энгельсу</div>' +
-              '</div>' +
+            '<div class="site-hero-script-layer">' +
+              wrapChars(scriptHeadline, 'site-hero-script-line site-hero-script-line--lead', 260, 34) +
+              wrapChars(scriptBrand, 'site-hero-script-line site-hero-script-line--brand', 1520, 30) +
+              wrapChars(scriptDelivery, 'site-hero-script-line site-hero-script-line--sub', 2450, 22) +
             '</div>' +
           '</div>' +
         '</section>';
@@ -1736,9 +1745,6 @@
               '<button class="web-toolbar-action-btn" data-tab="cart" onclick="navigateTo(\'cart\')" aria-label="Корзина">' +
                 '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18c-1.1 0-2 .9-2 2a2 2 0 1 0 4 0c0-1.1-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2a2 2 0 1 0 4 0c0-1.1-.9-2-2-2zM6.2 5l1.1 2.2h10.3a1 1 0 0 1 .9 1.5l-1.7 3.2a2 2 0 0 1-1.8 1H8.6l-.7 1.3h9.7v2H7.8a2 2 0 0 1-1.8-3l1-1.9L4.3 5H2V3h3a1 1 0 0 1 .9.6z"/></svg>' +
                 '<span id="web-toolbar-cart-badge" class="web-toolbar-badge" style="display:none"></span>' +
-              '</button>' +
-              '<button class="web-toolbar-action-btn" type="button" aria-label="Меню" onclick="scrollToCatalog()">' +
-                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>' +
               '</button>' +
             '</div>' +
           '</div>' +
