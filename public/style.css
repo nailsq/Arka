@@ -517,36 +517,20 @@ button, select {
 }
 
 .web-marquee {
-  position: sticky;
-  top: 0;
-  z-index: 92;
-  background: linear-gradient(90deg, #14151a 0%, #1a1c23 52%, #14151a 100%);
+  position: relative;
+  z-index: 2;
+  background: linear-gradient(90deg, #12131a 0%, #1a1c25 52%, #12131a 100%);
   color: #f8f8fa;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   overflow: hidden;
   white-space: nowrap;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16) inset;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18) inset;
 }
 
-.web-marquee::before,
-.web-marquee::after {
-  content: '';
-  position: absolute;
+body.web-mode .web-marquee {
+  position: sticky;
   top: 0;
-  bottom: 0;
-  width: clamp(24px, 4vw, 54px);
-  z-index: 2;
-  pointer-events: none;
-}
-
-.web-marquee::before {
-  left: 0;
-  background: linear-gradient(90deg, rgba(20, 21, 26, 0.95), rgba(20, 21, 26, 0));
-}
-
-.web-marquee::after {
-  right: 0;
-  background: linear-gradient(270deg, rgba(20, 21, 26, 0.95), rgba(20, 21, 26, 0));
+  z-index: 92;
 }
 
 .web-marquee-track {
@@ -576,6 +560,11 @@ button, select {
   text-transform: uppercase;
   padding: 10px 20px;
   opacity: 0.95;
+}
+
+.web-marquee--mini {
+  border-radius: 10px;
+  margin-bottom: 10px;
 }
 
 .web-marquee-sep {

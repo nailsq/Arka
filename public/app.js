@@ -1500,7 +1500,6 @@
   }
 
   function buildWebMarqueeBar() {
-    if (isTelegramRuntime) return '';
     var enabled = String(appSettings.marquee_enabled || '1') !== '0';
     if (!enabled) return '';
     var items = normalizeMarqueeItems(appSettings.marquee_text || '');
@@ -1512,7 +1511,7 @@
       group += '<span class="web-marquee-item">' + escapeHtml(items[i]) + '</span><span class="web-marquee-sep" aria-hidden="true">•</span>';
     }
     return '' +
-      '<section class="web-marquee" aria-label="Информация о доставке">' +
+      '<section class="web-marquee' + (isTelegramRuntime ? ' web-marquee--mini' : '') + '" aria-label="Информация о доставке">' +
         '<div class="web-marquee-track" style="--marquee-duration:' + speed + 's">' +
           '<div class="web-marquee-group">' + group + '</div>' +
           '<div class="web-marquee-group" aria-hidden="true">' + group + '</div>' +
@@ -1686,6 +1685,7 @@
     }
 
     render(
+      buildWebMarqueeBar() +
       siteHero +
       '<section id="home-catalog" class="home-catalog-block">' +
         catalogHeader +
