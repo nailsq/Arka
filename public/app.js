@@ -1379,8 +1379,14 @@
     var heroSection = document.getElementById('site-hero');
     if (!heroSection) return;
     if (heroSection.classList.contains('site-hero--desktop-script')) {
+      var desktopSlides = heroSection.querySelectorAll('.site-hero-script-slide');
       var desktopTimers = [];
       var destroyed = false;
+      var activateDesktopSlide = function (idx) {
+        for (var i = 0; i < desktopSlides.length; i++) {
+          desktopSlides[i].classList.toggle('is-active', i === idx);
+        }
+      };
       var completeDesktopHero = function () {
         if (destroyed) return;
         heroSection.classList.add('site-hero--done');
@@ -1396,10 +1402,12 @@
       };
       document.body.classList.add('site-hero-lock');
       document.body.classList.add('site-cover-active');
+      activateDesktopSlide(0);
+      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 2100));
       desktopTimers.push(setTimeout(function () {
         heroSection.classList.add('site-hero--script-end');
-      }, 4500));
-      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 5000));
+      }, 5600));
+      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 6120));
       detachHomeHeroScroll = function () {
         destroyed = true;
         for (var t = 0; t < desktopTimers.length; t++) clearTimeout(desktopTimers[t]);
@@ -1506,10 +1514,16 @@
       return '' +
         '<section id="site-hero" class="site-hero site-hero--desktop-script">' +
           '<div class="site-hero-stage">' +
-            '<div class="site-hero-script-layer">' +
-              wrapChars(scriptHeadline, 'site-hero-script-line site-hero-script-line--lead', 260, 34) +
-              wrapChars(scriptBrand, 'site-hero-script-line site-hero-script-line--brand', 1520, 30) +
-              wrapChars(scriptDelivery, 'site-hero-script-line site-hero-script-line--sub', 2450, 22) +
+            '<div class="site-hero-script-slides">' +
+              '<div class="site-hero-script-slide is-active">' +
+                '<div class="site-hero-script-lead">' + escapeHtml(scriptHeadline) + '</div>' +
+              '</div>' +
+              '<div class="site-hero-script-slide">' +
+                '<div class="site-hero-script-layer">' +
+                  wrapChars(scriptBrand, 'site-hero-script-line site-hero-script-line--brand', 260, 34) +
+                  '<div class="site-hero-script-sub-fade">' + escapeHtml(scriptDelivery) + '</div>' +
+                '</div>' +
+              '</div>' +
             '</div>' +
           '</div>' +
         '</section>';
