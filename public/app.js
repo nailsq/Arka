@@ -1516,7 +1516,11 @@
           '<div class="site-hero-stage">' +
             '<div class="site-hero-script-slides">' +
               '<div class="site-hero-script-slide is-active">' +
-                '<div class="site-hero-script-lead">' + escapeHtml(scriptHeadline) + '</div>' +
+                '<div class="site-hero-script-lead-wrap">' +
+                  '<div class="site-hero-script-kicker">ARKA FLOWERS</div>' +
+                  '<div class="site-hero-script-lead">' + escapeHtml(scriptHeadline) + '</div>' +
+                  '<div class="site-hero-script-lead-note">Премиальная доставка цветов</div>' +
+                '</div>' +
               '</div>' +
               '<div class="site-hero-script-slide">' +
                 '<div class="site-hero-script-layer">' +
