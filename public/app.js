@@ -448,6 +448,24 @@
     return Number(p).toLocaleString('ru-RU') + ' р.';
   }
 
+  function getPrimaryPhone() {
+    var keys = ['contact_phone', 'shop_phone', 'phone', 'phone_main', 'phone_1', 'phone1'];
+    for (var i = 0; i < keys.length; i++) {
+      var v = String(appSettings[keys[i]] || '').trim();
+      if (v) return v;
+    }
+    return '+7 917 212 08 78';
+  }
+
+  function phoneToTelHref(phone) {
+    var digits = String(phone || '').replace(/\D/g, '');
+    if (!digits) return 'tel:+79172120878';
+    if (digits.length === 11 && digits.charAt(0) === '8') digits = '7' + digits.slice(1);
+    if (digits.length === 10) digits = '7' + digits;
+    if (digits.charAt(0) !== '7' && digits.length === 11) digits = '7' + digits.slice(1);
+    return 'tel:+' + digits;
+  }
+
   function isBouquetCategory(catName) {
     if (!catName) return true;
     var lower = catName.toLowerCase();
@@ -1558,17 +1576,25 @@
 
     setActiveTab('home');
     if (shouldShowSiteHero()) {
+      var shopPhone = getPrimaryPhone();
+      var shopPhoneEsc = escapeHtml(shopPhone);
+      var shopPhoneTel = phoneToTelHref(shopPhone);
       render(
         siteHero +
         '<section class="web-shop-toolbar">' +
-          '<div class="web-shop-topline">' +
-            '<div class="web-shop-search-wrap">' +
-              '<input id="web-shop-search" class="web-shop-search" type="search" placeholder="поиск по сайту" oninput="webHomeSearch(this.value)">' +
-              '<button class="web-shop-search-btn" type="button" aria-label="Поиск" onclick="focusWebSearch()">' +
-                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 4a6.8 6.8 0 1 1 0 13.6A6.8 6.8 0 0 1 10.8 4zm0 2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6zM16.3 15l3.7 3.7-1.4 1.4-3.7-3.7z"/></svg>' +
+          '<div class="web-shop-topline web-shop-topline--header">' +
+            '<div id="web-call-wrap" class="web-call-wrap">' +
+              '<button class="web-call-btn" type="button" aria-label="Позвонить" onclick="toggleWebCallPanel(event)">' +
+                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.3 15.3 0 0 0 6.6 6.6l2.2-2.2c.2-.2.5-.3.8-.2 1 .3 2 .4 3 .4.5 0 .9.4.9.9V20c0 .5-.4.9-.9.9C10.7 20.9 3.1 13.3 3.1 3.9c0-.5.4-.9.9-.9h3.7c.5 0 .9.4.9.9 0 1 .1 2 .4 3 .1.3 0 .6-.2.8l-2.2 2.2z"/></svg>' +
               '</button>' +
+              '<div id="web-call-panel" class="web-call-panel" onclick="event.stopPropagation()">' +
+                '<a href="' + shopPhoneTel + '" class="web-call-panel-link">Позвонить: ' + shopPhoneEsc + '</a>' +
+              '</div>' +
             '</div>' +
-            '<div class="web-toolbar-actions">' +
+            '<button class="web-header-logo" type="button" onclick="navigateTo(\'home\')" aria-label="ARKA FLOWERS">' +
+              '<img src="/images/logo.svg" alt="ARKA FLOWERS" onerror="this.style.display=\'none\';this.parentNode.innerHTML=\'<span class=\\\'web-header-logo-fallback\\\'>ARKA FLOWERS</span>\'">' +
+            '</button>' +
+            '<div class="web-toolbar-actions web-toolbar-actions--header">' +
               '<button class="web-toolbar-action-btn" data-tab="account" onclick="navigateTo(\'account\')" aria-label="Профиль">' +
                 '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.2 4.2 0 1 1 0-8.4A4.2 4.2 0 0 1 12 12zm0 2c4.2 0 7.6 2.6 7.6 5.8 0 .6-.4 1-1 1H5.4c-.6 0-1-.4-1-1C4.4 16.6 7.8 14 12 14zm0 2c-2.8 0-5 1.4-5.5 2.8h11c-.5-1.4-2.7-2.8-5.5-2.8z"/></svg>' +
               '</button>' +
@@ -1579,6 +1605,17 @@
               '<button class="web-toolbar-action-btn" data-tab="cart" onclick="navigateTo(\'cart\')" aria-label="Корзина">' +
                 '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18c-1.1 0-2 .9-2 2a2 2 0 1 0 4 0c0-1.1-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2a2 2 0 1 0 4 0c0-1.1-.9-2-2-2zM6.2 5l1.1 2.2h10.3a1 1 0 0 1 .9 1.5l-1.7 3.2a2 2 0 0 1-1.8 1H8.6l-.7 1.3h9.7v2H7.8a2 2 0 0 1-1.8-3l1-1.9L4.3 5H2V3h3a1 1 0 0 1 .9.6z"/></svg>' +
                 '<span id="web-toolbar-cart-badge" class="web-toolbar-badge" style="display:none"></span>' +
+              '</button>' +
+              '<button class="web-toolbar-action-btn" type="button" aria-label="Меню" onclick="scrollToCatalog()">' +
+                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>' +
+              '</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="web-shop-topline web-shop-topline--search">' +
+            '<div class="web-shop-search-wrap">' +
+              '<input id="web-shop-search" class="web-shop-search" type="search" placeholder="поиск по сайту" oninput="webHomeSearch(this.value)">' +
+              '<button class="web-shop-search-btn" type="button" aria-label="Поиск" onclick="focusWebSearch()">' +
+                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 4a6.8 6.8 0 1 1 0 13.6A6.8 6.8 0 0 1 10.8 4zm0 2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6zM16.3 15l3.7 3.7-1.4 1.4-3.7-3.7z"/></svg>' +
               '</button>' +
             '</div>' +
           '</div>' +
@@ -1708,6 +1745,20 @@
     if (!input) return;
     input.focus();
   };
+
+  window.toggleWebCallPanel = function (event) {
+    if (event) event.stopPropagation();
+    var wrap = document.getElementById('web-call-wrap');
+    if (!wrap) return;
+    wrap.classList.toggle('open');
+  };
+
+  document.addEventListener('click', function (e) {
+    var wrap = document.getElementById('web-call-wrap');
+    if (!wrap || !wrap.classList.contains('open')) return;
+    if (e.target && wrap.contains(e.target)) return;
+    wrap.classList.remove('open');
+  });
 
   function showCatalog() {
     showHome();
