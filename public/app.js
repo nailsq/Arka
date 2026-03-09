@@ -4687,6 +4687,10 @@
       detachHomeHeroScroll();
       detachHomeHeroScroll = null;
     }
+    if (page !== 'home' && document && document.body) {
+      document.body.classList.remove('mobile-intro-active');
+      document.body.classList.remove('mobile-toolbar-fixed');
+    }
     if (page !== 'account') stopTrackingPoll();
     if (page !== 'checkout' && _inCheckout) {
       sendAbandonedCart('Ушёл на: ' + page);

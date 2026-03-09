@@ -885,6 +885,7 @@ body.web-mode .web-marquee {
   backface-visibility: hidden;
 }
 
+
 .web-marquee-group {
   display: inline-flex;
   align-items: center;
@@ -1280,7 +1281,7 @@ body.web-mode #app {
 body.web-mode .web-flow-shell {
   width: min(100%, 1080px);
   margin: 0 auto;
-  padding: 0 24px 12px;
+  padding: calc(var(--web-marquee-offset) + 12px) 24px 12px;
 }
 
 body.web-mode .web-flow-shell--checkout {
