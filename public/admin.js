@@ -1272,7 +1272,8 @@
       h += '<div class="settings-section-title">Бегущая строка (сайт)</div>';
       h += '<div class="form-group"><label class="form-label"><input type="checkbox" id="s-marquee-enabled"' + (s.marquee_enabled !== '0' ? ' checked' : '') + ' style="margin-right:6px">Показывать бегущую строку на сайте</label></div>';
       h += '<div class="form-group"><label class="form-label">Текст бегущей строки</label>' +
-        '<input type="text" class="form-input" id="s-marquee-text" value="' + esc(s.marquee_text || 'Доставка круглосуточно') + '" placeholder="Доставка круглосуточно"></div>';
+        '<input type="text" class="form-input" id="s-marquee-text" value="' + esc(s.marquee_text || 'Доставка круглосуточно') + '" placeholder="Доставка круглосуточно | Свежие цветы каждый день"></div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:-6px;margin-bottom:10px">Можно указать несколько фраз через <b>|</b> — строка обработает их автоматически.</div>';
       h += '<div class="form-group"><label class="form-label">Скорость (секунд на полный проход)</label>' +
         '<input type="number" min="8" max="60" step="1" class="form-input" id="s-marquee-speed" value="' + esc(s.marquee_speed_sec || '18') + '" style="max-width:140px"></div>';
       h += '</div>';

@@ -1485,21 +1485,37 @@
       '</section>';
   }
 
+  function normalizeMarqueeItems(raw) {
+    var src = String(raw || '');
+    var parts = src.split(/[\n|]+/);
+    var out = [];
+    for (var i = 0; i < parts.length; i++) {
+      var cleaned = String(parts[i] || '').replace(/\s+/g, ' ').trim();
+      if (!cleaned) continue;
+      if (cleaned.length > 84) cleaned = cleaned.slice(0, 84).trim();
+      out.push(cleaned);
+    }
+    if (!out.length) out = ['Доставка круглосуточно'];
+    return out;
+  }
+
   function buildWebMarqueeBar() {
     if (isTelegramRuntime) return '';
     var enabled = String(appSettings.marquee_enabled || '1') !== '0';
     if (!enabled) return '';
-    var text = String(appSettings.marquee_text || '').trim() || 'Доставка круглосуточно';
+    var items = normalizeMarqueeItems(appSettings.marquee_text || '');
     var speed = parseFloat(appSettings.marquee_speed_sec || '18');
     if (isNaN(speed) || speed < 8) speed = 8;
     if (speed > 60) speed = 60;
-    var part = '<span class="web-marquee-item">' + escapeHtml(text) + '</span>';
-    var repeated = '';
-    for (var i = 0; i < 8; i++) repeated += part;
+    var group = '';
+    for (var i = 0; i < items.length; i++) {
+      group += '<span class="web-marquee-item">' + escapeHtml(items[i]) + '</span>';
+    }
     return '' +
       '<section class="web-marquee" aria-label="Информация о доставке">' +
         '<div class="web-marquee-track" style="--marquee-duration:' + speed + 's">' +
-          repeated +
+          '<div class="web-marquee-group">' + group + '</div>' +
+          '<div class="web-marquee-group" aria-hidden="true">' + group + '</div>' +
         '</div>' +
       '</section>';
   }
