@@ -374,6 +374,17 @@ function clearSessionCookie(res) {
   res.setHeader('Set-Cookie', cookie);
 }
 
+function getExternalBaseUrl(req) {
+  var publicBase = String(PUBLIC_URL || '').replace(/\/+$/, '');
+  var host = String((req && req.headers && (req.headers['x-forwarded-host'] || req.headers.host)) || '').split(',')[0].trim();
+  var proto = String((req && req.headers && req.headers['x-forwarded-proto']) || '').split(',')[0].trim().toLowerCase();
+  if (!proto) proto = (req && req.protocol) ? String(req.protocol) : 'http';
+  if (host) {
+    return proto + '://' + host;
+  }
+  return publicBase;
+}
+
 async function getSessionUser(req) {
   var cookies = parseCookies(req);
   var token = cookies[SESSION_COOKIE_NAME];
@@ -683,7 +694,7 @@ app.get('/api/auth/telegram-web-config', async function (req, res) {
     var username = me && me.ok && me.result && me.result.username ? String(me.result.username) : '';
     var botId = me && me.ok && me.result && me.result.id ? String(me.result.id) : '';
     if (!username) return res.json({ enabled: false, reason: 'bot_username_missing' });
-    var baseUrl = String(PUBLIC_URL || '').replace(/\/+$/, '');
+    var baseUrl = getExternalBaseUrl(req);
     var authUrl = (baseUrl || '') + '/api/auth/telegram-web/callback';
     res.json({ enabled: true, bot_username: username, bot_id: botId, auth_url: authUrl });
   } catch (e) {
@@ -719,7 +730,7 @@ app.get('/api/auth/telegram-web/callback', async function (req, res) {
     exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SEC
   });
   setSessionCookie(res, token);
-  return res.redirect('/#account');
+  return res.redirect('/?tg_auth=1#account');
 });
 
 app.get('/api/auth/session', async function (req, res) {

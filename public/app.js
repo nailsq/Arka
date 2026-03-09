@@ -1048,9 +1048,17 @@
       var hasCity = checkCityOnStart();
       var initialRoute = parseRouteFromHash();
       var initialPage = 'home';
+      var forceAccount = false;
+      try {
+        var sp = new URLSearchParams(window.location.search || '');
+        forceAccount = sp.get('tg_auth') === '1';
+      } catch (e) {}
       if (initialRoute && initialRoute.page) {
         initialPage = initialRoute.page;
         navigateTo(initialRoute.page, initialRoute.param, true);
+      } else if (forceAccount) {
+        initialPage = 'account';
+        navigateTo('account', null, true);
       } else {
         showHome();
       }
@@ -1058,6 +1066,12 @@
       updateCartBadge();
       updateFavBadge();
       if (!hasCity) showCityOverlay();
+      if (forceAccount) {
+        try {
+          window.history.replaceState({}, '', window.location.pathname + (window.location.hash || '#account'));
+        } catch (e) {}
+        showToast('Вход через Telegram выполнен');
+      }
     }
 
     if (tgUser) {
