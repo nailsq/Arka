@@ -1377,7 +1377,10 @@
       detachHomeHeroScroll = null;
     }
     var heroSection = document.getElementById('site-hero');
-    if (!heroSection) return;
+    if (!heroSection) {
+      if (document && document.body) document.body.classList.remove('mobile-toolbar-fixed');
+      return;
+    }
     if (heroSection.classList.contains('site-hero--desktop-script')) {
       var desktopSlides = heroSection.querySelectorAll('.site-hero-script-slide');
       var desktopTimers = [];
@@ -1403,11 +1406,11 @@
       document.body.classList.add('site-hero-lock');
       document.body.classList.add('site-cover-active');
       activateDesktopSlide(0);
-      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 2100));
+      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 1300));
       desktopTimers.push(setTimeout(function () {
         heroSection.classList.add('site-hero--script-end');
-      }, 5600));
-      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 6120));
+      }, 3500));
+      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 3980));
       detachHomeHeroScroll = function () {
         destroyed = true;
         for (var t = 0; t < desktopTimers.length; t++) clearTimeout(desktopTimers[t]);
@@ -1440,6 +1443,18 @@
       if (raw < 0) raw = 0;
       if (raw > 1) raw = 1;
       targetRawProgress = raw;
+    };
+    var syncMobileToolbarFixed = function () {
+      if (isTelegramRuntime || (window.innerWidth || 0) > 560) {
+        document.body.classList.remove('mobile-toolbar-fixed');
+        return;
+      }
+      var rect = heroSection.getBoundingClientRect();
+      var styles = window.getComputedStyle ? window.getComputedStyle(document.body) : null;
+      var marqueeOffset = styles ? parseFloat(styles.getPropertyValue('--web-marquee-offset')) : 36;
+      if (!isFinite(marqueeOffset)) marqueeOffset = 36;
+      var fixedTop = marqueeOffset + 8;
+      document.body.classList.toggle('mobile-toolbar-fixed', rect.bottom <= (fixedTop + 6));
     };
     var tick = function () {
       if (!running) return;
@@ -1474,11 +1489,13 @@
     };
     var onScroll = function () {
       updateTargetsFromScroll();
+      syncMobileToolbarFixed();
       syncWebQuickNavVisibility('home');
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
     updateTargetsFromScroll();
+    syncMobileToolbarFixed();
     syncWebQuickNavVisibility('home');
     tick();
     detachHomeHeroScroll = function () {
@@ -1486,6 +1503,7 @@
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
       if (rafId) cancelAnimationFrame(rafId);
+      document.body.classList.remove('mobile-toolbar-fixed');
       syncWebQuickNavVisibility(activeTab);
     };
   }
@@ -1516,11 +1534,7 @@
           '<div class="site-hero-stage">' +
             '<div class="site-hero-script-slides">' +
               '<div class="site-hero-script-slide is-active">' +
-                '<div class="site-hero-script-lead-wrap">' +
-                  '<div class="site-hero-script-kicker">ARKA FLOWERS</div>' +
-                  '<div class="site-hero-script-lead">' + escapeHtml(scriptHeadline) + '</div>' +
-                  '<div class="site-hero-script-lead-note">Премиальная доставка цветов</div>' +
-                '</div>' +
+                '<div class="site-hero-script-lead">' + escapeHtml(scriptHeadline) + '</div>' +
               '</div>' +
               '<div class="site-hero-script-slide">' +
                 '<div class="site-hero-script-layer">' +
@@ -1733,13 +1747,14 @@
     setActiveTab('home');
     if (!isTelegramRuntime) {
       document.body.classList.remove('site-cover-active');
+      document.body.classList.remove('mobile-toolbar-fixed');
       var shopPhone = getPrimaryPhone();
       var shopPhoneEsc = escapeHtml(shopPhone);
       var shopPhoneTel = phoneToTelHref(shopPhone);
       render(
         buildWebMarqueeBar() +
         siteHero +
-        '<section class="web-shop-toolbar' + ((showSiteHeroBlock && !isDesktopCoverOverlay) ? '' : ' web-shop-toolbar--no-hero') + '">' +
+        '<section class="web-shop-toolbar web-shop-toolbar--mobile-fixable' + ((showSiteHeroBlock && !isDesktopCoverOverlay) ? '' : ' web-shop-toolbar--no-hero') + '">' +
           '<div class="web-shop-topline web-shop-topline--header">' +
             '<div id="web-call-wrap" class="web-call-wrap">' +
               '<button class="web-call-btn" type="button" aria-label="Позвонить" onclick="toggleWebCallPanel(event)">' +
