@@ -1278,6 +1278,16 @@
         '<input type="number" min="8" max="80" step="1" class="form-input" id="s-marquee-speed-web" value="' + esc(s.marquee_speed_sec_web || s.marquee_speed_sec || '18') + '" style="max-width:140px"></div>';
       h += '<div class="form-group"><label class="form-label">Скорость в Mini App (секунд на проход)</label>' +
         '<input type="number" min="8" max="80" step="1" class="form-input" id="s-marquee-speed-mini" value="' + esc(s.marquee_speed_sec_mini || s.marquee_speed_sec || '18') + '" style="max-width:140px"></div>';
+      h += '<div class="form-group"><label class="form-label">Направление на сайте</label>' +
+        '<select class="form-select" id="s-marquee-direction-web" style="max-width:220px">' +
+          '<option value="left"' + ((s.marquee_direction_web || s.marquee_direction || 'left') === 'left' ? ' selected' : '') + '>Справа налево</option>' +
+          '<option value="right"' + ((s.marquee_direction_web || s.marquee_direction || 'left') === 'right' ? ' selected' : '') + '>Слева направо</option>' +
+        '</select></div>';
+      h += '<div class="form-group"><label class="form-label">Направление в Mini App</label>' +
+        '<select class="form-select" id="s-marquee-direction-mini" style="max-width:220px">' +
+          '<option value="left"' + ((s.marquee_direction_mini || s.marquee_direction || 'left') === 'left' ? ' selected' : '') + '>Справа налево</option>' +
+          '<option value="right"' + ((s.marquee_direction_mini || s.marquee_direction || 'left') === 'right' ? ' selected' : '') + '>Слева направо</option>' +
+        '</select></div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1839,6 +1849,9 @@
       marquee_text: document.getElementById('s-marquee-text').value,
       marquee_speed_sec_web: document.getElementById('s-marquee-speed-web').value,
       marquee_speed_sec_mini: document.getElementById('s-marquee-speed-mini').value,
+      marquee_direction_web: document.getElementById('s-marquee-direction-web').value,
+      marquee_direction_mini: document.getElementById('s-marquee-direction-mini').value,
+      marquee_direction: document.getElementById('s-marquee-direction-web').value,
       marquee_speed_sec: document.getElementById('s-marquee-speed-web').value,
       pickup_cutoff_hour: document.getElementById('s-pickup-cutoff').value,
       delivery_info: document.getElementById('s-delivery-info').value,

@@ -1633,9 +1633,13 @@
     var speedRaw = isTelegramRuntime
       ? (appSettings.marquee_speed_sec_mini || appSettings.marquee_speed_sec || '18')
       : (appSettings.marquee_speed_sec_web || appSettings.marquee_speed_sec || '18');
+    var directionRaw = isTelegramRuntime
+      ? (appSettings.marquee_direction_mini || appSettings.marquee_direction || 'left')
+      : (appSettings.marquee_direction_web || appSettings.marquee_direction || 'left');
     var speed = parseFloat(speedRaw);
     if (isNaN(speed) || speed < 8) speed = 8;
     if (speed > 60) speed = 60;
+    var direction = String(directionRaw || 'left').toLowerCase() === 'right' ? 'right' : 'left';
     // Repeat phrases inside one group so even short text keeps continuous flow.
     var loops = Math.max(4, Math.ceil(18 / Math.max(1, items.length)));
     var group = '';
@@ -1646,7 +1650,7 @@
     }
     return '' +
       '<section class="web-marquee' + (isTelegramRuntime ? ' web-marquee--mini' : '') + '" aria-label="Информация о доставке">' +
-        '<div class="web-marquee-track" style="--marquee-duration:' + speed + 's">' +
+        '<div class="web-marquee-track' + (direction === 'right' ? ' web-marquee-track--right' : '') + '" style="--marquee-duration:' + speed + 's">' +
           '<div class="web-marquee-group">' + group + '</div>' +
           '<div class="web-marquee-group" aria-hidden="true">' + group + '</div>' +
         '</div>' +
