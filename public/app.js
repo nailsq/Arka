@@ -1366,23 +1366,9 @@
   function initSitePreloader() {
     var pre = document.getElementById('site-preloader');
     if (!pre) return;
-    if (isTelegramRuntime) {
-      pre.style.display = 'none';
-      return;
-    }
-    document.body.classList.add('site-preloader-active');
-    var wasShown = false;
-    try { wasShown = sessionStorage.getItem('arka_site_preloader') === '1'; } catch (e) {}
-    // Keep preloader noticeably longer on every visit (no "flash" effect).
-    var delay = wasShown ? 1700 : 1900;
-    setTimeout(function () {
-      pre.classList.add('site-preloader--hidden');
-      document.body.classList.remove('site-preloader-active');
-      try { sessionStorage.setItem('arka_site_preloader', '1'); } catch (e) {}
-      setTimeout(function () {
-        if (pre && pre.parentNode) pre.parentNode.removeChild(pre);
-      }, 1500);
-    }, delay);
+    document.body.classList.remove('site-preloader-active');
+    pre.style.display = 'none';
+    if (pre.parentNode) pre.parentNode.removeChild(pre);
   }
 
   function bindHomeHeroAnimation() {
@@ -1417,8 +1403,8 @@
       document.body.classList.add('site-hero-lock');
       document.body.classList.add('site-cover-active');
       activateDesktopSlide(0);
-      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 2100));
-      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 4300));
+      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 2800));
+      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 6200));
       detachHomeHeroScroll = function () {
         destroyed = true;
         for (var t = 0; t < desktopTimers.length; t++) clearTimeout(desktopTimers[t]);
