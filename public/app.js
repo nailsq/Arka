@@ -1899,7 +1899,6 @@
   function showProduct(id) {
     render(
       '<div class="product-detail-page">' +
-        '<span class="back-link" onclick="navigateTo(\'home\')">К каталогу</span>' +
         '<div id="product-detail">Загрузка...</div>' +
         (!isTelegramRuntime ? '<div id="product-related"></div>' : '') +
       '</div>'

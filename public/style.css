@@ -199,6 +199,7 @@ body.site-cover-active #web-quick-nav {
 
 /* Website preloader + hero (non-Telegram web) */
 .site-preloader {
+  display: none !important;
   position: fixed;
   inset: 0;
   background: radial-gradient(150% 110% at 50% 38%, #151a2b 0%, #0d101b 54%, #090b12 100%);
@@ -760,7 +761,7 @@ body.web-mode .web-marquee {
 
 .web-shop-toolbar {
   max-width: 1280px;
-  margin: -104px auto 18px;
+  margin: 10px auto 18px;
   padding: 0 28px;
   background: rgba(255, 255, 255, 0.97);
   border: 1px solid #eff0f3;
@@ -1368,7 +1369,7 @@ body.web-mode .product-list {
     max-width: min(96vw, 1100px);
   }
   .web-shop-toolbar {
-    margin: -30px auto 12px;
+    margin: 8px auto 12px;
     padding: 0 12px;
   }
   .web-shop-toolbar--no-hero {
