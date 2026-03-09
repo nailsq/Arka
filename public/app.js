@@ -1682,6 +1682,15 @@
       var price = getProductMinPrice(p);
       if (range.min !== null && price < range.min) return false;
       if (range.max !== null && price > range.max) return false;
+      // For price-range categories, keep bouquet products only.
+      // This prevents "Подарки/Открытки/Вазы/Шары" from mixing into "До 3 000" etc.
+      var nameText = String((p && p.name) || '').toLowerCase();
+      var categoryText = String((p && p.category_name) || '').toLowerCase();
+      var text = nameText + ' ' + categoryText;
+      var nonBouquetHints = ['подар', 'открытк', 'ваза', 'свеч', 'шар', 'игруш', 'коробк'];
+      for (var i = 0; i < nonBouquetHints.length; i++) {
+        if (text.indexOf(nonBouquetHints[i]) >= 0) return false;
+      }
       return true;
     });
   }
