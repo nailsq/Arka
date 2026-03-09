@@ -1592,8 +1592,7 @@
               '</div>' +
             '</div>' +
             '<button class="web-header-logo" type="button" onclick="navigateTo(\'home\')" aria-label="ARKA FLOWERS">' +
-              '<span class="web-header-logo-title">АРКА</span>' +
-              '<span class="web-header-logo-sub">СТУДИЯ ЦВЕТОВ</span>' +
+              '<img src="/images/logo.svg" alt="АРКА СТУДИЯ ЦВЕТОВ">' +
             '</button>' +
             '<div class="web-toolbar-actions web-toolbar-actions--header">' +
               '<button class="web-toolbar-action-btn" data-tab="account" onclick="navigateTo(\'account\')" aria-label="Профиль">' +
