@@ -1399,8 +1399,9 @@
         }, 560));
       };
       activateDesktopSlide(0);
-      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 1700));
-      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 3800));
+      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 2400));
+      desktopTimers.push(setTimeout(function () { activateDesktopSlide(2); }, 5000));
+      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 8400));
       detachHomeHeroScroll = function () {
         destroyed = true;
         for (var t = 0; t < desktopTimers.length; t++) clearTimeout(desktopTimers[t]);
@@ -1487,8 +1488,11 @@
         '<section id="site-hero" class="site-hero site-hero--desktop-slides">' +
           '<div class="site-hero-stage">' +
             '<div class="site-hero-desktop-slides">' +
-              '<div class="site-hero-desktop-slide is-active">' +
-                '<div class="site-hero-desktop-title">Выразите свои чувства</div>' +
+              '<div class="site-hero-desktop-slide site-hero-desktop-slide--dark is-active">' +
+                '<img class="site-hero-desktop-logo" src="/images/logo.svg" alt="АРКА СТУДИЯ ЦВЕТОВ">' +
+              '</div>' +
+              '<div class="site-hero-desktop-slide">' +
+                '<div class="site-hero-desktop-title">Express your feelings</div>' +
               '</div>' +
               '<div class="site-hero-desktop-slide">' +
                 '<div class="site-hero-desktop-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
