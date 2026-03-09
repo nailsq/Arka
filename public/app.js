@@ -1803,10 +1803,10 @@
       homeCategoriesById = {};
       cats.forEach(function (c) { homeCategoriesById[c.id] = c.name; });
       var activeCatId = normalizeCategoryId(homeActiveCategory);
-      var html = '<button class="cat-chip' + (activeCatId === null ? ' active' : '') + '" onclick="filterHome(null)">Все</button>';
+      var html = '<button class="cat-chip' + (activeCatId === null ? ' active' : '') + '" data-cat-id="" onclick="filterHome(null)">Все</button>';
       html += cats.map(function (c) {
         var cidNorm = normalizeCategoryId(c.id);
-        return '<button class="cat-chip' + (activeCatId === cidNorm ? ' active' : '') + '" onclick="filterHome(' + c.id + ',\'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\')">' + escapeHtml(c.name) + '</button>';
+        return '<button class="cat-chip' + (activeCatId === cidNorm ? ' active' : '') + '" data-cat-id="' + escapeHtml(cidNorm) + '" onclick="filterHome(' + c.id + ',\'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\')">' + escapeHtml(c.name) + '</button>';
       }).join('');
       el.innerHTML = html;
       if (activeCatId !== null) {
@@ -1835,14 +1835,8 @@
 
     var chips = document.querySelectorAll('#category-select-wrap .cat-chip');
     chips.forEach(function (chip) {
-      var isAll = chip.textContent === 'Все';
-      if (homeActiveCategory === null && isAll) {
-        chip.classList.add('active');
-      } else if (homeActiveCategory !== null && chip.getAttribute('onclick') && chip.getAttribute('onclick').indexOf('filterHome(' + homeActiveCategory) !== -1) {
-        chip.classList.add('active');
-      } else {
-        chip.classList.remove('active');
-      }
+      var chipCatId = normalizeCategoryId(chip.getAttribute('data-cat-id'));
+      chip.classList.toggle('active', chipCatId === homeActiveCategory);
     });
 
     var titleEl = document.getElementById('active-cat-title');
