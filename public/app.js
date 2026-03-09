@@ -1372,7 +1372,8 @@
     }
     var wasShown = false;
     try { wasShown = sessionStorage.getItem('arka_site_preloader') === '1'; } catch (e) {}
-    var delay = wasShown ? 220 : 1050;
+    // Keep preloader noticeably longer on every visit (no "flash" effect).
+    var delay = wasShown ? 1300 : 1900;
     setTimeout(function () {
       pre.classList.add('site-preloader--hidden');
       try { sessionStorage.setItem('arka_site_preloader', '1'); } catch (e) {}
@@ -1720,7 +1721,7 @@
       var shopPhoneEsc = escapeHtml(shopPhone);
       var shopPhoneTel = phoneToTelHref(shopPhone);
       render(
-        (showSiteHeroBlock ? '' : buildWebMarqueeBar()) +
+        buildWebMarqueeBar() +
         siteHero +
         '<section class="web-shop-toolbar' + (showSiteHeroBlock ? '' : ' web-shop-toolbar--no-hero') + '">' +
           '<div class="web-shop-topline web-shop-topline--header">' +
