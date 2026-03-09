@@ -1812,22 +1812,29 @@
       updateFavBadge();
       updateCartBadge();
       bindHomeHeroAnimation();
-
-      Promise.all([fetchJSON('/api/categories'), fetchJSON('/api/products')]).then(function (res) {
-        var cats = res[0] || [];
-        var products = res[1] || [];
-        var el = document.getElementById('web-category-sections');
-        if (!el) return;
-        if (!cats.length || !products.length) {
-          el.innerHTML = '<div class="empty-state">Товаров пока нет</div>';
-          return;
-        }
-        homeCategoriesById = {};
-        cats.forEach(function (c) { homeCategoriesById[c.id] = c.name; });
-        webHomeDataCache = { cats: cats, products: products };
-        renderWebQuickCategories(cats);
-        renderWebCategorySectionsFromCache();
-      });
+      var loadWebHomeData = function () {
+        Promise.all([fetchJSON('/api/categories'), fetchJSON('/api/products')]).then(function (res) {
+          var cats = res[0] || [];
+          var products = res[1] || [];
+          var el = document.getElementById('web-category-sections');
+          if (!el) return;
+          if (!cats.length || !products.length) {
+            el.innerHTML = '<div class="empty-state">Товаров пока нет</div>';
+            return;
+          }
+          homeCategoriesById = {};
+          cats.forEach(function (c) { homeCategoriesById[c.id] = c.name; });
+          webHomeDataCache = { cats: cats, products: products };
+          renderWebQuickCategories(cats);
+          renderWebCategorySectionsFromCache();
+        });
+      };
+      // On desktop intro, defer heavy catalog fetch to avoid micro-freezes at animation start.
+      if (isDesktopCoverOverlay) {
+        setTimeout(loadWebHomeData, 4050);
+      } else {
+        loadWebHomeData();
+      }
       return;
     }
 
