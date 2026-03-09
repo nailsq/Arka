@@ -1485,6 +1485,25 @@
       '</section>';
   }
 
+  function buildWebMarqueeBar() {
+    if (isTelegramRuntime) return '';
+    var enabled = String(appSettings.marquee_enabled || '1') !== '0';
+    if (!enabled) return '';
+    var text = String(appSettings.marquee_text || '').trim() || 'Доставка круглосуточно';
+    var speed = parseFloat(appSettings.marquee_speed_sec || '18');
+    if (isNaN(speed) || speed < 8) speed = 8;
+    if (speed > 60) speed = 60;
+    var part = '<span class="web-marquee-item">' + escapeHtml(text) + '</span>';
+    var repeated = '';
+    for (var i = 0; i < 8; i++) repeated += part;
+    return '' +
+      '<section class="web-marquee" aria-label="Информация о доставке">' +
+        '<div class="web-marquee-track" style="--marquee-duration:' + speed + 's">' +
+          repeated +
+        '</div>' +
+      '</section>';
+  }
+
   function getProductMinPrice(p) {
     if (!p) return 0;
     var base = parseInt(p.price, 10);
@@ -1580,6 +1599,7 @@
       var shopPhoneEsc = escapeHtml(shopPhone);
       var shopPhoneTel = phoneToTelHref(shopPhone);
       render(
+        buildWebMarqueeBar() +
         siteHero +
         '<section class="web-shop-toolbar">' +
           '<div class="web-shop-topline web-shop-topline--header">' +

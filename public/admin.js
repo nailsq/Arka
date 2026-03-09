@@ -1269,6 +1269,15 @@
       h += '</div>';
 
       h += '<div class="settings-section">';
+      h += '<div class="settings-section-title">Бегущая строка (сайт)</div>';
+      h += '<div class="form-group"><label class="form-label"><input type="checkbox" id="s-marquee-enabled"' + (s.marquee_enabled !== '0' ? ' checked' : '') + ' style="margin-right:6px">Показывать бегущую строку на сайте</label></div>';
+      h += '<div class="form-group"><label class="form-label">Текст бегущей строки</label>' +
+        '<input type="text" class="form-input" id="s-marquee-text" value="' + esc(s.marquee_text || 'Доставка круглосуточно') + '" placeholder="Доставка круглосуточно"></div>';
+      h += '<div class="form-group"><label class="form-label">Скорость (секунд на полный проход)</label>' +
+        '<input type="number" min="8" max="60" step="1" class="form-input" id="s-marquee-speed" value="' + esc(s.marquee_speed_sec || '18') + '" style="max-width:140px"></div>';
+      h += '</div>';
+
+      h += '<div class="settings-section">';
       h += '<div class="settings-section-title">Комментарий к заказу</div>';
       h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Заголовок и подсказка в поле комментария при оформлении заказа.</div>';
       h += '<div class="form-group"><label class="form-label">Заголовок</label>' +
@@ -1823,6 +1832,9 @@
       night_disabled_dates: JSON.stringify(collectNightDisabledDates()),
       exact_time_enabled: document.getElementById('s-exact-enabled').checked ? '1' : '0',
       exact_time_surcharge: document.getElementById('s-exact-surcharge').value,
+      marquee_enabled: document.getElementById('s-marquee-enabled').checked ? '1' : '0',
+      marquee_text: document.getElementById('s-marquee-text').value,
+      marquee_speed_sec: document.getElementById('s-marquee-speed').value,
       pickup_cutoff_hour: document.getElementById('s-pickup-cutoff').value,
       delivery_info: document.getElementById('s-delivery-info').value,
       free_service_name: document.getElementById('s-free-service').value,
