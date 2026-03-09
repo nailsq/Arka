@@ -1374,7 +1374,7 @@
     var wasShown = false;
     try { wasShown = sessionStorage.getItem('arka_site_preloader') === '1'; } catch (e) {}
     // Keep preloader noticeably longer on every visit (no "flash" effect).
-    var delay = wasShown ? 1000 : 1400;
+    var delay = wasShown ? 1700 : 1900;
     setTimeout(function () {
       pre.classList.add('site-preloader--hidden');
       document.body.classList.remove('site-preloader-active');
@@ -1417,8 +1417,8 @@
       document.body.classList.add('site-hero-lock');
       document.body.classList.add('site-cover-active');
       activateDesktopSlide(0);
-      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 1500));
-      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 3700));
+      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 2100));
+      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 4300));
       detachHomeHeroScroll = function () {
         destroyed = true;
         for (var t = 0; t < desktopTimers.length; t++) clearTimeout(desktopTimers[t]);
@@ -1711,6 +1711,7 @@
       ? '<span class="city-current" onclick="changeCityClick()">' + escapeHtml(cityName) + '</span>'
       : '<span class="city-current" onclick="changeCityClick()">Выбрать город</span>';
     var showSiteHeroBlock = shouldShowSiteHero();
+    var isDesktopCoverOverlay = !isTelegramRuntime && showSiteHeroBlock && (window.innerWidth || 0) >= 900;
     var siteHero = showSiteHeroBlock ? buildHomeHero(cityName) : '';
     var catalogHeader = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
       '<div class="category-title">Каталог</div>' +
@@ -1725,7 +1726,7 @@
       render(
         buildWebMarqueeBar() +
         siteHero +
-        '<section class="web-shop-toolbar' + (showSiteHeroBlock ? '' : ' web-shop-toolbar--no-hero') + '">' +
+        '<section class="web-shop-toolbar' + ((showSiteHeroBlock && !isDesktopCoverOverlay) ? '' : ' web-shop-toolbar--no-hero') + '">' +
           '<div class="web-shop-topline web-shop-topline--header">' +
             '<div id="web-call-wrap" class="web-call-wrap">' +
               '<button class="web-call-btn" type="button" aria-label="Позвонить" onclick="toggleWebCallPanel(event)">' +
