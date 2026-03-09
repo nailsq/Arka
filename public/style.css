@@ -594,8 +594,8 @@ button, select {
   border: none;
   background: transparent;
   padding: 0;
-  width: min(100%, 360px);
-  height: 52px;
+  width: min(100%, 396px);
+  height: 57px;
   min-width: 0;
   margin: 0 auto;
   display: flex;
@@ -1131,8 +1131,8 @@ body.web-mode .product-list {
     padding: 8px;
   }
   .web-header-logo {
-    width: min(100%, 220px);
-    height: 42px;
+    width: min(100%, 242px);
+    height: 46px;
   }
   .web-header-logo img {
     width: 100%;
