@@ -628,6 +628,17 @@ body.web-mode .home-catalog-block {
   scroll-margin-top: calc(90px + var(--web-marquee-offset));
 }
 
+/* Search + categories should scroll away with page */
+body.web-mode .web-shop-toolbar {
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  width: auto;
+  margin: -132px auto 18px;
+  z-index: 80;
+}
+
 .web-category-section {
   margin-bottom: 52px;
   opacity: 0;
@@ -872,31 +883,38 @@ body.web-mode .web-marquee {
 .web-quick-cats {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
   padding-bottom: 10px;
   border-bottom: 1px solid #ececf0;
   margin-bottom: 8px;
   padding-top: 8px;
   padding-left: 8px;
   padding-right: 8px;
+  justify-content: flex-start;
 }
 
 .web-quick-cat-chip {
-  border: none;
-  background: transparent;
-  color: #44474f;
-  padding: 6px 0;
-  font-size: 12px;
-  letter-spacing: 0.005em;
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #000;
+  background: #fff;
+  color: #000;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
   white-space: nowrap;
-  transition: color 0.16s ease, opacity 0.16s ease;
-  opacity: 0.84;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.web-quick-cat-chip:hover {
+  background: #f0f0f0;
 }
 
 .web-quick-cat-chip.active {
-  color: #111;
-  font-weight: 600;
-  opacity: 1;
+  background: #000;
+  color: #fff;
+  border-color: #000;
 }
 
 .web-shop-search-wrap {
@@ -1356,6 +1374,10 @@ body.web-mode .product-list {
   .web-shop-toolbar--no-hero {
     margin: 10px auto 12px;
   }
+  body.web-mode .web-shop-toolbar {
+    width: auto;
+    top: auto;
+  }
   .web-marquee-item {
     font-size: 12px;
     letter-spacing: 0.08em;
@@ -1417,7 +1439,8 @@ body.web-mode .product-list {
     display: none;
   }
   .web-quick-cat-chip {
-    font-size: 11px;
+    padding: 6px 12px;
+    font-size: 12px;
   }
   .web-store-info {
     padding: 18px 14px 8px;
@@ -2645,6 +2668,20 @@ body.web-mode .cart-icon-btn {
 
 .product-detail-actions {
   margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card-cart-btn--catalog {
+  background: #fff;
+  color: #111;
+  border: 1.5px solid #111;
+}
+
+.card-cart-btn--catalog:hover {
+  background: #111;
+  color: #fff;
 }
 
 body.web-mode .product-detail-page {

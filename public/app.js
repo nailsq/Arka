@@ -1961,8 +1961,8 @@
       var detailPrice = (p.sizes && p.sizes.length) ? p.sizes[0].price : p.price;
       var detailOutOfStock = p.in_stock === 0;
       var detailActions = detailOutOfStock
-        ? '<div class="product-detail-actions"><div class="detail-soon-badge">Скоро будет в наличии</div></div>'
-        : '<div class="product-detail-actions"><button class="card-cart-btn card-cart-btn--large" onclick="addToCartWithSize(' + p.id + ',event)">В корзину</button></div>';
+        ? '<div class="product-detail-actions"><div class="detail-soon-badge">Скоро будет в наличии</div><button class="card-cart-btn card-cart-btn--catalog" onclick="navigateTo(\'home\')">В каталог</button></div>'
+        : '<div class="product-detail-actions"><button class="card-cart-btn card-cart-btn--large" onclick="addToCartWithSize(' + p.id + ',event)">В корзину</button><button class="card-cart-btn card-cart-btn--catalog" onclick="navigateTo(\'home\')">В каталог</button></div>';
 
       document.getElementById('product-detail').innerHTML =
         '<div class="product-detail' + (detailOutOfStock ? ' product-detail--soon' : '') + '">' +
