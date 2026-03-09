@@ -1487,7 +1487,7 @@
 
   function normalizeMarqueeItems(raw) {
     var src = String(raw || '');
-    var parts = src.split(/[\n|]+/);
+    var parts = src.split(/[\n|•;,]+/);
     var out = [];
     for (var i = 0; i < parts.length; i++) {
       var cleaned = String(parts[i] || '').replace(/\s+/g, ' ').trim();
@@ -1509,7 +1509,7 @@
     if (speed > 60) speed = 60;
     var group = '';
     for (var i = 0; i < items.length; i++) {
-      group += '<span class="web-marquee-item">' + escapeHtml(items[i]) + '</span>';
+      group += '<span class="web-marquee-item">' + escapeHtml(items[i]) + '</span><span class="web-marquee-sep" aria-hidden="true">•</span>';
     }
     return '' +
       '<section class="web-marquee" aria-label="Информация о доставке">' +

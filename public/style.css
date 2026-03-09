@@ -555,6 +555,8 @@ button, select {
   width: max-content;
   animation: webMarqueeMove var(--marquee-duration, 18s) linear infinite;
   will-change: transform;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
 }
 
 .web-marquee-group {
@@ -566,24 +568,30 @@ button, select {
 .web-marquee-item {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
+  justify-content: center;
   font-size: 14px;
   font-weight: 500;
-  line-height: 1;
+  line-height: 1.15;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  padding: 11px 30px;
+  padding: 10px 20px;
   opacity: 0.95;
 }
 
-.web-marquee-item::after {
-  content: '•';
-  opacity: 0.72;
+.web-marquee-sep {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0.78;
+  transform: translateY(-0.5px);
 }
 
 @keyframes webMarqueeMove {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
 }
 
 .web-shop-toolbar {
@@ -1188,7 +1196,11 @@ body.web-mode .product-list {
   .web-marquee-item {
     font-size: 12px;
     letter-spacing: 0.08em;
-    padding: 10px 20px;
+    padding: 10px 14px;
+  }
+  .web-marquee-sep {
+    width: 24px;
+    font-size: 13px;
   }
   .web-shop-topline {
     gap: 6px;
