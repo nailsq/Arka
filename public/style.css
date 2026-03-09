@@ -525,7 +525,7 @@ button, select {
 
 .web-shop-topline--header {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 168px 1fr 168px;
   gap: 10px;
   padding: 10px 0 8px;
   align-items: center;
@@ -537,8 +537,10 @@ button, select {
 
 .web-call-wrap {
   position: relative;
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  width: 168px;
+  justify-content: flex-start;
 }
 
 .web-call-btn {
@@ -592,8 +594,8 @@ button, select {
   border: none;
   background: transparent;
   padding: 0;
-  width: min(100%, 560px);
-  height: 60px;
+  width: min(100%, 360px);
+  height: 52px;
   min-width: 0;
   margin: 0 auto;
   display: flex;
@@ -617,6 +619,8 @@ button, select {
 }
 
 .web-toolbar-actions--header {
+  width: 168px;
+  justify-content: flex-end;
   flex: 0 0 auto;
 }
 
@@ -1106,8 +1110,12 @@ body.web-mode .product-list {
     padding: 8px 0 6px;
   }
   .web-shop-topline--header {
+    grid-template-columns: 44px 1fr auto;
     gap: 6px;
     padding: 8px 0 6px;
+  }
+  .web-call-wrap {
+    width: 44px;
   }
   .web-call-btn {
     width: 38px;
@@ -1123,8 +1131,8 @@ body.web-mode .product-list {
     padding: 8px;
   }
   .web-header-logo {
-    width: min(100%, 290px);
-    height: 48px;
+    width: min(100%, 220px);
+    height: 42px;
   }
   .web-header-logo img {
     width: 100%;
@@ -1132,6 +1140,9 @@ body.web-mode .product-list {
   }
   .web-toolbar-actions {
     gap: 2px;
+  }
+  .web-toolbar-actions--header {
+    width: auto;
   }
   .web-toolbar-action-btn {
     width: 40px;
