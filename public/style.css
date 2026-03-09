@@ -263,6 +263,10 @@ body.site-hero-lock {
   background: #fff;
 }
 
+.site-hero--desktop-slides .site-hero-stage::before {
+  content: none;
+}
+
 .site-hero-desktop-slides {
   position: relative;
   width: 100%;
@@ -279,7 +283,11 @@ body.site-hero-lock {
   gap: 18px;
   opacity: 0;
   transform: translateY(24px) scale(0.985);
-  transition: opacity 0.85s cubic-bezier(0.23, 1, 0.32, 1), transform 0.85s cubic-bezier(0.23, 1, 0.32, 1);
+  filter: blur(10px);
+  transition:
+    opacity 0.95s cubic-bezier(0.23, 1, 0.32, 1),
+    transform 0.95s cubic-bezier(0.23, 1, 0.32, 1),
+    filter 0.95s cubic-bezier(0.23, 1, 0.32, 1);
   pointer-events: none;
   border-radius: 0;
 }
@@ -287,6 +295,7 @@ body.site-hero-lock {
 .site-hero-desktop-slide.is-active {
   opacity: 1;
   transform: translateY(0) scale(1);
+  filter: blur(0);
 }
 
 .site-hero-desktop-slide--dark {

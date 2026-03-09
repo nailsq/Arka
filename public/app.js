@@ -1707,9 +1707,17 @@
       '<div class="category-title">Каталог</div>' +
       cityLine +
     '</div>';
+    var isDesktopCover = !isTelegramRuntime && showSiteHeroBlock && (window.innerWidth || 0) >= 900;
 
     setActiveTab('home');
     if (!isTelegramRuntime) {
+      if (isDesktopCover) {
+        render(siteHero);
+        bindHomeHeroAnimation();
+        updateFavBadge();
+        updateCartBadge();
+        return;
+      }
       var shopPhone = getPrimaryPhone();
       var shopPhoneEsc = escapeHtml(shopPhone);
       var shopPhoneTel = phoneToTelHref(shopPhone);
