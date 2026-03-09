@@ -1506,9 +1506,13 @@
     var speed = parseFloat(appSettings.marquee_speed_sec || '18');
     if (isNaN(speed) || speed < 8) speed = 8;
     if (speed > 60) speed = 60;
+    // Repeat phrases inside one group so even short text keeps continuous flow.
+    var loops = Math.max(4, Math.ceil(18 / Math.max(1, items.length)));
     var group = '';
-    for (var i = 0; i < items.length; i++) {
-      group += '<span class="web-marquee-item">' + escapeHtml(items[i]) + '</span><span class="web-marquee-sep" aria-hidden="true">•</span>';
+    for (var l = 0; l < loops; l++) {
+      for (var i = 0; i < items.length; i++) {
+        group += '<span class="web-marquee-item">' + escapeHtml(items[i]) + '</span><span class="web-marquee-sep" aria-hidden="true">•</span>';
+      }
     }
     return '' +
       '<section class="web-marquee' + (isTelegramRuntime ? ' web-marquee--mini' : '') + '" aria-label="Информация о доставке">' +
