@@ -403,7 +403,7 @@
         var oauthWrap = document.createElement('div');
         oauthWrap.style.marginTop = '8px';
         oauthWrap.innerHTML =
-          '<a class="nav-btn nav-btn--filled" href="' + oauthUrl + '" target="_blank" rel="noopener">' +
+          '<a class="nav-btn nav-btn--filled" href="' + oauthUrl + '">' +
           'Войти через Telegram (резерв)' +
           '</a>';
         container.appendChild(oauthWrap);
@@ -1005,6 +1005,30 @@
   // Init: load settings + auth
   // ============================================================
 
+  function refreshWebSessionAuth(silent) {
+    if (isTelegramRuntime) return Promise.resolve(false);
+    return fetchJSON('/api/auth/session').then(function (r) {
+      var nextUser = (r && r.user) ? r.user : null;
+      var prevId = dbUser && dbUser.telegram_id ? String(dbUser.telegram_id) : '';
+      var nextId = nextUser && nextUser.telegram_id ? String(nextUser.telegram_id) : '';
+      var changed = prevId !== nextId;
+      dbUser = nextUser;
+      if (nextUser) {
+        try { localStorage.setItem('arka_tg_id', String(nextUser.telegram_id || '')); } catch (e) {}
+        try { localStorage.setItem('arka_user', JSON.stringify(nextUser)); } catch (e) {}
+      }
+      if (changed) {
+        updateFavBadge();
+        updateCartBadge();
+        if (activeTab === 'account') showAccount();
+        if (!silent && nextUser) showToast('Вход через Telegram выполнен');
+      }
+      return changed;
+    }).catch(function () {
+      return false;
+    });
+  }
+
   function init() {
     applyRuntimeLayoutMode();
     initSitePreloader();
@@ -1069,6 +1093,15 @@
     }).catch(function () {}).finally(function () {
       finishInitUI();
     });
+
+    if (!isTelegramRuntime) {
+      window.addEventListener('focus', function () {
+        refreshWebSessionAuth(true);
+      });
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) refreshWebSessionAuth(true);
+      });
+    }
   }
 
   function updateSocialLinks() {
