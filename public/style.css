@@ -179,6 +179,10 @@ button, select {
   flex: 1;
 }
 
+body.web-mode {
+  --web-marquee-offset: 42px;
+}
+
 body.site-hero-lock {
   overflow: hidden;
 }
@@ -197,21 +201,31 @@ body.site-cover-active #web-quick-nav {
 .site-preloader {
   position: fixed;
   inset: 0;
-  background: #0f0f13;
+  background: radial-gradient(150% 110% at 50% 38%, #151a2b 0%, #0d101b 54%, #090b12 100%);
   z-index: 12000;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 1.25s cubic-bezier(0.22, 1, 0.36, 1), visibility 1.25s cubic-bezier(0.22, 1, 0.36, 1), filter 1.25s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 1.45s cubic-bezier(0.22, 1, 0.36, 1), visibility 1.45s cubic-bezier(0.22, 1, 0.36, 1), filter 1.45s cubic-bezier(0.22, 1, 0.36, 1);
   /* Failsafe: never keep user on black screen forever. */
   animation: preloaderAutoHide 4.8s ease forwards;
+}
+
+.site-preloader::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(70% 52% at 50% 48%, rgba(255, 255, 255, 0.035), transparent 72%),
+    radial-gradient(120% 90% at 50% 100%, rgba(0, 0, 0, 0.32), transparent 58%);
+  pointer-events: none;
 }
 
 .site-preloader--hidden {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  filter: blur(5px);
+  filter: blur(8px);
   animation: none;
 }
 
@@ -236,14 +250,24 @@ body.site-cover-active #web-quick-nav {
 
 .site-preloader--hidden .site-preloader-inner {
   opacity: 0;
-  transform: translateY(8px) scale(0.985);
+  transform: translateY(10px) scale(0.98);
+}
+
+body.site-preloader-active .site-hero {
+  opacity: 0;
+  filter: blur(4px);
+  transform: scale(1.002);
+}
+
+.site-hero {
+  transition: opacity 1.45s cubic-bezier(0.22, 1, 0.36, 1), filter 1.45s cubic-bezier(0.22, 1, 0.36, 1), transform 1.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .site-preloader-logo {
   width: min(220px, 56vw);
   height: auto;
-  filter: invert(1);
-  opacity: 0.96;
+  filter: invert(1) brightness(1.08) contrast(1.02) drop-shadow(0 6px 28px rgba(255, 255, 255, 0.08));
+  opacity: 0.985;
 }
 
 .site-preloader-title {
@@ -251,7 +275,7 @@ body.site-cover-active #web-quick-nav {
   letter-spacing: 0.28em;
   font-size: 11px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.88);
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .site-hero {
@@ -303,12 +327,12 @@ body.site-cover-active #web-quick-nav {
   justify-content: center;
   gap: 18px;
   opacity: 0;
-  transform: translateY(10px) scale(0.995);
-  filter: blur(4px);
+  transform: translateY(6px) scale(0.998);
+  filter: blur(2px);
   transition:
-    opacity 1.25s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 1.25s cubic-bezier(0.22, 1, 0.36, 1),
-    filter 1.25s cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 1.35s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 1.35s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 1.35s cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: none;
   border-radius: 0;
   will-change: opacity, transform, filter;
@@ -599,6 +623,11 @@ body.site-opening-after-cover #web-quick-nav {
   background: #fff;
 }
 
+body.web-mode .home-catalog-block {
+  padding-top: 8px;
+  scroll-margin-top: calc(90px + var(--web-marquee-offset));
+}
+
 .web-category-section {
   margin-bottom: 52px;
   opacity: 0;
@@ -655,6 +684,9 @@ body.site-opening-after-cover #web-quick-nav {
   overflow: hidden;
   white-space: nowrap;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18) inset;
+  min-height: var(--web-marquee-offset);
+  display: flex;
+  align-items: center;
 }
 
 body.web-mode .web-marquee {
@@ -667,6 +699,7 @@ body.web-mode .web-marquee {
   display: flex;
   align-items: center;
   width: max-content;
+  height: 100%;
   animation: webMarqueeMove var(--marquee-duration, 18s) linear infinite;
   will-change: transform;
   transform: translate3d(0, 0, 0);
@@ -688,7 +721,8 @@ body.web-mode .web-marquee {
   line-height: 1.15;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  padding: 10px 20px;
+  min-height: var(--web-marquee-offset);
+  padding: 0 20px;
   opacity: 0.95;
 }
 
@@ -722,7 +756,7 @@ body.web-mode .web-marquee {
   border-radius: 12px;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.035);
   position: sticky;
-  top: 0;
+  top: var(--web-marquee-offset);
   z-index: 80;
   backdrop-filter: saturate(1.05) blur(6px);
   -webkit-backdrop-filter: saturate(1.05) blur(6px);
@@ -1282,6 +1316,9 @@ body.web-mode .product-list {
 }
 
 @media (max-width: 560px) {
+  body.web-mode {
+    --web-marquee-offset: 36px;
+  }
   body.web-mode .product-list {
     grid-template-columns: 1fr;
     gap: 16px;
@@ -1313,13 +1350,13 @@ body.web-mode .product-list {
     max-width: min(96vw, 1100px);
   }
   .web-shop-toolbar {
-    margin: -56px auto 12px;
+    margin: -42px auto 12px;
     padding: 0 12px;
   }
   .web-marquee-item {
     font-size: 12px;
     letter-spacing: 0.08em;
-    padding: 10px 14px;
+    padding: 0 14px;
   }
   .web-marquee-sep {
     width: 24px;

@@ -1370,16 +1370,18 @@
       pre.style.display = 'none';
       return;
     }
+    document.body.classList.add('site-preloader-active');
     var wasShown = false;
     try { wasShown = sessionStorage.getItem('arka_site_preloader') === '1'; } catch (e) {}
     // Keep preloader noticeably longer on every visit (no "flash" effect).
     var delay = wasShown ? 1000 : 1400;
     setTimeout(function () {
       pre.classList.add('site-preloader--hidden');
+      document.body.classList.remove('site-preloader-active');
       try { sessionStorage.setItem('arka_site_preloader', '1'); } catch (e) {}
       setTimeout(function () {
         if (pre && pre.parentNode) pre.parentNode.removeChild(pre);
-      }, 900);
+      }, 1500);
     }, delay);
   }
 
