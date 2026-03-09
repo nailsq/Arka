@@ -1274,8 +1274,10 @@
       h += '<div class="form-group"><label class="form-label">Текст бегущей строки</label>' +
         '<input type="text" class="form-input" id="s-marquee-text" value="' + esc(s.marquee_text || 'Доставка круглосуточно') + '" placeholder="Доставка круглосуточно | Свежие цветы каждый день"></div>';
       h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:-6px;margin-bottom:10px">Можно указать несколько фраз через <b>|</b> — строка обработает их автоматически (для сайта и Mini App).</div>';
-      h += '<div class="form-group"><label class="form-label">Скорость (секунд на полный проход)</label>' +
-        '<input type="number" min="8" max="60" step="1" class="form-input" id="s-marquee-speed" value="' + esc(s.marquee_speed_sec || '18') + '" style="max-width:140px"></div>';
+      h += '<div class="form-group"><label class="form-label">Скорость на сайте (секунд на проход)</label>' +
+        '<input type="number" min="8" max="80" step="1" class="form-input" id="s-marquee-speed-web" value="' + esc(s.marquee_speed_sec_web || s.marquee_speed_sec || '18') + '" style="max-width:140px"></div>';
+      h += '<div class="form-group"><label class="form-label">Скорость в Mini App (секунд на проход)</label>' +
+        '<input type="number" min="8" max="80" step="1" class="form-input" id="s-marquee-speed-mini" value="' + esc(s.marquee_speed_sec_mini || s.marquee_speed_sec || '18') + '" style="max-width:140px"></div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1835,7 +1837,9 @@
       exact_time_surcharge: document.getElementById('s-exact-surcharge').value,
       marquee_enabled: document.getElementById('s-marquee-enabled').checked ? '1' : '0',
       marquee_text: document.getElementById('s-marquee-text').value,
-      marquee_speed_sec: document.getElementById('s-marquee-speed').value,
+      marquee_speed_sec_web: document.getElementById('s-marquee-speed-web').value,
+      marquee_speed_sec_mini: document.getElementById('s-marquee-speed-mini').value,
+      marquee_speed_sec: document.getElementById('s-marquee-speed-web').value,
       pickup_cutoff_hour: document.getElementById('s-pickup-cutoff').value,
       delivery_info: document.getElementById('s-delivery-info').value,
       free_service_name: document.getElementById('s-free-service').value,

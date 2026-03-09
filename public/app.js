@@ -325,6 +325,17 @@
     return fetch(url, { credentials: 'include' }).then(function (r) { return r.json(); });
   }
 
+  function fetchAppSettings() {
+    var url = '/api/settings?_ts=' + Date.now();
+    return fetch(url, { credentials: 'include', cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (s) {
+        appSettings = s || {};
+        updateSocialLinks();
+        return appSettings;
+      });
+  }
+
   function postJSON(url, data) {
     return fetch(url, {
       method: 'POST',
@@ -1053,9 +1064,9 @@
     initWebQuickNav();
     initCookieConsent();
 
-    fetchJSON('/api/settings').then(function (s) {
-      appSettings = s || {};
-      updateSocialLinks();
+    var settingsReady = fetchAppSettings().catch(function () {
+      appSettings = appSettings || {};
+      return appSettings;
     });
 
     fetchJSON('/api/cities').then(function (cities) {
@@ -1105,7 +1116,9 @@
           try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
         }
       }).catch(function () {}).finally(function () {
-        finishInitUI();
+        settingsReady.finally(function () {
+          finishInitUI();
+        });
       });
       return;
     }
@@ -1123,7 +1136,9 @@
         try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
       }
     }).catch(function () {}).finally(function () {
-      finishInitUI();
+      settingsReady.finally(function () {
+        finishInitUI();
+      });
     });
 
     if (!isTelegramRuntime) {
@@ -1132,6 +1147,13 @@
       });
       document.addEventListener('visibilitychange', function () {
         if (!document.hidden) refreshWebSessionAuth(true);
+      });
+    } else {
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) return;
+        fetchAppSettings().then(function () {
+          if (activeTab === 'home') showHome(homeActiveCategory);
+        }).catch(function () {});
       });
     }
   }
@@ -1503,7 +1525,10 @@
     var enabled = String(appSettings.marquee_enabled || '1') !== '0';
     if (!enabled) return '';
     var items = normalizeMarqueeItems(appSettings.marquee_text || '');
-    var speed = parseFloat(appSettings.marquee_speed_sec || '18');
+    var speedRaw = isTelegramRuntime
+      ? (appSettings.marquee_speed_sec_mini || appSettings.marquee_speed_sec || '18')
+      : (appSettings.marquee_speed_sec_web || appSettings.marquee_speed_sec || '18');
+    var speed = parseFloat(speedRaw);
     if (isNaN(speed) || speed < 8) speed = 8;
     if (speed > 60) speed = 60;
     // Repeat phrases inside one group so even short text keeps continuous flow.
