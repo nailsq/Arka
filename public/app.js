@@ -1380,7 +1380,6 @@
     if (!heroSection) {
       if (document && document.body) {
         document.body.classList.remove('mobile-toolbar-fixed');
-        document.body.classList.remove('mobile-intro-active');
       }
       return;
     }
@@ -1450,7 +1449,6 @@
     var syncMobileToolbarFixed = function () {
       if (isTelegramRuntime || (window.innerWidth || 0) > 560) {
         document.body.classList.remove('mobile-toolbar-fixed');
-        document.body.classList.remove('mobile-intro-active');
         return;
       }
       var rect = heroSection.getBoundingClientRect();
@@ -1460,7 +1458,6 @@
       var fixedTop = marqueeOffset + 8;
       var heroPassed = rect.bottom <= (fixedTop + 6);
       document.body.classList.toggle('mobile-toolbar-fixed', heroPassed);
-      document.body.classList.toggle('mobile-intro-active', !heroPassed);
     };
     var tick = function () {
       if (!running) return;
@@ -1510,7 +1507,6 @@
       window.removeEventListener('resize', onScroll);
       if (rafId) cancelAnimationFrame(rafId);
       document.body.classList.remove('mobile-toolbar-fixed');
-      document.body.classList.remove('mobile-intro-active');
       syncWebQuickNavVisibility(activeTab);
     };
   }
@@ -1755,7 +1751,6 @@
     if (!isTelegramRuntime) {
       document.body.classList.remove('site-cover-active');
       document.body.classList.remove('mobile-toolbar-fixed');
-      document.body.classList.remove('mobile-intro-active');
       var shopPhone = getPrimaryPhone();
       var shopPhoneEsc = escapeHtml(shopPhone);
       var shopPhoneTel = phoneToTelHref(shopPhone);
@@ -4687,10 +4682,7 @@
       detachHomeHeroScroll();
       detachHomeHeroScroll = null;
     }
-    if (page !== 'home' && document && document.body) {
-      document.body.classList.remove('mobile-intro-active');
-      document.body.classList.remove('mobile-toolbar-fixed');
-    }
+    if (page !== 'home' && document && document.body) document.body.classList.remove('mobile-toolbar-fixed');
     if (page !== 'account') stopTrackingPoll();
     if (page !== 'checkout' && _inCheckout) {
       sendAbandonedCart('Ушёл на: ' + page);
