@@ -183,6 +183,16 @@ body.site-hero-lock {
   overflow: hidden;
 }
 
+body.site-cover-active .web-marquee,
+body.site-cover-active .web-shop-toolbar,
+body.site-cover-active #home-catalog,
+body.site-cover-active .web-store-info,
+body.site-cover-active #web-quick-nav {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* Website preloader + hero (non-Telegram web) */
 .site-preloader {
   position: fixed;
@@ -252,6 +262,10 @@ body.site-hero-lock {
 
 .site-hero--desktop-slides {
   min-height: 100vh;
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  margin: 0;
 }
 
 .site-hero--desktop-slides .site-hero-stage {
@@ -301,7 +315,9 @@ body.site-hero-lock {
 
 body.site-opening-after-cover .web-marquee,
 body.site-opening-after-cover .web-shop-toolbar,
-body.site-opening-after-cover #home-catalog {
+body.site-opening-after-cover #home-catalog,
+body.site-opening-after-cover .web-store-info,
+body.site-opening-after-cover #web-quick-nav {
   animation: coverContentFadeIn 0.8s ease forwards;
 }
 

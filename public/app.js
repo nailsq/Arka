@@ -1404,15 +1404,15 @@
         desktopHeroShownThisLoad = true;
         desktopTimers.push(setTimeout(function () {
           document.body.classList.remove('site-hero-lock');
+          document.body.classList.remove('site-cover-active');
           document.body.classList.add('site-opening-after-cover');
-          // Re-render home so marquee appears only after cover ends.
-          showHome(homeActiveCategory);
-          setTimeout(function () {
-            document.body.classList.remove('site-opening-after-cover');
-          }, 820);
+          if (heroSection && heroSection.parentNode) heroSection.parentNode.removeChild(heroSection);
+          setTimeout(function () { document.body.classList.remove('site-opening-after-cover'); }, 820);
+          syncWebQuickNavVisibility('home');
         }, 560));
       };
       document.body.classList.add('site-hero-lock');
+      document.body.classList.add('site-cover-active');
       activateDesktopSlide(0);
       desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 1900));
       desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 5200));
@@ -1420,6 +1420,8 @@
         destroyed = true;
         for (var t = 0; t < desktopTimers.length; t++) clearTimeout(desktopTimers[t]);
         document.body.classList.remove('site-hero-lock');
+        document.body.classList.remove('site-cover-active');
+        document.body.classList.remove('site-opening-after-cover');
         syncWebQuickNavVisibility(activeTab);
       };
       return;
@@ -1711,17 +1713,9 @@
       '<div class="category-title">Каталог</div>' +
       cityLine +
     '</div>';
-    var isDesktopCover = !isTelegramRuntime && showSiteHeroBlock && (window.innerWidth || 0) >= 900;
-
     setActiveTab('home');
     if (!isTelegramRuntime) {
-      if (isDesktopCover) {
-        render(siteHero);
-        bindHomeHeroAnimation();
-        updateFavBadge();
-        updateCartBadge();
-        return;
-      }
+      document.body.classList.remove('site-cover-active');
       var shopPhone = getPrimaryPhone();
       var shopPhoneEsc = escapeHtml(shopPhone);
       var shopPhoneTel = phoneToTelHref(shopPhone);
