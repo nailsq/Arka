@@ -1351,6 +1351,7 @@
     });
 
     var activeCatId = normalizeCategoryId(homeActiveCategory);
+    var isMobileWeb = !isTelegramRuntime && (window.innerWidth || 0) <= 560;
     var normalizeMapKey = function (v) {
       return String(v || '').toLowerCase().replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
     };
@@ -1403,10 +1404,16 @@
       if (t.indexOf('ваз') >= 0) return '🏺';
       return '🌸';
     };
-    var html = '<button class="web-quick-cat-chip' + (activeCatId === null ? ' active' : '') + '" onclick="webHomePickCategory(null)"><span class="web-quick-cat-icon" aria-hidden="true">◼</span><span class="web-quick-cat-label">Все</span></button>';
+    var allChipInner = isMobileWeb
+      ? '<span class="web-quick-cat-icon" aria-hidden="true">◼</span><span class="web-quick-cat-label">Все</span>'
+      : '<span class="web-quick-cat-label">Все</span>';
+    var html = '<button class="web-quick-cat-chip' + (activeCatId === null ? ' active' : '') + '" onclick="webHomePickCategory(null)">' + allChipInner + '</button>';
     html += sorted.map(function (c) {
       var cidNorm = normalizeCategoryId(c.id);
-      return '<button class="web-quick-cat-chip' + (activeCatId === cidNorm ? ' active' : '') + '" onclick="webHomePickCategory(' + c.id + ')">' + buildChipIcon(c.name, c.id) + '<span class="web-quick-cat-label">' + escapeHtml(formatCategoryChipTitle(c.name)) + '</span></button>';
+      var chipInner = isMobileWeb
+        ? (buildChipIcon(c.name, c.id) + '<span class="web-quick-cat-label">' + escapeHtml(formatCategoryChipTitle(c.name)) + '</span>')
+        : ('<span class="web-quick-cat-label">' + escapeHtml(formatCategoryChipTitle(c.name)) + '</span>');
+      return '<button class="web-quick-cat-chip' + (activeCatId === cidNorm ? ' active' : '') + '" onclick="webHomePickCategory(' + c.id + ')">' + chipInner + '</button>';
     }).join('');
     el.innerHTML = html;
   }
@@ -1425,21 +1432,12 @@
         try { localStorage.setItem(MOBILE_CATS_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch (e) {}
       }
     };
-    var storedCollapsed = null;
-    try {
-      var rawStored = localStorage.getItem(MOBILE_CATS_COLLAPSED_KEY);
-      if (rawStored === '1') storedCollapsed = true;
-      else if (rawStored === '0') storedCollapsed = false;
-    } catch (e) {}
-    if (storedCollapsed === null) {
-      var initialY = window.scrollY || window.pageYOffset || 0;
-      setCatsCollapsed(initialY > 24, false);
-    } else {
-      setCatsCollapsed(storedCollapsed, false);
-    }
+    // Always show categories first after render/update.
+    // This prevents "empty header" when stale saved state hides the layer.
+    setCatsCollapsed(false, false);
     var onScroll = function () {
       var y = window.scrollY || window.pageYOffset || 0;
-      setCatsCollapsed(y > 24, true);
+      setCatsCollapsed(y > 120, true);
     };
     var onResize = function () {
       if ((window.innerWidth || 0) > 560) {
