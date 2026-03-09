@@ -1378,7 +1378,10 @@
     }
     var heroSection = document.getElementById('site-hero');
     if (!heroSection) {
-      if (document && document.body) document.body.classList.remove('mobile-toolbar-fixed');
+      if (document && document.body) {
+        document.body.classList.remove('mobile-toolbar-fixed');
+        document.body.classList.remove('mobile-intro-active');
+      }
       return;
     }
     if (heroSection.classList.contains('site-hero--desktop-script')) {
@@ -1447,6 +1450,7 @@
     var syncMobileToolbarFixed = function () {
       if (isTelegramRuntime || (window.innerWidth || 0) > 560) {
         document.body.classList.remove('mobile-toolbar-fixed');
+        document.body.classList.remove('mobile-intro-active');
         return;
       }
       var rect = heroSection.getBoundingClientRect();
@@ -1454,7 +1458,9 @@
       var marqueeOffset = styles ? parseFloat(styles.getPropertyValue('--web-marquee-offset')) : 36;
       if (!isFinite(marqueeOffset)) marqueeOffset = 36;
       var fixedTop = marqueeOffset + 8;
-      document.body.classList.toggle('mobile-toolbar-fixed', rect.bottom <= (fixedTop + 6));
+      var heroPassed = rect.bottom <= (fixedTop + 6);
+      document.body.classList.toggle('mobile-toolbar-fixed', heroPassed);
+      document.body.classList.toggle('mobile-intro-active', !heroPassed);
     };
     var tick = function () {
       if (!running) return;
@@ -1504,6 +1510,7 @@
       window.removeEventListener('resize', onScroll);
       if (rafId) cancelAnimationFrame(rafId);
       document.body.classList.remove('mobile-toolbar-fixed');
+      document.body.classList.remove('mobile-intro-active');
       syncWebQuickNavVisibility(activeTab);
     };
   }
@@ -1748,6 +1755,7 @@
     if (!isTelegramRuntime) {
       document.body.classList.remove('site-cover-active');
       document.body.classList.remove('mobile-toolbar-fixed');
+      document.body.classList.remove('mobile-intro-active');
       var shopPhone = getPrimaryPhone();
       var shopPhoneEsc = escapeHtml(shopPhone);
       var shopPhoneTel = phoneToTelHref(shopPhone);
