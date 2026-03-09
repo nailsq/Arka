@@ -1404,14 +1404,18 @@
         desktopHeroShownThisLoad = true;
         desktopTimers.push(setTimeout(function () {
           document.body.classList.remove('site-hero-lock');
+          document.body.classList.add('site-opening-after-cover');
           // Re-render home so marquee appears only after cover ends.
           showHome(homeActiveCategory);
+          setTimeout(function () {
+            document.body.classList.remove('site-opening-after-cover');
+          }, 820);
         }, 560));
       };
       document.body.classList.add('site-hero-lock');
       activateDesktopSlide(0);
-      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 1600));
-      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 4100));
+      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 1900));
+      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 5200));
       detachHomeHeroScroll = function () {
         destroyed = true;
         for (var t = 0; t < desktopTimers.length; t++) clearTimeout(desktopTimers[t]);
