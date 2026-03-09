@@ -760,7 +760,7 @@ body.web-mode .web-marquee {
 
 .web-shop-toolbar {
   max-width: 1280px;
-  margin: -132px auto 18px;
+  margin: -104px auto 18px;
   padding: 0 28px;
   background: rgba(255, 255, 255, 0.97);
   border: 1px solid #eff0f3;
@@ -774,7 +774,7 @@ body.web-mode .web-marquee {
 }
 
 .web-shop-toolbar--no-hero {
-  margin: 18px auto 20px;
+  margin: 10px auto 18px;
 }
 
 .web-shop-topline {
@@ -1368,11 +1368,11 @@ body.web-mode .product-list {
     max-width: min(96vw, 1100px);
   }
   .web-shop-toolbar {
-    margin: -42px auto 12px;
+    margin: -30px auto 12px;
     padding: 0 12px;
   }
   .web-shop-toolbar--no-hero {
-    margin: 10px auto 12px;
+    margin: 8px auto 12px;
   }
   body.web-mode .web-shop-toolbar {
     width: auto;

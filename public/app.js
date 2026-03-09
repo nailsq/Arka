@@ -609,7 +609,7 @@
         (outOfStock ? '<div class="stock-overlay">Скоро будет в наличии</div>' : '') +
         dimsBadge +
         '<button class="fav-btn' + favClass + '" onclick="toggleFav(' + p.id + ',event)">' + heartSvg + '</button>' +
-        (!outOfStock ? '<button class="cart-icon-btn" onclick="addToCartById(' + p.id + ',event)">' + cartSvg + '</button>' : '') +
+        '' +
       '</div>' +
       '<div class="product-card-body" onclick="navigateTo(\'product\',' + p.id + ')">' +
         '<div class="product-card-name">' + escapeHtml(p.name) + '</div>' +
@@ -1403,8 +1403,8 @@
       document.body.classList.add('site-hero-lock');
       document.body.classList.add('site-cover-active');
       activateDesktopSlide(0);
-      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 2800));
-      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 6200));
+      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 2200));
+      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 5000));
       detachHomeHeroScroll = function () {
         destroyed = true;
         for (var t = 0; t < desktopTimers.length; t++) clearTimeout(desktopTimers[t]);
