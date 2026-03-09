@@ -21,6 +21,8 @@
   var tg = window.Telegram && window.Telegram.WebApp;
   var isTelegramRuntime = false;
   var detachHomeHeroScroll = null;
+  var detachMobileQuickCatsScroll = null;
+  var MOBILE_CATS_COLLAPSED_KEY = 'arka_web_mobile_cats_collapsed';
   if (tg) {
     tg.ready();
     tg.expand();
@@ -1349,12 +1351,110 @@
     });
 
     var activeCatId = normalizeCategoryId(homeActiveCategory);
-    var html = '<button class="web-quick-cat-chip' + (activeCatId === null ? ' active' : '') + '" onclick="webHomePickCategory(null)">Все</button>';
+    var normalizeMapKey = function (v) {
+      return String(v || '').toLowerCase().replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+    };
+    var quickCatPhotoMapByName = {};
+    var quickCatPhotoMapById = {};
+    try {
+      var rawSetting = String(appSettings.web_quick_cat_photos || '').trim();
+      if (rawSetting) {
+        if (rawSetting.charAt(0) === '{') {
+          var parsedMap = JSON.parse(rawSetting);
+          if (parsedMap && typeof parsedMap === 'object' && !Array.isArray(parsedMap)) {
+            Object.keys(parsedMap).forEach(function (k) {
+              var keyId = String(k || '').trim();
+              var url = String(parsedMap[k] || '').trim();
+              if (keyId && url) quickCatPhotoMapById[keyId] = url;
+            });
+          }
+        } else {
+          var rawLines = rawSetting.split(/\r?\n/);
+          for (var m = 0; m < rawLines.length; m++) {
+            var line = String(rawLines[m] || '').trim();
+            if (!line) continue;
+            var splitIdx = line.indexOf('|');
+            if (splitIdx <= 0) continue;
+            var keyName = normalizeMapKey(line.slice(0, splitIdx));
+            var lineUrl = String(line.slice(splitIdx + 1) || '').trim();
+            if (!keyName || !lineUrl) continue;
+            quickCatPhotoMapByName[keyName] = lineUrl;
+          }
+        }
+      }
+    } catch (e) {}
+    var buildChipIcon = function (catName, catId) {
+      var idKey = String(catId || '').trim();
+      var mapKey = normalizeMapKey(catName);
+      var mappedUrl = (idKey && quickCatPhotoMapById[idKey]) ? quickCatPhotoMapById[idKey] : (quickCatPhotoMapByName[mapKey] || '');
+      if (mappedUrl) {
+        return '<span class="web-quick-cat-icon web-quick-cat-icon--photo" aria-hidden="true"><img src="' + escapeHtml(mappedUrl) + '" alt=""></span>';
+      }
+      return '<span class="web-quick-cat-icon" aria-hidden="true">' + getCatIcon(catName) + '</span>';
+    };
+    var getCatIcon = function (catName) {
+      var t = String(catName || '').toLowerCase();
+      if (t.indexOf('скид') >= 0) return '%';
+      if (t.indexOf('коф') >= 0) return '☕';
+      if (t.indexOf('подар') >= 0) return '🎁';
+      if (t.indexOf('открыт') >= 0) return '✉';
+      if (t.indexOf('шар') >= 0) return '🎈';
+      if (t.indexOf('свеч') >= 0) return '🕯';
+      if (t.indexOf('ваз') >= 0) return '🏺';
+      return '🌸';
+    };
+    var html = '<button class="web-quick-cat-chip' + (activeCatId === null ? ' active' : '') + '" onclick="webHomePickCategory(null)"><span class="web-quick-cat-icon" aria-hidden="true">◼</span><span class="web-quick-cat-label">Все</span></button>';
     html += sorted.map(function (c) {
       var cidNorm = normalizeCategoryId(c.id);
-      return '<button class="web-quick-cat-chip' + (activeCatId === cidNorm ? ' active' : '') + '" onclick="webHomePickCategory(' + c.id + ')">' + escapeHtml(formatCategoryChipTitle(c.name)) + '</button>';
+      return '<button class="web-quick-cat-chip' + (activeCatId === cidNorm ? ' active' : '') + '" onclick="webHomePickCategory(' + c.id + ')">' + buildChipIcon(c.name, c.id) + '<span class="web-quick-cat-label">' + escapeHtml(formatCategoryChipTitle(c.name)) + '</span></button>';
     }).join('');
     el.innerHTML = html;
+  }
+
+  function bindMobileQuickCatsLayerBehavior() {
+    if (detachMobileQuickCatsScroll) {
+      detachMobileQuickCatsScroll();
+      detachMobileQuickCatsScroll = null;
+    }
+    if (isTelegramRuntime || (window.innerWidth || 0) > 560) return;
+    var el = document.getElementById('web-quick-cats');
+    if (!el) return;
+    var setCatsCollapsed = function (collapsed, persist) {
+      document.body.classList.toggle('web-mobile-cats-collapsed', !!collapsed);
+      if (persist) {
+        try { localStorage.setItem(MOBILE_CATS_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch (e) {}
+      }
+    };
+    var storedCollapsed = null;
+    try {
+      var rawStored = localStorage.getItem(MOBILE_CATS_COLLAPSED_KEY);
+      if (rawStored === '1') storedCollapsed = true;
+      else if (rawStored === '0') storedCollapsed = false;
+    } catch (e) {}
+    if (storedCollapsed === null) {
+      var initialY = window.scrollY || window.pageYOffset || 0;
+      setCatsCollapsed(initialY > 24, false);
+    } else {
+      setCatsCollapsed(storedCollapsed, false);
+    }
+    var onScroll = function () {
+      var y = window.scrollY || window.pageYOffset || 0;
+      setCatsCollapsed(y > 24, true);
+    };
+    var onResize = function () {
+      if ((window.innerWidth || 0) > 560) {
+        document.body.classList.remove('web-mobile-cats-collapsed');
+      } else {
+        onScroll();
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onResize);
+    detachMobileQuickCatsScroll = function () {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onResize);
+      document.body.classList.remove('web-mobile-cats-collapsed');
+    };
   }
 
   function applyRuntimeLayoutMode() {
@@ -1758,15 +1858,19 @@
     '</div>';
     setActiveTab('home');
     if (!isTelegramRuntime) {
+      var isMobileWeb = (window.innerWidth || 0) <= 560;
+      var marqueeBeforeToolbar = isMobileWeb ? '' : buildWebMarqueeBar();
+      var marqueeInsideToolbar = isMobileWeb ? buildWebMarqueeBar() : '';
       document.body.classList.remove('site-cover-active');
       document.body.classList.remove('mobile-toolbar-fixed');
       var shopPhone = getPrimaryPhone();
       var shopPhoneEsc = escapeHtml(shopPhone);
       var shopPhoneTel = phoneToTelHref(shopPhone);
       render(
-        buildWebMarqueeBar() +
+        marqueeBeforeToolbar +
         siteHero +
         '<section class="web-shop-toolbar web-shop-toolbar--mobile-fixable' + ((showSiteHeroBlock && !isDesktopCoverOverlay) ? '' : ' web-shop-toolbar--no-hero') + '">' +
+          marqueeInsideToolbar +
           '<div class="web-shop-topline web-shop-topline--header">' +
             '<div id="web-call-wrap" class="web-call-wrap">' +
               '<button class="web-call-btn" type="button" aria-label="Позвонить" onclick="toggleWebCallPanel(event)">' +
@@ -1812,6 +1916,7 @@
       updateFavBadge();
       updateCartBadge();
       bindHomeHeroAnimation();
+      bindMobileQuickCatsLayerBehavior();
       var loadWebHomeData = function () {
         Promise.all([fetchJSON('/api/categories'), fetchJSON('/api/products')]).then(function (res) {
           var cats = res[0] || [];
@@ -4697,6 +4802,10 @@
     if (page !== 'home' && detachHomeHeroScroll) {
       detachHomeHeroScroll();
       detachHomeHeroScroll = null;
+    }
+    if (page !== 'home' && detachMobileQuickCatsScroll) {
+      detachMobileQuickCatsScroll();
+      detachMobileQuickCatsScroll = null;
     }
     if (page !== 'home' && document && document.body) document.body.classList.remove('mobile-toolbar-fixed');
     if (page !== 'account') stopTrackingPoll();

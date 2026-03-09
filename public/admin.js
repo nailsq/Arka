@@ -1152,7 +1152,13 @@
   // ============================================================
 
   function loadSettings() {
-    api('GET', '/api/admin/settings').then(function (s) {
+    Promise.all([
+      api('GET', '/api/admin/settings'),
+      api('GET', '/api/admin/categories').catch(function () { return []; })
+    ]).then(function (res) {
+      var s = res[0] || {};
+      var adminCats = res[1] || [];
+      window._adminCategories = adminCats;
       var el = document.getElementById('tab-content');
       var h = '<form onsubmit="saveSettings(event)">';
 
@@ -1288,6 +1294,10 @@
           '<option value="left"' + ((s.marquee_direction_mini || s.marquee_direction || 'left') === 'left' ? ' selected' : '') + '>Справа налево</option>' +
           '<option value="right"' + ((s.marquee_direction_mini || s.marquee_direction || 'left') === 'right' ? ' selected' : '') + '>Слева направо</option>' +
         '</select></div>';
+      h += '<div class="form-group"><label class="form-label">Картинки для закрывающегося слоя категорий (mobile web)</label>' +
+        '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Без URL: просто загрузи фото для нужных категорий.</div>' +
+        '<div id="s-web-quick-cat-photos-editor"></div>' +
+        '<input type="hidden" id="s-web-quick-cat-photos" value="' + esc(s.web_quick_cat_photos || '') + '"></div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1360,6 +1370,7 @@
       }
 
       el.innerHTML = h;
+      renderWebQuickCatPhotosEditor(s.web_quick_cat_photos || '', adminCats);
       setTimeout(function () { if (window.checkBackupStatus) window.checkBackupStatus(); }, 0);
       renderInfoPagesEditor(parseInfoPagesSetting(s.info_pages_json || ''));
 
@@ -1815,6 +1826,100 @@
     return JSON.stringify(collectInfoPagesData());
   }
 
+  function parseWebQuickCatPhotosSetting(raw) {
+    var map = {};
+    var src = String(raw || '').trim();
+    if (!src) return map;
+    try {
+      var parsed = JSON.parse(src);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        Object.keys(parsed).forEach(function (k) {
+          var key = String(k || '').trim();
+          var val = String(parsed[k] || '').trim();
+          if (key && val) map[key] = val;
+        });
+        return map;
+      }
+    } catch (e) {}
+    // Backward compatibility: old "name|url" lines
+    src.split(/\r?\n/).forEach(function (lineRaw) {
+      var line = String(lineRaw || '').trim();
+      if (!line) return;
+      var idx = line.indexOf('|');
+      if (idx <= 0) return;
+      var key = String(line.slice(0, idx) || '').trim();
+      var val = String(line.slice(idx + 1) || '').trim();
+      if (key && val) map[key] = val;
+    });
+    return map;
+  }
+
+  function renderWebQuickCatPhotosEditor(rawSetting, categories) {
+    var wrap = document.getElementById('s-web-quick-cat-photos-editor');
+    var hidden = document.getElementById('s-web-quick-cat-photos');
+    if (!wrap || !hidden) return;
+    var cats = (categories && categories.length ? categories : (window._adminCategories || [])).slice();
+    var parsed = parseWebQuickCatPhotosSetting(rawSetting || hidden.value || '');
+    var byId = {};
+    cats.forEach(function (c) {
+      var idKey = String(c.id);
+      if (parsed[idKey]) byId[idKey] = parsed[idKey];
+      else if (parsed[c.name]) byId[idKey] = parsed[c.name];
+    });
+    window._webQuickCatPhotosById = byId;
+    hidden.value = JSON.stringify(byId);
+    if (!cats.length) {
+      wrap.innerHTML = '<div style="font-size:12px;color:var(--text-secondary)">Сначала добавьте категории в разделе "Категории".</div>';
+      return;
+    }
+    var html = '';
+    cats.forEach(function (c) {
+      var idKey = String(c.id);
+      var photo = byId[idKey] || '';
+      html += '<div class="card" style="padding:10px 12px;margin-bottom:8px;border:1px solid #ececf1;border-radius:10px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">' +
+          '<div style="font-weight:600">' + esc(c.name) + '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+            '<input type="file" accept="image/*" onchange="updateWebQuickCatPhoto(this,\'' + esc(idKey).replace(/'/g, "\\'") + '\')">' +
+            (photo ? '<button type="button" class="btn btn-sm" onclick="clearWebQuickCatPhoto(\'' + esc(idKey).replace(/'/g, "\\'") + '\')">Удалить</button>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div id="s-web-quick-cat-photo-preview-' + esc(idKey) + '" style="margin-top:8px">' +
+          (photo ? '<img src="' + esc(photo) + '" style="width:42px;height:42px;object-fit:cover;border-radius:50%;border:1px solid #e4e5ea">' : '') +
+        '</div>' +
+      '</div>';
+    });
+    wrap.innerHTML = html;
+  }
+
+  window.updateWebQuickCatPhoto = function (input, catId) {
+    var hidden = document.getElementById('s-web-quick-cat-photos');
+    if (!hidden) return;
+    var file = input && input.files && input.files[0] ? input.files[0] : null;
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var val = e && e.target ? String(e.target.result || '') : '';
+      if (!val) return;
+      var map = window._webQuickCatPhotosById || {};
+      map[String(catId)] = val;
+      window._webQuickCatPhotosById = map;
+      hidden.value = JSON.stringify(map);
+      renderWebQuickCatPhotosEditor(hidden.value, window._adminCategories || []);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.clearWebQuickCatPhoto = function (catId) {
+    var hidden = document.getElementById('s-web-quick-cat-photos');
+    if (!hidden) return;
+    var map = window._webQuickCatPhotosById || {};
+    delete map[String(catId)];
+    window._webQuickCatPhotosById = map;
+    hidden.value = JSON.stringify(map);
+    renderWebQuickCatPhotosEditor(hidden.value, window._adminCategories || []);
+  };
+
   window.saveSettings = function (e) {
     e.preventDefault();
     collectDeliveryTiers();
@@ -1852,6 +1957,7 @@
       marquee_direction_web: document.getElementById('s-marquee-direction-web').value,
       marquee_direction_mini: document.getElementById('s-marquee-direction-mini').value,
       marquee_direction: document.getElementById('s-marquee-direction-web').value,
+      web_quick_cat_photos: document.getElementById('s-web-quick-cat-photos').value,
       marquee_speed_sec: document.getElementById('s-marquee-speed-web').value,
       pickup_cutoff_hour: document.getElementById('s-pickup-cutoff').value,
       delivery_info: document.getElementById('s-delivery-info').value,
