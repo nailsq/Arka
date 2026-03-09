@@ -1373,7 +1373,7 @@
     var wasShown = false;
     try { wasShown = sessionStorage.getItem('arka_site_preloader') === '1'; } catch (e) {}
     // Keep preloader noticeably longer on every visit (no "flash" effect).
-    var delay = wasShown ? 1300 : 1900;
+    var delay = wasShown ? 1000 : 1400;
     setTimeout(function () {
       pre.classList.add('site-preloader--hidden');
       try { sessionStorage.setItem('arka_site_preloader', '1'); } catch (e) {}
@@ -1415,8 +1415,8 @@
       document.body.classList.add('site-hero-lock');
       document.body.classList.add('site-cover-active');
       activateDesktopSlide(0);
-      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 1900));
-      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 5200));
+      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 1500));
+      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 3700));
       detachHomeHeroScroll = function () {
         destroyed = true;
         for (var t = 0; t < desktopTimers.length; t++) clearTimeout(desktopTimers[t]);
