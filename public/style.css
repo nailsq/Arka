@@ -187,6 +187,7 @@ body.site-hero-lock {
   overflow: hidden;
 }
 
+body.site-cover-active .web-marquee,
 body.site-cover-active .web-shop-toolbar,
 body.site-cover-active #home-catalog,
 body.site-cover-active .web-store-info,
