@@ -1178,6 +1178,11 @@
   var webHomeDataCache = null;
   var webHomeSearchQuery = '';
 
+  function normalizeCategoryId(id) {
+    if (id === null || id === undefined || id === '') return null;
+    return String(id);
+  }
+
   function formatCategoryTitle(title) {
     var t = String(title || '').trim();
     if (!t) return 'Категория';
@@ -1284,8 +1289,10 @@
       if (ma.tail !== mb.tail) return ma.tail - mb.tail;
       return (indexedCats[a.id] || 0) - (indexedCats[b.id] || 0);
     });
-    if (homeActiveCategory) {
-      visibleCats = visibleCats.filter(function (c) { return c.id === homeActiveCategory; });
+    if (homeActiveCategory !== null) {
+      visibleCats = visibleCats.filter(function (c) {
+        return normalizeCategoryId(c.id) === normalizeCategoryId(homeActiveCategory);
+      });
     }
 
     var q = String(webHomeSearchQuery || '').trim().toLowerCase();
@@ -1341,9 +1348,11 @@
       return (indexedCats[a.id] || 0) - (indexedCats[b.id] || 0);
     });
 
-    var html = '<button class="web-quick-cat-chip' + (!homeActiveCategory ? ' active' : '') + '" onclick="webHomePickCategory(null)">Все</button>';
+    var activeCatId = normalizeCategoryId(homeActiveCategory);
+    var html = '<button class="web-quick-cat-chip' + (activeCatId === null ? ' active' : '') + '" onclick="webHomePickCategory(null)">Все</button>';
     html += sorted.map(function (c) {
-      return '<button class="web-quick-cat-chip' + (homeActiveCategory === c.id ? ' active' : '') + '" onclick="webHomePickCategory(' + c.id + ')">' + escapeHtml(formatCategoryChipTitle(c.name)) + '</button>';
+      var cidNorm = normalizeCategoryId(c.id);
+      return '<button class="web-quick-cat-chip' + (activeCatId === cidNorm ? ' active' : '') + '" onclick="webHomePickCategory(' + c.id + ')">' + escapeHtml(formatCategoryChipTitle(c.name)) + '</button>';
     }).join('');
     el.innerHTML = html;
   }
@@ -1395,16 +1404,18 @@
         desktopHeroShownThisLoad = true;
         desktopTimers.push(setTimeout(function () {
           if (heroSection && heroSection.parentNode) heroSection.parentNode.removeChild(heroSection);
+          document.body.classList.remove('site-hero-lock');
           syncWebQuickNavVisibility('home');
         }, 560));
       };
+      document.body.classList.add('site-hero-lock');
       activateDesktopSlide(0);
-      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 2400));
-      desktopTimers.push(setTimeout(function () { activateDesktopSlide(2); }, 5000));
-      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 8400));
+      desktopTimers.push(setTimeout(function () { activateDesktopSlide(1); }, 1600));
+      desktopTimers.push(setTimeout(function () { completeDesktopHero(); }, 4100));
       detachHomeHeroScroll = function () {
         destroyed = true;
         for (var t = 0; t < desktopTimers.length; t++) clearTimeout(desktopTimers[t]);
+        document.body.classList.remove('site-hero-lock');
         syncWebQuickNavVisibility(activeTab);
       };
       return;
@@ -1488,10 +1499,7 @@
         '<section id="site-hero" class="site-hero site-hero--desktop-slides">' +
           '<div class="site-hero-stage">' +
             '<div class="site-hero-desktop-slides">' +
-              '<div class="site-hero-desktop-slide site-hero-desktop-slide--dark is-active">' +
-                '<img class="site-hero-desktop-logo" src="/images/logo.svg" alt="АРКА СТУДИЯ ЦВЕТОВ">' +
-              '</div>' +
-              '<div class="site-hero-desktop-slide">' +
+              '<div class="site-hero-desktop-slide is-active">' +
                 '<div class="site-hero-desktop-title">Express your feelings</div>' +
               '</div>' +
               '<div class="site-hero-desktop-slide">' +
@@ -1679,7 +1687,7 @@
   }
 
   function showHome(filterCatId) {
-    homeActiveCategory = filterCatId || null;
+    homeActiveCategory = normalizeCategoryId(filterCatId);
     var cityName = selectedCity ? selectedCity.name : '';
     var cityLine = cityName
       ? '<span class="city-current" onclick="changeCityClick()">' + escapeHtml(cityName) + '</span>'
@@ -1785,13 +1793,15 @@
       if (!cats || !cats.length) { el.innerHTML = ''; return; }
       homeCategoriesById = {};
       cats.forEach(function (c) { homeCategoriesById[c.id] = c.name; });
-      var html = '<button class="cat-chip' + (!homeActiveCategory ? ' active' : '') + '" onclick="filterHome(null)">Все</button>';
+      var activeCatId = normalizeCategoryId(homeActiveCategory);
+      var html = '<button class="cat-chip' + (activeCatId === null ? ' active' : '') + '" onclick="filterHome(null)">Все</button>';
       html += cats.map(function (c) {
-        return '<button class="cat-chip' + (homeActiveCategory === c.id ? ' active' : '') + '" onclick="filterHome(' + c.id + ',\'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\')">' + escapeHtml(c.name) + '</button>';
+        var cidNorm = normalizeCategoryId(c.id);
+        return '<button class="cat-chip' + (activeCatId === cidNorm ? ' active' : '') + '" onclick="filterHome(' + c.id + ',\'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\')">' + escapeHtml(c.name) + '</button>';
       }).join('');
       el.innerHTML = html;
-      if (homeActiveCategory) {
-        var selected = cats.find(function (c) { return c.id === homeActiveCategory; });
+      if (activeCatId !== null) {
+        var selected = cats.find(function (c) { return normalizeCategoryId(c.id) === activeCatId; });
         if (selected) {
           var titleEl = document.getElementById('active-cat-title');
           if (titleEl) { titleEl.textContent = selected.name; titleEl.style.display = 'block'; }
@@ -1799,11 +1809,11 @@
       }
     });
 
-    var productsUrl = homeActiveCategory ? '/api/products?category_id=' + homeActiveCategory : '/api/products';
+    var productsUrl = homeActiveCategory !== null ? '/api/products?category_id=' + encodeURIComponent(homeActiveCategory) : '/api/products';
     fetchJSON(productsUrl).then(function (prods) {
       var el = document.getElementById('home-product-list');
       if (!el) return;
-      var selectedName = homeActiveCategory ? homeCategoriesById[homeActiveCategory] : '';
+      var selectedName = homeActiveCategory !== null ? homeCategoriesById[homeActiveCategory] : '';
       prods = filterProductsByCategoryPriceRange(prods || [], selectedName);
       if (!prods || !prods.length) { el.innerHTML = '<div class="empty-state">Товаров пока нет</div>'; return; }
       prods.sort(function (a, b) { return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0); });
@@ -1812,14 +1822,14 @@
   }
 
   window.filterHome = function (catId, catName) {
-    homeActiveCategory = catId;
+    homeActiveCategory = normalizeCategoryId(catId);
 
     var chips = document.querySelectorAll('#category-select-wrap .cat-chip');
     chips.forEach(function (chip) {
       var isAll = chip.textContent === 'Все';
-      if (!catId && isAll) {
+      if (homeActiveCategory === null && isAll) {
         chip.classList.add('active');
-      } else if (catId && chip.getAttribute('onclick') && chip.getAttribute('onclick').indexOf('filterHome(' + catId) !== -1) {
+      } else if (homeActiveCategory !== null && chip.getAttribute('onclick') && chip.getAttribute('onclick').indexOf('filterHome(' + homeActiveCategory) !== -1) {
         chip.classList.add('active');
       } else {
         chip.classList.remove('active');
@@ -1828,7 +1838,7 @@
 
     var titleEl = document.getElementById('active-cat-title');
     if (titleEl) {
-      if (catId && catName && catName !== 'Все') {
+      if (homeActiveCategory !== null && catName && catName !== 'Все') {
         titleEl.textContent = catName;
         titleEl.style.display = 'block';
       } else {
@@ -1836,11 +1846,11 @@
       }
     }
 
-    var productsUrl = catId ? '/api/products?category_id=' + catId : '/api/products';
+    var productsUrl = homeActiveCategory !== null ? '/api/products?category_id=' + encodeURIComponent(homeActiveCategory) : '/api/products';
     fetchJSON(productsUrl).then(function (prods) {
       var el = document.getElementById('home-product-list');
       if (!el) return;
-      var selectedName = catName || homeCategoriesById[catId] || '';
+      var selectedName = catName || homeCategoriesById[homeActiveCategory] || '';
       prods = filterProductsByCategoryPriceRange(prods || [], selectedName);
       if (!prods || !prods.length) { el.innerHTML = '<div class="empty-state">В этой категории пока нет товаров</div>'; return; }
       prods.sort(function (a, b) { return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0); });
@@ -1849,7 +1859,7 @@
   };
 
   window.webHomePickCategory = function (catId) {
-    homeActiveCategory = catId || null;
+    homeActiveCategory = normalizeCategoryId(catId);
     renderWebQuickCategories((webHomeDataCache && webHomeDataCache.cats) || []);
     renderWebCategorySectionsFromCache();
   };
