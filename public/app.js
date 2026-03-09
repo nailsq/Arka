@@ -1351,69 +1351,10 @@
     });
 
     var activeCatId = normalizeCategoryId(homeActiveCategory);
-    var isMobileWeb = !isTelegramRuntime && (window.innerWidth || 0) <= 560;
-    var normalizeMapKey = function (v) {
-      return String(v || '').toLowerCase().replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
-    };
-    var quickCatPhotoMapByName = {};
-    var quickCatPhotoMapById = {};
-    try {
-      var rawSetting = String(appSettings.web_quick_cat_photos || '').trim();
-      if (rawSetting) {
-        if (rawSetting.charAt(0) === '{') {
-          var parsedMap = JSON.parse(rawSetting);
-          if (parsedMap && typeof parsedMap === 'object' && !Array.isArray(parsedMap)) {
-            Object.keys(parsedMap).forEach(function (k) {
-              var keyId = String(k || '').trim();
-              var url = String(parsedMap[k] || '').trim();
-              if (keyId && url) quickCatPhotoMapById[keyId] = url;
-            });
-          }
-        } else {
-          var rawLines = rawSetting.split(/\r?\n/);
-          for (var m = 0; m < rawLines.length; m++) {
-            var line = String(rawLines[m] || '').trim();
-            if (!line) continue;
-            var splitIdx = line.indexOf('|');
-            if (splitIdx <= 0) continue;
-            var keyName = normalizeMapKey(line.slice(0, splitIdx));
-            var lineUrl = String(line.slice(splitIdx + 1) || '').trim();
-            if (!keyName || !lineUrl) continue;
-            quickCatPhotoMapByName[keyName] = lineUrl;
-          }
-        }
-      }
-    } catch (e) {}
-    var buildChipIcon = function (catName, catId) {
-      var idKey = String(catId || '').trim();
-      var mapKey = normalizeMapKey(catName);
-      var mappedUrl = (idKey && quickCatPhotoMapById[idKey]) ? quickCatPhotoMapById[idKey] : (quickCatPhotoMapByName[mapKey] || '');
-      if (mappedUrl) {
-        return '<span class="web-quick-cat-icon web-quick-cat-icon--photo" aria-hidden="true"><img src="' + escapeHtml(mappedUrl) + '" alt=""></span>';
-      }
-      return '<span class="web-quick-cat-icon" aria-hidden="true">' + getCatIcon(catName) + '</span>';
-    };
-    var getCatIcon = function (catName) {
-      var t = String(catName || '').toLowerCase();
-      if (t.indexOf('скид') >= 0) return '%';
-      if (t.indexOf('коф') >= 0) return '☕';
-      if (t.indexOf('подар') >= 0) return '🎁';
-      if (t.indexOf('открыт') >= 0) return '✉';
-      if (t.indexOf('шар') >= 0) return '🎈';
-      if (t.indexOf('свеч') >= 0) return '🕯';
-      if (t.indexOf('ваз') >= 0) return '🏺';
-      return '🌸';
-    };
-    var allChipInner = isMobileWeb
-      ? '<span class="web-quick-cat-icon" aria-hidden="true">◼</span><span class="web-quick-cat-label">Все</span>'
-      : '<span class="web-quick-cat-label">Все</span>';
-    var html = '<button class="web-quick-cat-chip' + (activeCatId === null ? ' active' : '') + '" onclick="webHomePickCategory(null)">' + allChipInner + '</button>';
+    var html = '<button class="web-quick-cat-chip' + (activeCatId === null ? ' active' : '') + '" onclick="webHomePickCategory(null)">Все</button>';
     html += sorted.map(function (c) {
       var cidNorm = normalizeCategoryId(c.id);
-      var chipInner = isMobileWeb
-        ? (buildChipIcon(c.name, c.id) + '<span class="web-quick-cat-label">' + escapeHtml(formatCategoryChipTitle(c.name)) + '</span>')
-        : ('<span class="web-quick-cat-label">' + escapeHtml(formatCategoryChipTitle(c.name)) + '</span>');
-      return '<button class="web-quick-cat-chip' + (activeCatId === cidNorm ? ' active' : '') + '" onclick="webHomePickCategory(' + c.id + ')">' + chipInner + '</button>';
+      return '<button class="web-quick-cat-chip' + (activeCatId === cidNorm ? ' active' : '') + '" onclick="webHomePickCategory(' + c.id + ')">' + escapeHtml(formatCategoryChipTitle(c.name)) + '</button>';
     }).join('');
     el.innerHTML = html;
   }
