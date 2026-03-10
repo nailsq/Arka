@@ -1576,7 +1576,9 @@
 
   function buildHomeHero(cityName) {
     var isDesktop = !isTelegramRuntime && (window.innerWidth || 0) >= 900;
-    if (isDesktop) {
+    // Keep intro scroll-driven on all layouts to avoid fixed overlay behavior.
+    var useDesktopScriptIntro = false;
+    if (isDesktop && useDesktopScriptIntro) {
       var scriptHeadline = 'Выразите свои чувства';
       var scriptBrand = 'АРКА СТУДИЯ ЦВЕТОВ';
       var scriptDelivery = 'Доставка по Саратову и Энгельсу';
