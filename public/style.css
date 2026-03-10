@@ -1048,8 +1048,8 @@ body.web-mode .web-shop-toolbar--filters {
   display: flex;
   align-items: center;
   width: auto;
-  justify-content: flex-end;
-  justify-self: end;
+  justify-content: flex-start;
+  justify-self: start;
   gap: 8px;
   --web-left-btn-size: 42px;
   z-index: 2;
@@ -1137,8 +1137,8 @@ body.web-mode .web-shop-toolbar--filters {
 
 .web-toolbar-actions--header {
   width: auto;
-  justify-content: flex-start;
-  justify-self: start;
+  justify-content: flex-end;
+  justify-self: end;
   flex: 0 0 auto;
   position: relative;
   z-index: 2;
@@ -1171,13 +1171,13 @@ body.web-mode .web-shop-toolbar--filters {
 
   .web-call-wrap {
     width: auto;
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: 12px;
   }
 
   .web-toolbar-actions--header {
     width: auto;
-    justify-content: flex-start;
+    justify-content: flex-end;
   }
 
   .web-call-panel {
@@ -1810,6 +1810,7 @@ body.web-mode .product-list {
   }
   .web-call-wrap {
     width: auto;
+    justify-content: flex-start;
     gap: 6px;
   }
   .web-call-btn {
@@ -1834,6 +1835,7 @@ body.web-mode .product-list {
   }
   .web-toolbar-actions--header {
     width: auto;
+    justify-content: flex-end;
   }
   .web-toolbar-action-btn {
     width: 40px;
