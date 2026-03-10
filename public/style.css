@@ -3123,6 +3123,20 @@ body.web-mode .product-detail-content {
   min-width: 0;
 }
 
+@media (min-width: 901px) {
+  body.web-mode .product-detail {
+    display: grid;
+    grid-template-columns: minmax(280px, 460px) minmax(0, 1fr);
+    align-items: start;
+    column-gap: 34px;
+  }
+
+  body.web-mode .product-detail-media {
+    max-width: 460px;
+    margin-bottom: 0;
+  }
+}
+
 .card-cart-btn--large {
   padding: 14px 20px;
   font-size: 14px;
