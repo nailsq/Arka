@@ -1211,6 +1211,11 @@ body.web-mode.web-home-static-open .web-catalog-sheet-scroll {
   display: none;
 }
 
+/* Desktop web must always show catalog content area */
+body.web-mode .web-catalog-sheet-scroll {
+  display: block;
+}
+
 .web-catalog-sheet-handle {
   display: none;
 }
@@ -2020,7 +2025,7 @@ body.web-mode .product-list {
   }
   body.web-mode .product-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 20px;
+    gap: 28px;
   }
   body.web-mode #app {
     padding-bottom: 14px;
@@ -2107,7 +2112,7 @@ body.web-mode .product-list {
   }
   body.web-mode .product-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 20px;
     width: 100%;
     max-width: 100%;
   }
@@ -5231,7 +5236,7 @@ body.web-mode .product-detail-content {
     border-radius: 6px;
   }
   .product-list {
-    gap: 10px;
+    gap: 16px;
   }
   .product-card-name {
     font-size: 11px;
@@ -5317,7 +5322,7 @@ body.web-mode .product-detail-content {
     font-size: 13px;
   }
   .product-list {
-    gap: 8px;
+    gap: 14px;
   }
 }
 
