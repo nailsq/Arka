@@ -1,9 +1,21 @@
 @font-face {
   font-family: 'Waverly CF';
-  src: url('/fonts/WaverlyCF-Medium.woff2') format('woff2'),
+  src: local('Waverly CF Medium'),
+       local('WaverlyCF-Medium'),
+       url('/fonts/WaverlyCF-Medium.woff2') format('woff2'),
        url('/fonts/WaverlyCF-Medium.woff') format('woff'),
        url('/fonts/WaverlyCF-Medium.ttf') format('truetype');
   font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nexa Thin';
+  src: local('Nexa Thin'),
+       local('Nexa-Thin'),
+       url('/fonts/Nexa-Thin.otf') format('opentype');
+  font-weight: 300;
   font-style: normal;
   font-display: swap;
 }
@@ -25,7 +37,7 @@
 }
 
 html, body {
-  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Nexa Thin', 'Nexa', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   background: #fff;
   color: #000;
   font-size: 15px;
@@ -278,6 +290,8 @@ body.site-preloader-active .site-hero {
 }
 
 .site-preloader-title {
+  font-family: 'Waverly CF', 'Playfair Display', 'Georgia', serif;
+  font-weight: 500;
   margin-top: 14px;
   letter-spacing: 0.28em;
   font-size: 11px;
@@ -1397,9 +1411,12 @@ body.web-mode .web-shop-toolbar--filters {
 }
 
 .web-store-info-head {
+  font-family: 'Waverly CF', 'Playfair Display', 'Georgia', serif;
   font-size: 24px;
   line-height: 1.2;
-  font-weight: 600;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .web-store-info-line {
@@ -2067,8 +2084,10 @@ body.web-mode .product-list {
 }
 
 .footer-copy {
+  font-family: 'Waverly CF', 'Playfair Display', 'Georgia', serif;
+  font-weight: 500;
   font-size: 11px;
-  letter-spacing: 1px;
+  letter-spacing: 0.12em;
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid #eee;
