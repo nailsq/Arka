@@ -1553,11 +1553,16 @@ body.web-mode .product-list {
     --web-safe-top: env(safe-area-inset-top, 0px);
   }
   body.web-mode .web-marquee {
+    position: fixed;
     top: 0;
-    margin-top: calc(-1 * var(--web-safe-top));
+    left: 0;
+    right: 0;
+    width: 100%;
+    margin-top: 0;
     padding-top: var(--web-safe-top);
     min-height: calc(var(--web-marquee-offset) + var(--web-safe-top));
-    z-index: 140;
+    z-index: 240;
+    border-radius: 0;
   }
   body.web-mode .product-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1594,7 +1599,7 @@ body.web-mode .product-list {
     padding: 0 12px;
   }
   .web-shop-toolbar--no-hero {
-    margin: 8px auto 12px;
+    margin: calc(var(--web-marquee-offset) + var(--web-safe-top) + 8px) auto 12px;
   }
   body.web-mode .web-shop-toolbar,
   body.web-mode .web-shop-toolbar--no-hero {
