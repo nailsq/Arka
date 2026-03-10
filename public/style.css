@@ -1053,7 +1053,7 @@ body.web-mode .web-shop-toolbar--filters {
   --web-call-anchor-offset: 56px;
   gap: 0;
   padding-left: 0;
-  z-index: 2;
+  z-index: 4;
 }
 
 .web-call-btn {
@@ -1135,7 +1135,8 @@ body.web-mode .web-shop-toolbar--filters {
   transform: none;
   grid-column: 2;
   justify-self: center;
-  z-index: 3;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .web-header-logo img {
@@ -1152,7 +1153,7 @@ body.web-mode .web-shop-toolbar--filters {
   justify-self: end;
   flex: 0 0 auto;
   position: relative;
-  z-index: 2;
+  z-index: 4;
 }
 
 /* Keep right-side icon order stable across layouts/cached markup */
