@@ -1080,6 +1080,7 @@ body.web-mode .web-shop-toolbar--filters {
 
 .web-home-btn {
   margin-left: 0;
+  transform: translateX(-10px);
 }
 
 .web-call-wrap .web-call-btn:not(.web-home-btn) {
@@ -1181,7 +1182,7 @@ body.web-mode .web-shop-toolbar--filters {
   .web-call-wrap {
     width: auto;
     justify-content: flex-start;
-    --web-call-anchor-offset: 64px;
+    --web-call-anchor-offset: 52px;
     gap: 0;
   }
 
@@ -2157,7 +2158,7 @@ body.web-mode .product-list {
 
 body.web-mode .web-flow-shell--cart .section-title {
   margin-top: 8px;
-  margin-left: 64px;
+  margin-left: 52px;
   text-align: left;
 }
 
