@@ -396,7 +396,8 @@
           '&return_to=' + encodeURIComponent(returnTo) +
           '&request_access=write';
       }
-      var primaryAuthUrl = webTelegramAuthUrl || oauthUrl;
+      // Mobile web: prefer direct Telegram OAuth URL to avoid bot/game redirects.
+      var primaryAuthUrl = isMobileWeb ? (oauthUrl || webTelegramAuthUrl) : (webTelegramAuthUrl || oauthUrl);
       if (primaryAuthUrl) {
         var directWrap = document.createElement('div');
         directWrap.style.marginBottom = isMobileWeb ? '8px' : '10px';
