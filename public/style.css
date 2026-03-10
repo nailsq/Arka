@@ -1050,14 +1050,16 @@ body.web-mode .web-shop-toolbar--filters {
   width: auto;
   justify-content: flex-start;
   justify-self: start;
-  gap: 8px;
-  --web-left-btn-size: 42px;
+  --web-call-btn-size: 42px;
+  --web-call-gap: 10px;
+  gap: var(--web-call-gap);
+  padding-left: calc(var(--web-call-btn-size) + var(--web-call-gap));
   z-index: 2;
 }
 
 .web-call-btn {
-  width: 42px;
-  height: 42px;
+  width: var(--web-call-btn-size);
+  height: var(--web-call-btn-size);
   border: 1px solid #dfe1e8;
   border-radius: 10px;
   background: #fff;
@@ -1077,10 +1079,14 @@ body.web-mode .web-shop-toolbar--filters {
   height: 21px;
 }
 
+.web-home-btn {
+  margin-left: calc(-1 * (var(--web-call-btn-size) + var(--web-call-gap)));
+}
+
 .web-call-panel {
   position: absolute;
   top: calc(100% + 8px);
-  left: calc(var(--web-left-btn-size) + 8px);
+  left: 0;
   min-width: 220px;
   border: 1px solid #e5e7ed;
   border-radius: 10px;
@@ -1172,7 +1178,8 @@ body.web-mode .web-shop-toolbar--filters {
   .web-call-wrap {
     width: auto;
     justify-content: flex-start;
-    gap: 12px;
+    --web-call-gap: 12px;
+    gap: var(--web-call-gap);
   }
 
   .web-toolbar-actions--header {
@@ -1811,7 +1818,9 @@ body.web-mode .product-list {
   .web-call-wrap {
     width: auto;
     justify-content: flex-start;
-    gap: 6px;
+    --web-call-btn-size: 38px;
+    --web-call-gap: 8px;
+    gap: var(--web-call-gap);
   }
   .web-call-btn {
     width: 38px;
