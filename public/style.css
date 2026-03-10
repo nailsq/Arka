@@ -1676,6 +1676,9 @@ body.web-mode .product-list {
   body.web-mode .web-flow-shell--cart .section-title {
     margin-left: 56px;
   }
+  .web-call-wrap {
+    --web-call-anchor-offset: 40px;
+  }
   body.web-mode .web-centered-page-card {
     max-width: 100%;
     padding: 12px 12px 10px;
@@ -1826,7 +1829,7 @@ body.web-mode .product-list {
   .web-call-wrap {
     width: auto;
     justify-content: flex-start;
-    --web-call-anchor-offset: 46px;
+    --web-call-anchor-offset: 34px;
     gap: 0;
   }
   .web-call-btn {
