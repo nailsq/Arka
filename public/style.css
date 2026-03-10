@@ -1738,6 +1738,13 @@ body.web-mode .product-list {
   .web-catalog-sheet.web-catalog-sheet--open {
     --web-sheet-progress: 1;
   }
+  body.web-mode.web-sheet-natural .web-catalog-sheet {
+    position: relative;
+    top: auto;
+    margin-top: 0;
+    transform: none !important;
+    transition: margin-top 0.22s ease;
+  }
   .web-catalog-sheet-handle {
     display: flex;
     width: 100%;
@@ -1846,6 +1853,10 @@ body.web-mode .product-list {
   }
   .web-catalog-sheet.web-catalog-sheet--open {
     --web-sheet-progress: 1;
+  }
+  body.web-mode.web-sheet-natural .web-catalog-sheet {
+    margin-top: 0;
+    transform: none !important;
   }
   .site-hero-intro {
     transform: none;

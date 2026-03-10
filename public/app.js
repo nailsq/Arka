@@ -1459,6 +1459,10 @@
     var onScroll = function () {
       if (!isMobileWeb()) {
         setProgress(1);
+        if (document && document.body) {
+          document.body.classList.remove('web-sheet-intro-phase');
+          document.body.classList.remove('web-sheet-natural');
+        }
         return;
       }
       var y = window.scrollY || 0;
@@ -1466,7 +1470,13 @@
       var heroH = hero ? Math.max(hero.offsetHeight || 0, 1) : 1;
       var start = Math.max(8, heroH * 0.06);
       var range = Math.max(140, heroH * 0.34);
-      var progress = (y - start) / range;
+      var introPhaseEnd = start + range + 24;
+      var inIntroPhase = y <= introPhaseEnd;
+      if (document && document.body) {
+        document.body.classList.toggle('web-sheet-intro-phase', inIntroPhase);
+        document.body.classList.toggle('web-sheet-natural', !inIntroPhase);
+      }
+      var progress = inIntroPhase ? ((y - start) / range) : 1;
       setProgress(progress);
     };
     var onResize = function () {
@@ -1483,6 +1493,10 @@
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
       if (window.toggleWebCatalogSheet) delete window.toggleWebCatalogSheet;
+      if (document && document.body) {
+        document.body.classList.remove('web-sheet-intro-phase');
+        document.body.classList.remove('web-sheet-natural');
+      }
     };
   }
 
