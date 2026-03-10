@@ -23,7 +23,8 @@
   var detachHomeHeroScroll = null;
   var detachMobileQuickCatsScroll = null;
   var detachWebCatalogSheetBehavior = null;
-  var webCatalogSheetTopOffset = '15%';
+  // Keep intro text visible: sheet stops lower by default.
+  var webCatalogSheetTopOffset = '36%';
   var MOBILE_CATS_COLLAPSED_KEY = 'arka_web_mobile_cats_collapsed';
   if (tg) {
     tg.ready();
@@ -1457,7 +1458,7 @@
       if (handle) handle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     };
     var tick = function () {
-      currentProgress += (targetProgress - currentProgress) * 0.18;
+      currentProgress += (targetProgress - currentProgress) * 0.14;
       if (Math.abs(targetProgress - currentProgress) < 0.002) {
         currentProgress = targetProgress;
       }
@@ -1584,10 +1585,10 @@
     };
   }
 
-  // Allows tuning sheet top offset at runtime, e.g. setWebCatalogSheetTopOffset('8%')
+  // Allows tuning sheet top offset at runtime, e.g. setWebCatalogSheetTopOffset('32%')
   window.setWebCatalogSheetTopOffset = function (value) {
     var v = String(value || '').trim();
-    webCatalogSheetTopOffset = v || '15%';
+    webCatalogSheetTopOffset = v || '36%';
     var sheet = document.getElementById('web-catalog-sheet');
     if (sheet) sheet.style.setProperty('--web-sheet-top-offset', webCatalogSheetTopOffset);
   };

@@ -1769,9 +1769,6 @@ body.web-mode .product-list {
   .web-catalog-sheet.web-catalog-sheet--open {
     --web-sheet-progress: 1;
   }
-  body.web-mode.web-sheet-natural .web-catalog-sheet {
-    transform: translateY(0);
-  }
   .web-catalog-sheet-head {
     display: block;
     flex: 0 0 auto;
@@ -1920,10 +1917,6 @@ body.web-mode .product-list {
   }
   .web-catalog-sheet.web-catalog-sheet--open {
     --web-sheet-progress: 1;
-  }
-  body.web-mode.web-sheet-natural .web-catalog-sheet {
-    margin-top: 0;
-    transform: none !important;
   }
   .site-hero-intro {
     transform: none;
