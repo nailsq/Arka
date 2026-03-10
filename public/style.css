@@ -1550,6 +1550,14 @@ body.web-mode .product-list {
 @media (max-width: 560px) {
   body.web-mode {
     --web-marquee-offset: 36px;
+    --web-safe-top: env(safe-area-inset-top, 0px);
+  }
+  body.web-mode .web-marquee {
+    top: 0;
+    margin-top: calc(-1 * var(--web-safe-top));
+    padding-top: var(--web-safe-top);
+    min-height: calc(var(--web-marquee-offset) + var(--web-safe-top));
+    z-index: 140;
   }
   body.web-mode .product-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1601,7 +1609,7 @@ body.web-mode .product-list {
   }
   body.web-mode .web-shop-toolbar--no-hero {
     position: sticky;
-    top: var(--web-marquee-offset);
+    top: calc(var(--web-marquee-offset) + var(--web-safe-top));
     z-index: 118;
   }
   body.web-mode .web-shop-toolbar--filters {
