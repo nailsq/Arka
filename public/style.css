@@ -1865,10 +1865,10 @@ body.web-mode .product-list {
   .site-hero--mobile-static .site-hero-stage {
     position: relative;
     top: auto;
-    min-height: 52vh;
-    justify-content: flex-start;
-    gap: 6px;
-    padding: 10px 14px 4px;
+    min-height: 24vh;
+    justify-content: center;
+    gap: 0;
+    padding: 8px 14px 6px;
   }
   .site-hero-intro {
     transform: none;
@@ -1882,7 +1882,11 @@ body.web-mode .product-list {
     z-index: 220;
   }
   .site-hero--mobile-static .site-hero-brand {
-    display: none;
+    margin: 0;
+    position: relative;
+    top: auto;
+    opacity: 1;
+    transform: none;
   }
   .site-hero-hint {
     transform: none;
@@ -2107,7 +2111,11 @@ body.web-mode .product-list {
     z-index: 220;
   }
   .site-hero--mobile-static .site-hero-brand {
-    display: none;
+    margin: 0;
+    position: relative;
+    top: auto;
+    opacity: 1;
+    transform: none;
   }
   .site-hero-hint {
     transform: none;
@@ -2126,12 +2134,12 @@ body.web-mode .product-list {
     padding: 8px 14px 8px;
   }
   .site-hero--mobile-static .site-hero-stage {
-    min-height: 48vh;
+    min-height: 22vh;
     position: relative;
     top: auto;
-    justify-content: flex-start;
-    gap: 6px;
-    padding: 8px 14px 4px;
+    justify-content: center;
+    gap: 0;
+    padding: 6px 14px 4px;
   }
   .home-catalog-block {
     padding: 0 18px;
@@ -2328,6 +2336,25 @@ body.web-mode .product-list {
     margin-top: 5px;
     font-size: clamp(10px, 2.8vw, 13px);
     letter-spacing: 0.075em;
+  }
+  .site-hero-mobile-caption--plain {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    margin: 0 auto;
+    padding: 8px 0 6px;
+  }
+  .site-hero-mobile-caption--plain .site-hero-mobile-title {
+    color: #11131a;
+    text-shadow: none;
+    font-size: clamp(31px, 9vw, 44px);
+    letter-spacing: 0.045em;
+  }
+  .site-hero-mobile-caption--plain .site-hero-mobile-subtitle {
+    color: rgba(17, 19, 26, 0.72);
+    text-shadow: none;
+    font-size: clamp(10px, 2.8vw, 12px);
   }
 }
 

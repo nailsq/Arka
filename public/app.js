@@ -1688,7 +1688,6 @@
       heroSection.style.setProperty('--hero-section-progress', '1');
       heroSection.style.setProperty('--hero-image-progress', '1');
       document.body.classList.remove('mobile-toolbar-fixed');
-      detachMobileHeroSlider = initMobileHeroSlider(heroSection);
       syncWebQuickNavVisibility('home');
       return;
     }
@@ -1793,29 +1792,12 @@
     var isDesktop = !isTelegramRuntime && (window.innerWidth || 0) >= 900;
     var isMobileWeb = !isTelegramRuntime && (window.innerWidth || 0) <= 900;
     if (isMobileWeb) {
-      var slides = getMobileHeroSlidesFromSettings();
-      var slidesHtml = '';
-      var dotsHtml = '';
-      if (slides.length) {
-        for (var sIdx = 0; sIdx < slides.length; sIdx++) {
-          slidesHtml += '<div class="site-hero-mobile-slide' + (sIdx === 0 ? ' is-active' : '') + '">' +
-            '<img class="site-hero-mobile-slide-img" src="' + escapeHtml(slides[sIdx]) + '" alt="АРКА студия цветов">' +
-          '</div>';
-          dotsHtml += '<button type="button" class="site-hero-mobile-dot' + (sIdx === 0 ? ' is-active' : '') + '" data-idx="' + sIdx + '" aria-label="Слайд ' + (sIdx + 1) + '"></button>';
-        }
-      } else {
-        slidesHtml = '<div class="site-hero-mobile-slide is-active site-hero-mobile-slide--fallback"></div>';
-      }
       return '' +
         '<section id="site-hero" class="site-hero site-hero--mobile-static">' +
           '<div class="site-hero-stage">' +
-            '<div id="site-hero-mobile-slider" class="site-hero-mobile-slider">' +
-              '<div class="site-hero-mobile-track">' + slidesHtml + '</div>' +
-              '<div class="site-hero-mobile-caption">' +
-                '<div class="site-hero-mobile-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
-                '<div class="site-hero-mobile-subtitle">Доставка по Саратову и Энгельсу</div>' +
-              '</div>' +
-              (dotsHtml ? '<div class="site-hero-mobile-dots">' + dotsHtml + '</div>' : '') +
+            '<div class="site-hero-mobile-caption site-hero-mobile-caption--plain">' +
+              '<div class="site-hero-mobile-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
+              '<div class="site-hero-mobile-subtitle">Доставка по Саратову и Энгельсу</div>' +
             '</div>' +
           '</div>' +
         '</section>';
@@ -2249,10 +2231,11 @@
     '</div>';
     setActiveTab('home');
     if (!isTelegramRuntime) {
+      var isMobileWeb = (window.innerWidth || 0) <= 900;
       document.body.classList.remove('site-cover-active');
       document.body.classList.remove('mobile-toolbar-fixed');
       document.body.classList.remove('web-mobile-cats-collapsed');
-      document.body.classList.remove('web-home-static-open');
+      document.body.classList.toggle('web-home-static-open', isMobileWeb);
       render(
         buildWebTopHeaderBar() +
         siteHero +
