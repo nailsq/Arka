@@ -733,6 +733,69 @@ body.site-opening-after-cover #web-quick-nav {
   transition: opacity 0.2s linear, transform 0.2s linear;
 }
 
+.site-hero-mobile-slider {
+  position: relative;
+  width: min(96vw, 700px);
+  margin: 0 auto;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.14);
+  background: #f3f4f7;
+}
+
+.site-hero-mobile-track {
+  display: flex;
+  width: 100%;
+  transition: transform 0.42s ease;
+  will-change: transform;
+}
+
+.site-hero-mobile-slide {
+  flex: 0 0 100%;
+  min-width: 100%;
+  aspect-ratio: 4 / 5;
+  background: linear-gradient(160deg, #eef0f5 0%, #dfe3eb 100%);
+}
+
+.site-hero-mobile-slide-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.site-hero-mobile-slide--fallback {
+  background:
+    radial-gradient(circle at 38% 30%, #ffe9f2 0 20%, transparent 21%),
+    radial-gradient(circle at 65% 36%, #ffe1ef 0 18%, transparent 19%),
+    radial-gradient(circle at 52% 64%, #f8e9f1 0 30%, transparent 31%),
+    linear-gradient(165deg, #f5f7fb 0%, #eaedf4 100%);
+}
+
+.site-hero-mobile-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  z-index: 2;
+}
+
+.site-hero-mobile-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 0;
+}
+
+.site-hero-mobile-dot.is-active {
+  background: #fff;
+}
+
 .site-hero-brand--textonly {
   max-width: min(1100px, 92vw);
   margin-left: auto;
@@ -1037,7 +1100,7 @@ body.web-mode .web-shop-toolbar--filters {
 
 /* Mobile web landing: open home layout immediately (hero + search/categories visible) */
 body.web-mode.web-home-static-open .web-marquee {
-  display: none;
+  display: flex;
 }
 
 body.web-mode.web-home-static-open .web-shop-toolbar--no-hero {
@@ -1760,10 +1823,10 @@ body.web-mode .product-list {
   .site-hero--mobile-static .site-hero-stage {
     position: relative;
     top: auto;
-    min-height: 40vh;
-    justify-content: center;
-    gap: 0;
-    padding: 18px 14px 10px;
+    min-height: 68vh;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 14px 14px 10px;
   }
   .site-hero-intro {
     transform: none;
@@ -1777,7 +1840,7 @@ body.web-mode .product-list {
     z-index: 220;
   }
   .site-hero--mobile-static .site-hero-brand {
-    margin: 0;
+    margin: 0 0 2px;
     position: relative;
     top: auto;
     opacity: 1;
@@ -2029,11 +2092,11 @@ body.web-mode .product-list {
     padding: 8px 14px 8px;
   }
   .site-hero--mobile-static .site-hero-stage {
-    min-height: 34vh;
+    min-height: 62vh;
     position: relative;
     top: auto;
-    justify-content: center;
-    gap: 0;
+    justify-content: flex-start;
+    gap: 10px;
     padding: 10px 14px 8px;
   }
   .home-catalog-block {
@@ -2215,9 +2278,9 @@ body.web-mode .product-list {
     letter-spacing: 0.05em;
   }
   .site-hero--mobile-static .site-hero-title {
-    font-size: clamp(34px, 10.4vw, 54px);
+    font-size: clamp(30px, 9.4vw, 48px);
     line-height: 1.06;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
   .site-hero-subtitle {
     letter-spacing: 0.1em;
