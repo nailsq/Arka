@@ -1793,8 +1793,8 @@
           '</div>' +
         '</section>';
     }
-    // Keep intro scroll-driven on all layouts to avoid fixed overlay behavior.
-    var useDesktopScriptIntro = false;
+    // Desktop: use timed slideshow intro, then reveal catalog.
+    var useDesktopScriptIntro = true;
     if (isDesktop && useDesktopScriptIntro) {
       var scriptHeadline = 'Выразите свои чувства';
       var scriptBrand = 'АРКА СТУДИЯ ЦВЕТОВ';
