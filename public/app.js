@@ -1524,10 +1524,8 @@
     };
     var tick = function () {
       if (!running) return;
-      currentRawProgress += (targetRawProgress - currentRawProgress) * 0.18;
-      if (Math.abs(targetRawProgress - currentRawProgress) < 0.0008) {
-        currentRawProgress = targetRawProgress;
-      }
+      // Keep intro strictly scroll-driven: no inertial lag.
+      currentRawProgress = targetRawProgress;
       var rawProgress = currentRawProgress;
       var introProgress = rawProgress / 0.42;
       if (introProgress > 1) introProgress = 1;
