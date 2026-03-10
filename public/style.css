@@ -1050,16 +1050,15 @@ body.web-mode .web-shop-toolbar--filters {
   width: auto;
   justify-content: flex-start;
   justify-self: start;
-  --web-call-btn-size: 42px;
-  --web-call-gap: 10px;
-  gap: var(--web-call-gap);
-  padding-left: calc(var(--web-call-btn-size) + var(--web-call-gap));
+  --web-call-anchor-offset: 52px;
+  gap: 0;
+  padding-left: 0;
   z-index: 2;
 }
 
 .web-call-btn {
-  width: var(--web-call-btn-size);
-  height: var(--web-call-btn-size);
+  width: 42px;
+  height: 42px;
   border: 1px solid #dfe1e8;
   border-radius: 10px;
   background: #fff;
@@ -1080,13 +1079,17 @@ body.web-mode .web-shop-toolbar--filters {
 }
 
 .web-home-btn {
-  margin-left: calc(-1 * (var(--web-call-btn-size) + var(--web-call-gap)));
+  margin-left: 0;
+}
+
+.web-call-wrap .web-call-btn:not(.web-home-btn) {
+  margin-left: var(--web-call-anchor-offset);
 }
 
 .web-call-panel {
   position: absolute;
   top: calc(100% + 8px);
-  left: 0;
+  left: var(--web-call-anchor-offset);
   min-width: 220px;
   border: 1px solid #e5e7ed;
   border-radius: 10px;
@@ -1178,8 +1181,8 @@ body.web-mode .web-shop-toolbar--filters {
   .web-call-wrap {
     width: auto;
     justify-content: flex-start;
-    --web-call-gap: 12px;
-    gap: var(--web-call-gap);
+    --web-call-anchor-offset: 64px;
+    gap: 0;
   }
 
   .web-toolbar-actions--header {
@@ -1188,8 +1191,8 @@ body.web-mode .web-shop-toolbar--filters {
   }
 
   .web-call-panel {
-    left: auto;
-    right: 0;
+    left: var(--web-call-anchor-offset);
+    right: auto;
   }
 }
 
@@ -1668,6 +1671,9 @@ body.web-mode .product-list {
     width: 100%;
     padding: 8px 14px 10px;
   }
+  body.web-mode .web-flow-shell--cart .section-title {
+    margin-left: 46px;
+  }
   body.web-mode .web-centered-page-card {
     max-width: 100%;
     padding: 12px 12px 10px;
@@ -1818,9 +1824,8 @@ body.web-mode .product-list {
   .web-call-wrap {
     width: auto;
     justify-content: flex-start;
-    --web-call-btn-size: 38px;
-    --web-call-gap: 8px;
-    gap: var(--web-call-gap);
+    --web-call-anchor-offset: 46px;
+    gap: 0;
   }
   .web-call-btn {
     width: 38px;
@@ -2152,6 +2157,8 @@ body.web-mode .product-list {
 
 body.web-mode .web-flow-shell--cart .section-title {
   margin-top: 8px;
+  margin-left: 64px;
+  text-align: left;
 }
 
 /* Category dropdown */

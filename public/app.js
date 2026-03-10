@@ -2128,8 +2128,12 @@
 
       var detailPrice = (p.sizes && p.sizes.length) ? p.sizes[0].price : p.price;
       var detailOutOfStock = p.in_stock === 0;
+      var isCompactMobileWeb = !isTelegramRuntime && (window.innerWidth || 0) <= 900;
       var detailActions = detailOutOfStock
         ? '<div class="product-detail-actions"><div class="detail-soon-badge">Скоро будет в наличии</div><button class="card-cart-btn card-cart-btn--catalog" onclick="navigateTo(\'home\')">В каталог</button></div>'
+        : '<div class="product-detail-actions"><button class="card-cart-btn card-cart-btn--large" onclick="addToCartWithSize(' + p.id + ',event)">В корзину</button><button class="card-cart-btn card-cart-btn--catalog" onclick="navigateTo(\'home\')">В каталог</button></div>';
+      var detailActionsCompact = detailOutOfStock
+        ? '<div class="product-detail-actions"><button class="card-cart-btn card-cart-btn--catalog" onclick="navigateTo(\'home\')">В каталог</button></div>'
         : '<div class="product-detail-actions"><button class="card-cart-btn card-cart-btn--large" onclick="addToCartWithSize(' + p.id + ',event)">В корзину</button><button class="card-cart-btn card-cart-btn--catalog" onclick="navigateTo(\'home\')">В каталог</button></div>';
 
       document.getElementById('product-detail').innerHTML =
@@ -2140,10 +2144,10 @@
           '<div class="product-detail-content">' +
             '<div class="product-detail-name">' + escapeHtml(p.name) + '</div>' +
             '<div class="product-detail-price" id="detail-price">' + formatPrice(detailPrice) + '</div>' +
-            '<div class="product-detail-desc">' + escapeHtml(p.description) + '</div>' +
-            (isBouquetCategory(p.category_name) ? '<div class="product-detail-warning">Каждый букет собирается вручную, возможны отличия от фото.</div>' : '') +
-            sizeHtml +
-            detailActions +
+            (isCompactMobileWeb ? '' : '<div class="product-detail-desc">' + escapeHtml(p.description) + '</div>') +
+            (isCompactMobileWeb ? '' : (isBouquetCategory(p.category_name) ? '<div class="product-detail-warning">Каждый букет собирается вручную, возможны отличия от фото.</div>' : '')) +
+            (isCompactMobileWeb ? '' : sizeHtml) +
+            (isCompactMobileWeb ? detailActionsCompact : detailActions) +
           '</div>' +
         '</div>';
 
@@ -2269,8 +2273,13 @@
     var cart = getCart();
     syncFreeService(cart);
     saveCart(cart);
-    var h = '<div class="section-title">Корзина</div>';
-    if (!cart.length) { renderWithWebTop(h + '<div class="empty-state">Корзина пуста</div>'); return; }
+    if (!cart.length) {
+      var emptyCartHtml = isTelegramRuntime
+        ? '<div class="section-title">Корзина</div><div class="empty-state">Корзина пуста</div>'
+        : '<div class="web-flow-shell web-flow-shell--cart"><div class="section-title">Корзина</div><div class="empty-state">Корзина пуста</div></div>';
+      renderWithWebTop(emptyCartHtml);
+      return;
+    }
 
     renderCartItems(cart, keepScroll);
 
