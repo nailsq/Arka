@@ -1692,17 +1692,17 @@ body.web-mode .product-list {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(12, 14, 20, 0.44);
+    background: transparent;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.22s ease;
+    transition: opacity 0.18s linear;
     z-index: 96;
   }
   body.web-mode.web-sheet-open .web-catalog-sheet-overlay {
     pointer-events: auto;
   }
   .site-hero {
-    min-height: 124vh;
+    min-height: 120vh;
     margin: 0 0 12px;
   }
   .site-hero-stage {
@@ -1736,17 +1736,17 @@ body.web-mode .product-list {
     transform: none !important;
   }
   .web-catalog-sheet {
-    --web-sheet-lift: 13vh;
+    --web-sheet-lift: 12vh;
     --web-sheet-progress: 0;
     margin-top: -11vh;
     background: #fff;
     border-radius: 18px 18px 0 0;
-    box-shadow: 0 -10px 28px rgba(16, 18, 24, 0.08);
+    box-shadow: 0 -6px 18px rgba(16, 18, 24, 0.06);
     position: sticky;
     top: calc(var(--web-marquee-offset) + var(--web-safe-top) + 2px);
     z-index: 101;
     transform: translateY(calc(-1 * var(--web-sheet-lift) * var(--web-sheet-progress)));
-    transition: transform 0.18s linear, margin-top 0.28s ease;
+    transition: transform 0.28s cubic-bezier(0.2, 0.85, 0.25, 1), margin-top 0.24s ease;
     will-change: transform;
   }
   .web-catalog-sheet.web-catalog-sheet--closed {
@@ -1859,12 +1859,12 @@ body.web-mode .product-list {
     max-width: 100%;
   }
   .site-hero {
-    min-height: 118vh;
+    min-height: 114vh;
     margin: 0 0 10px;
   }
   .web-catalog-sheet {
     margin-top: -9vh;
-    --web-sheet-lift: 11vh;
+    --web-sheet-lift: 10vh;
     border-radius: 16px 16px 0 0;
     top: calc(var(--web-marquee-offset) + var(--web-safe-top) + 2px);
   }

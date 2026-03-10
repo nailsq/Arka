@@ -1426,10 +1426,14 @@
 
     var handle = document.getElementById('web-catalog-sheet-handle');
     var overlay = document.getElementById('web-catalog-sheet-overlay');
+    var targetProgress = 0;
+    var currentProgress = 0;
+    var rafId = 0;
+    var introPhaseActive = true;
     var isMobileWeb = function () {
       return !isTelegramRuntime && (window.innerWidth || 0) <= 900;
     };
-    var setProgress = function (progress) {
+    var applyProgress = function (progress) {
       var p = Number(progress);
       if (!isFinite(p)) p = 0;
       if (p < 0) p = 0;
@@ -1440,7 +1444,8 @@
       sheet.classList.toggle('web-catalog-sheet--open', isOpen);
       sheet.classList.toggle('web-catalog-sheet--closed', isClosed);
       if (overlay) {
-        overlay.style.opacity = String((0.34 * p).toFixed(3));
+        // Keep overlay interactive for closing, but without darkening.
+        overlay.style.opacity = '0';
         overlay.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
       }
       if (document && document.body) {
@@ -1448,10 +1453,37 @@
       }
       if (handle) handle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     };
+    var tick = function () {
+      currentProgress += (targetProgress - currentProgress) * 0.18;
+      if (Math.abs(targetProgress - currentProgress) < 0.002) {
+        currentProgress = targetProgress;
+      }
+      applyProgress(currentProgress);
+      if (Math.abs(targetProgress - currentProgress) >= 0.002) {
+        rafId = requestAnimationFrame(tick);
+      } else {
+        rafId = 0;
+      }
+    };
+    var setProgress = function (progress) {
+      var p = Number(progress);
+      if (!isFinite(p)) p = 0;
+      if (p < 0) p = 0;
+      if (p > 1) p = 1;
+      targetProgress = p;
+      if (!rafId) rafId = requestAnimationFrame(tick);
+    };
 
     // Start with collapsed mobile sheet.
-    if (isMobileWeb()) setProgress(0);
-    else setProgress(1);
+    if (isMobileWeb()) {
+      targetProgress = 0;
+      currentProgress = 0;
+      applyProgress(0);
+    } else {
+      targetProgress = 1;
+      currentProgress = 1;
+      applyProgress(1);
+    }
 
     window.toggleWebCatalogSheet = function () {
       if (!isMobileWeb()) return;
@@ -1470,7 +1502,9 @@
     };
     var onScroll = function () {
       if (!isMobileWeb()) {
-        setProgress(1);
+        targetProgress = 1;
+        currentProgress = 1;
+        applyProgress(1);
         if (document && document.body) {
           document.body.classList.remove('web-sheet-intro-phase');
           document.body.classList.remove('web-sheet-natural');
@@ -1483,7 +1517,10 @@
       var start = Math.max(8, heroH * 0.06);
       var range = Math.max(140, heroH * 0.34);
       var introPhaseEnd = start + range + 24;
-      var inIntroPhase = y <= introPhaseEnd;
+      // Hysteresis to avoid jitter around intro/natural switch point.
+      if (introPhaseActive && y > (introPhaseEnd + 20)) introPhaseActive = false;
+      if (!introPhaseActive && y < (introPhaseEnd - 28)) introPhaseActive = true;
+      var inIntroPhase = introPhaseActive;
       if (document && document.body) {
         document.body.classList.toggle('web-sheet-intro-phase', inIntroPhase);
         document.body.classList.toggle('web-sheet-natural', !inIntroPhase);
@@ -1531,6 +1568,8 @@
       }
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = 0;
       if (window.toggleWebCatalogSheet) delete window.toggleWebCatalogSheet;
       if (document && document.body) {
         document.body.classList.remove('web-sheet-intro-phase');
