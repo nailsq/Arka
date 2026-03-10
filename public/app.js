@@ -23,6 +23,7 @@
   var detachHomeHeroScroll = null;
   var detachMobileQuickCatsScroll = null;
   var detachWebCatalogSheetBehavior = null;
+  var webCatalogSheetTopOffset = '15%';
   var MOBILE_CATS_COLLAPSED_KEY = 'arka_web_mobile_cats_collapsed';
   if (tg) {
     tg.ready();
@@ -1425,6 +1426,7 @@
     if (!sheet || isTelegramRuntime) return;
 
     var handle = document.getElementById('web-catalog-sheet-handle');
+    var closeBtn = document.getElementById('web-catalog-sheet-close');
     var overlay = document.getElementById('web-catalog-sheet-overlay');
     var targetProgress = 0;
     var currentProgress = 0;
@@ -1439,6 +1441,7 @@
       if (p < 0) p = 0;
       if (p > 1) p = 1;
       sheet.style.setProperty('--web-sheet-progress', p.toFixed(3));
+      sheet.style.setProperty('--web-sheet-top-offset', webCatalogSheetTopOffset);
       var isOpen = p >= 0.9;
       var isClosed = p <= 0.1;
       sheet.classList.toggle('web-catalog-sheet--open', isOpen);
@@ -1533,6 +1536,7 @@
     };
 
     if (handle) handle.addEventListener('click', window.toggleWebCatalogSheet);
+    if (closeBtn) closeBtn.addEventListener('click', closeSheet);
     if (overlay) overlay.addEventListener('click', closeSheet);
 
     // Simple swipe-down dismiss from handle area.
@@ -1561,6 +1565,7 @@
 
     detachWebCatalogSheetBehavior = function () {
       if (handle) handle.removeEventListener('click', window.toggleWebCatalogSheet);
+      if (closeBtn) closeBtn.removeEventListener('click', closeSheet);
       if (overlay) overlay.removeEventListener('click', closeSheet);
       if (handle) {
         handle.removeEventListener('touchstart', onHandleTouchStart);
@@ -1578,6 +1583,14 @@
       }
     };
   }
+
+  // Allows tuning sheet top offset at runtime, e.g. setWebCatalogSheetTopOffset('8%')
+  window.setWebCatalogSheetTopOffset = function (value) {
+    var v = String(value || '').trim();
+    webCatalogSheetTopOffset = v || '15%';
+    var sheet = document.getElementById('web-catalog-sheet');
+    if (sheet) sheet.style.setProperty('--web-sheet-top-offset', webCatalogSheetTopOffset);
+  };
 
   function applyRuntimeLayoutMode() {
     if (!document || !document.body) return;
@@ -2052,24 +2065,32 @@
         siteHero +
         '<div id="web-catalog-sheet-overlay" class="web-catalog-sheet-overlay" aria-hidden="true"></div>' +
         '<section id="web-catalog-sheet" class="web-catalog-sheet web-catalog-sheet--closed">' +
-          '<button id="web-catalog-sheet-handle" class="web-catalog-sheet-handle" type="button" aria-label="Открыть каталог" aria-expanded="false">' +
-            '<span class="web-catalog-sheet-handle-bar"></span>' +
-          '</button>' +
-          '<section class="web-shop-toolbar web-shop-toolbar--filters">' +
-            '<div id="web-quick-search" class="web-quick-search" aria-hidden="true">' +
-              '<div class="web-shop-search-wrap">' +
-                '<input id="web-shop-search" class="web-shop-search" type="search" placeholder="поиск по сайту" oninput="webHomeSearch(this.value)">' +
-                '<button class="web-shop-search-btn" type="button" aria-label="Поиск" onclick="focusWebSearch()">' +
-                  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 4a6.8 6.8 0 1 1 0 13.6A6.8 6.8 0 0 1 10.8 4zm0 2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6zM16.3 15l3.7 3.7-1.4 1.4-3.7-3.7z"/></svg>' +
-                '</button>' +
-              '</div>' +
+          '<div class="web-catalog-sheet-head">' +
+            '<button id="web-catalog-sheet-handle" class="web-catalog-sheet-handle" type="button" aria-label="Открыть каталог" aria-expanded="false">' +
+              '<span class="web-catalog-sheet-handle-bar"></span>' +
+            '</button>' +
+            '<div class="web-catalog-sheet-title-row">' +
+              '<div class="web-catalog-sheet-title">Категории</div>' +
+              '<button id="web-catalog-sheet-close" class="web-catalog-sheet-close" type="button" aria-label="Закрыть">×</button>' +
             '</div>' +
-            '<div id="web-quick-cats" class="web-quick-cats">Загрузка...</div>' +
-          '</section>' +
-          '<section id="home-catalog" class="home-catalog-block">' +
-            '<div id="web-category-sections">Загрузка...</div>' +
-          '</section>' +
-          buildWebStoreInfoSection() +
+          '</div>' +
+          '<div class="web-catalog-sheet-scroll">' +
+            '<section class="web-shop-toolbar web-shop-toolbar--filters">' +
+              '<div id="web-quick-search" class="web-quick-search" aria-hidden="true">' +
+                '<div class="web-shop-search-wrap">' +
+                  '<input id="web-shop-search" class="web-shop-search" type="search" placeholder="поиск по сайту" oninput="webHomeSearch(this.value)">' +
+                  '<button class="web-shop-search-btn" type="button" aria-label="Поиск" onclick="focusWebSearch()">' +
+                    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 4a6.8 6.8 0 1 1 0 13.6A6.8 6.8 0 0 1 10.8 4zm0 2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6zM16.3 15l3.7 3.7-1.4 1.4-3.7-3.7z"/></svg>' +
+                  '</button>' +
+                '</div>' +
+              '</div>' +
+              '<div id="web-quick-cats" class="web-quick-cats">Загрузка...</div>' +
+            '</section>' +
+            '<section id="home-catalog" class="home-catalog-block">' +
+              '<div id="web-category-sections">Загрузка...</div>' +
+            '</section>' +
+            buildWebStoreInfoSection() +
+          '</div>' +
         '</section>'
       );
       setActiveTab('home');
