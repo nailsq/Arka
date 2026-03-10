@@ -1794,9 +1794,10 @@
     var isMobileWeb = !isTelegramRuntime && (window.innerWidth || 0) <= 900;
     if (isMobileWeb) {
       var slides = getMobileHeroSlidesFromSettings();
+      var hasSlides = slides.length > 0;
       var slidesHtml = '';
       var dotsHtml = '';
-      if (slides.length) {
+      if (hasSlides) {
         for (var sIdx = 0; sIdx < slides.length; sIdx++) {
           slidesHtml += '<div class="site-hero-mobile-slide' + (sIdx === 0 ? ' is-active' : '') + '">' +
             '<img class="site-hero-mobile-slide-img" src="' + escapeHtml(slides[sIdx]) + '" alt="АРКА студия цветов">' +
@@ -1809,9 +1810,9 @@
       return '' +
         '<section id="site-hero" class="site-hero site-hero--mobile-static">' +
           '<div class="site-hero-stage">' +
-            '<div id="site-hero-mobile-slider" class="site-hero-mobile-slider">' +
+            '<div id="site-hero-mobile-slider" class="site-hero-mobile-slider' + (hasSlides ? '' : ' site-hero-mobile-slider--plain') + '">' +
               '<div class="site-hero-mobile-track">' + slidesHtml + '</div>' +
-              '<div class="site-hero-mobile-caption">' +
+              '<div class="site-hero-mobile-caption' + (hasSlides ? '' : ' site-hero-mobile-caption--plain') + '">' +
                 '<div class="site-hero-mobile-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
                 '<div class="site-hero-mobile-subtitle">Доставка по Саратову и Энгельсу</div>' +
               '</div>' +
