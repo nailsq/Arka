@@ -1208,6 +1208,7 @@
   var homeCategoriesById = {};
   var webHomeDataCache = null;
   var webHomeSearchQuery = '';
+  var webHomeSearchExpanded = false;
 
   function normalizeCategoryId(id) {
     if (id === null || id === undefined || id === '') return null;
@@ -1363,10 +1364,6 @@
   function renderWebQuickCategories(cats) {
     var el = document.getElementById('web-quick-cats');
     if (!el) return;
-    if (!cats || !cats.length) {
-      el.innerHTML = '';
-      return;
-    }
     var sorted = (cats || []).slice();
     var indexedCats = {};
     sorted.forEach(function (c, i) { indexedCats[c.id] = i; });
@@ -1380,12 +1377,31 @@
     });
 
     var activeCatId = normalizeCategoryId(homeActiveCategory);
-    var html = '<button class="web-quick-cat-chip' + (activeCatId === null ? ' active' : '') + '" onclick="webHomePickCategory(null)">Все</button>';
+    var hasSearchQuery = String(webHomeSearchQuery || '').trim() !== '';
+    var html = '' +
+      '<button class="web-quick-cat-chip web-quick-cat-chip--search' + ((webHomeSearchExpanded || hasSearchQuery) ? ' active' : '') + '" type="button" onclick="toggleWebHomeSearch(event)" aria-label="Поиск по сайту">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 4a6.8 6.8 0 1 1 0 13.6A6.8 6.8 0 0 1 10.8 4zm0 2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6zM16.3 15l3.7 3.7-1.4 1.4-3.7-3.7z"/></svg>' +
+        '<span>Поиск</span>' +
+      '</button>' +
+      '<button class="web-quick-cat-chip' + (activeCatId === null ? ' active' : '') + '" type="button" onclick="webHomePickCategory(null)">Все</button>';
     html += sorted.map(function (c) {
       var cidNorm = normalizeCategoryId(c.id);
-      return '<button class="web-quick-cat-chip' + (activeCatId === cidNorm ? ' active' : '') + '" onclick="webHomePickCategory(' + c.id + ')">' + escapeHtml(formatCategoryChipTitle(c.name)) + '</button>';
+      return '<button class="web-quick-cat-chip' + (activeCatId === cidNorm ? ' active' : '') + '" type="button" onclick="webHomePickCategory(' + c.id + ')">' + escapeHtml(formatCategoryChipTitle(c.name)) + '</button>';
     }).join('');
     el.innerHTML = html;
+    applyWebHomeSearchVisibility();
+  }
+
+  function applyWebHomeSearchVisibility() {
+    var wrap = document.getElementById('web-quick-search');
+    if (!wrap) return;
+    var hasSearchQuery = String(webHomeSearchQuery || '').trim() !== '';
+    var isOpen = webHomeSearchExpanded || hasSearchQuery;
+    wrap.classList.toggle('open', isOpen);
+    wrap.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+    var input = document.getElementById('web-shop-search');
+    if (!input) return;
+    if (input.value !== String(webHomeSearchQuery || '')) input.value = String(webHomeSearchQuery || '');
   }
 
   function bindMobileQuickCatsLayerBehavior() {
@@ -1860,7 +1876,7 @@
         buildWebTopHeaderBar() +
         siteHero +
         '<section class="web-shop-toolbar web-shop-toolbar--filters">' +
-          '<div class="web-shop-topline web-shop-topline--search">' +
+          '<div id="web-quick-search" class="web-quick-search" aria-hidden="true">' +
             '<div class="web-shop-search-wrap">' +
               '<input id="web-shop-search" class="web-shop-search" type="search" placeholder="поиск по сайту" oninput="webHomeSearch(this.value)">' +
               '<button class="web-shop-search-btn" type="button" aria-label="Поиск" onclick="focusWebSearch()">' +
@@ -1991,13 +2007,34 @@
 
   window.webHomeSearch = function (query) {
     webHomeSearchQuery = String(query || '');
+    webHomeSearchExpanded = String(webHomeSearchQuery || '').trim() !== '';
+    renderWebQuickCategories((webHomeDataCache && webHomeDataCache.cats) || []);
     renderWebCategorySectionsFromCache();
   };
 
   window.focusWebSearch = function () {
+    webHomeSearchExpanded = true;
+    applyWebHomeSearchVisibility();
     var input = document.getElementById('web-shop-search');
     if (!input) return;
     input.focus();
+  };
+
+  window.toggleWebHomeSearch = function (event) {
+    if (event) event.stopPropagation();
+    var hasSearchQuery = String(webHomeSearchQuery || '').trim() !== '';
+    if (webHomeSearchExpanded || hasSearchQuery) {
+      webHomeSearchExpanded = false;
+      webHomeSearchQuery = '';
+      renderWebCategorySectionsFromCache();
+    } else {
+      webHomeSearchExpanded = true;
+    }
+    renderWebQuickCategories((webHomeDataCache && webHomeDataCache.cats) || []);
+    if (webHomeSearchExpanded) {
+      var input = document.getElementById('web-shop-search');
+      if (input) input.focus();
+    }
   };
 
   window.toggleWebCallPanel = function (event) {
