@@ -1049,6 +1049,8 @@ body.web-mode .web-shop-toolbar--filters {
   align-items: center;
   width: 168px;
   justify-content: flex-start;
+  gap: 8px;
+  --web-left-btn-size: 42px;
   z-index: 2;
 }
 
@@ -1069,10 +1071,15 @@ body.web-mode .web-shop-toolbar--filters {
   fill: #101114;
 }
 
+.web-home-btn svg {
+  width: 21px;
+  height: 21px;
+}
+
 .web-call-panel {
   position: absolute;
   top: calc(100% + 8px);
-  left: 0;
+  left: calc(var(--web-left-btn-size) + 8px);
   min-width: 220px;
   border: 1px solid #e5e7ed;
   border-radius: 10px;
@@ -1361,7 +1368,7 @@ body.web-mode {
 body.web-mode .web-flow-shell {
   width: min(100%, 1080px);
   margin: 0 auto;
-  padding: 0 24px 12px;
+  padding: 10px 24px 12px;
 }
 
 body.web-mode .web-flow-shell--checkout {
@@ -1571,7 +1578,7 @@ body.web-mode .product-list {
   body.web-mode .web-flow-shell--favorites,
   body.web-mode .web-flow-shell--profile {
     width: 100%;
-    padding: 0 14px 10px;
+    padding: 8px 14px 10px;
   }
   body.web-mode .web-centered-page-card {
     max-width: 100%;
