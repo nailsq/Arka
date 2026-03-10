@@ -1428,50 +1428,48 @@
     var isMobileWeb = function () {
       return !isTelegramRuntime && (window.innerWidth || 0) <= 900;
     };
-    var setState = function (open) {
-      sheet.classList.toggle('web-catalog-sheet--open', !!open);
-      sheet.classList.toggle('web-catalog-sheet--closed', !open);
-      if (handle) {
-        handle.setAttribute('aria-expanded', open ? 'true' : 'false');
-      }
+    var setProgress = function (progress) {
+      var p = Number(progress);
+      if (!isFinite(p)) p = 0;
+      if (p < 0) p = 0;
+      if (p > 1) p = 1;
+      sheet.style.setProperty('--web-sheet-progress', p.toFixed(3));
+      var isOpen = p >= 0.9;
+      var isClosed = p <= 0.1;
+      sheet.classList.toggle('web-catalog-sheet--open', isOpen);
+      sheet.classList.toggle('web-catalog-sheet--closed', isClosed);
+      if (handle) handle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     };
 
     // Start with collapsed mobile sheet.
-    if (isMobileWeb()) setState(false);
-    else setState(true);
+    if (isMobileWeb()) setProgress(0);
+    else setProgress(1);
 
     window.toggleWebCatalogSheet = function () {
-      if (!isMobileWeb()) return;
-      var open = sheet.classList.contains('web-catalog-sheet--open');
-      setState(!open);
-    };
-
-    var lastY = window.scrollY || 0;
-    var onScroll = function () {
       if (!isMobileWeb()) return;
       var y = window.scrollY || 0;
       var hero = document.getElementById('site-hero');
       var heroH = hero ? Math.max(hero.offsetHeight || 0, 1) : 1;
-      var openThreshold = Math.max(36, heroH * 0.18);
-      if (y >= openThreshold) {
-        setState(true);
-      } else if (y <= 8) {
-        setState(false);
-      } else {
-        // Minor direction hint near top for smoother close/open feel.
-        if (y < lastY && y < openThreshold * 0.55) setState(false);
-        if (y > lastY && y > openThreshold * 0.75) setState(true);
+      var start = Math.max(8, heroH * 0.06);
+      var range = Math.max(140, heroH * 0.34);
+      var isOpenNow = (parseFloat(sheet.style.getPropertyValue('--web-sheet-progress')) || 0) >= 0.9;
+      var targetY = isOpenNow ? 0 : (start + range);
+      window.scrollTo({ top: targetY, behavior: 'smooth' });
+    };
+    var onScroll = function () {
+      if (!isMobileWeb()) {
+        setProgress(1);
+        return;
       }
-      lastY = y;
+      var y = window.scrollY || 0;
+      var hero = document.getElementById('site-hero');
+      var heroH = hero ? Math.max(hero.offsetHeight || 0, 1) : 1;
+      var start = Math.max(8, heroH * 0.06);
+      var range = Math.max(140, heroH * 0.34);
+      var progress = (y - start) / range;
+      setProgress(progress);
     };
     var onResize = function () {
-      if (isMobileWeb()) {
-        if (!sheet.classList.contains('web-catalog-sheet--open') && !sheet.classList.contains('web-catalog-sheet--closed')) {
-          setState(false);
-        }
-      } else {
-        setState(true);
-      }
       onScroll();
     };
 
