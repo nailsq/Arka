@@ -1572,6 +1572,17 @@ body.web-mode .product-list {
     --web-marquee-offset: 36px;
     --web-safe-top: env(safe-area-inset-top, 0px);
   }
+  body.web-mode::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: max(52px, calc(var(--web-safe-top) + 2px));
+    background: linear-gradient(90deg, #12131a 0%, #1a1c25 52%, #12131a 100%);
+    z-index: 239;
+    pointer-events: none;
+  }
   body.web-mode .web-marquee {
     position: fixed;
     top: 0;
