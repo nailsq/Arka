@@ -1031,8 +1031,8 @@ body.web-mode .web-shop-toolbar--filters {
 
 .web-shop-topline--header {
   display: grid;
-  grid-template-columns: 168px 1fr 168px;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
   padding: 8px 0 6px;
   align-items: center;
   position: relative;
@@ -1047,8 +1047,9 @@ body.web-mode .web-shop-toolbar--filters {
   position: relative;
   display: flex;
   align-items: center;
-  width: 168px;
-  justify-content: flex-start;
+  width: auto;
+  justify-content: flex-end;
+  justify-self: end;
   gap: 8px;
   --web-left-btn-size: 42px;
   z-index: 2;
@@ -1118,10 +1119,12 @@ body.web-mode .web-shop-toolbar--filters {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1;
+  position: relative;
+  left: auto;
+  transform: none;
+  grid-column: 2;
+  justify-self: center;
+  z-index: 3;
 }
 
 .web-header-logo img {
@@ -1133,8 +1136,9 @@ body.web-mode .web-shop-toolbar--filters {
 }
 
 .web-toolbar-actions--header {
-  width: 168px;
-  justify-content: flex-end;
+  width: auto;
+  justify-content: flex-start;
+  justify-self: start;
   flex: 0 0 auto;
   position: relative;
   z-index: 2;
@@ -1161,17 +1165,18 @@ body.web-mode .web-shop-toolbar--filters {
 
 @media (min-width: 901px) {
   .web-shop-topline--header {
-    grid-template-columns: 200px 1fr 200px;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 14px;
   }
 
   .web-call-wrap {
-    width: 200px;
+    width: auto;
     justify-content: flex-end;
     gap: 12px;
   }
 
   .web-toolbar-actions--header {
-    width: 200px;
+    width: auto;
     justify-content: flex-start;
   }
 
@@ -1798,7 +1803,7 @@ body.web-mode .product-list {
     padding: 8px 0 6px;
   }
   .web-shop-topline--header {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     gap: 6px;
     padding: 7px 0 5px;
     min-height: 68px;
