@@ -1524,32 +1524,32 @@
     };
     var tick = function () {
       if (!running) return;
-      currentRawProgress += (targetRawProgress - currentRawProgress) * 0.085;
+      currentRawProgress += (targetRawProgress - currentRawProgress) * 0.18;
       if (Math.abs(targetRawProgress - currentRawProgress) < 0.0008) {
         currentRawProgress = targetRawProgress;
       }
       var rawProgress = currentRawProgress;
-      var introProgress = rawProgress / 0.52;
+      var introProgress = rawProgress / 0.42;
       if (introProgress > 1) introProgress = 1;
       if (introProgress < 0) introProgress = 0;
 
-      var titleProgress = (rawProgress - 0.44) / 0.42;
+      var titleProgress = (rawProgress - 0.2) / 0.55;
       if (titleProgress > 1) titleProgress = 1;
       if (titleProgress < 0) titleProgress = 0;
 
       var subProgress = 0;
-      if (rawProgress > 0.79) {
-        subProgress = (rawProgress - 0.79) / 0.2;
+      if (rawProgress > 0.55) {
+        subProgress = (rawProgress - 0.55) / 0.35;
         if (subProgress > 1) subProgress = 1;
       }
-      var imageProgress = (rawProgress - 0.34) / 0.5;
+      var imageProgress = (rawProgress - 0.2) / 0.7;
       if (imageProgress > 1) imageProgress = 1;
       if (imageProgress < 0) imageProgress = 0;
 
       heroSection.style.setProperty('--hero-intro-progress', introProgress.toFixed(3));
       heroSection.style.setProperty('--hero-title-progress', titleProgress.toFixed(3));
       heroSection.style.setProperty('--hero-subtitle-progress', subProgress.toFixed(3));
-      heroSection.style.setProperty('--hero-section-progress', titleProgress.toFixed(3));
+      heroSection.style.setProperty('--hero-section-progress', rawProgress.toFixed(3));
       heroSection.style.setProperty('--hero-image-progress', imageProgress.toFixed(3));
       rafId = requestAnimationFrame(tick);
     };
