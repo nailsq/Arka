@@ -1059,12 +1059,13 @@ body.web-mode .web-shop-toolbar--filters {
 .web-call-btn {
   width: 42px;
   height: 42px;
-  border: 1px solid #dfe1e8;
+  border: none;
   border-radius: 10px;
-  background: #fff;
+  background: transparent;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-shadow: none;
 }
 
 .web-call-btn svg {
