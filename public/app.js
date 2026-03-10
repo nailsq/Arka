@@ -386,6 +386,38 @@
         return;
       }
       container.innerHTML = '';
+      var isMobileWeb = !isTelegramRuntime && (window.innerWidth || 0) <= 560;
+      var origin = window.location.origin;
+      var returnTo = origin + '/api/auth/telegram-web/callback';
+      var oauthUrl = '';
+      if (webTelegramBotId) {
+        oauthUrl = 'https://oauth.telegram.org/auth?bot_id=' + encodeURIComponent(webTelegramBotId) +
+          '&origin=' + encodeURIComponent(origin) +
+          '&return_to=' + encodeURIComponent(returnTo) +
+          '&request_access=write';
+      }
+      var primaryAuthUrl = webTelegramAuthUrl || oauthUrl;
+      if (primaryAuthUrl) {
+        var directWrap = document.createElement('div');
+        directWrap.style.marginBottom = isMobileWeb ? '8px' : '10px';
+        directWrap.innerHTML =
+          '<a class="nav-btn nav-btn--filled" href="' + primaryAuthUrl + '">' +
+          'Войти через Telegram' +
+          '</a>';
+        container.appendChild(directWrap);
+      }
+      // On mobile web direct redirect auth is much more stable than embedded widget.
+      if (isMobileWeb) {
+        if (webTelegramBotUsername) {
+          var mobileHint = document.createElement('div');
+          mobileHint.style.marginTop = '6px';
+          mobileHint.innerHTML =
+            '<a class="nav-btn" href="https://t.me/' + encodeURIComponent(webTelegramBotUsername) +
+            '" target="_blank" rel="noopener">Открыть Telegram-бота</a>';
+          container.appendChild(mobileHint);
+        }
+        return;
+      }
       var script = document.createElement('script');
       script.async = true;
       script.src = 'https://telegram.org/js/telegram-widget.js?22';
@@ -407,13 +439,7 @@
         container.appendChild(linkWrap);
       }
       // Fallback OAuth link (works when embedded widget callback is blocked).
-      if (webTelegramBotId) {
-        var origin = window.location.origin;
-        var returnTo = origin + '/api/auth/telegram-web/callback';
-        var oauthUrl = 'https://oauth.telegram.org/auth?bot_id=' + encodeURIComponent(webTelegramBotId) +
-          '&origin=' + encodeURIComponent(origin) +
-          '&return_to=' + encodeURIComponent(returnTo) +
-          '&request_access=write';
+      if (oauthUrl) {
         var oauthWrap = document.createElement('div');
         oauthWrap.style.marginTop = '8px';
         oauthWrap.innerHTML =
@@ -1090,7 +1116,9 @@
         navigateTo(initialRoute.page, initialRoute.param, true);
       } else if (forceAccount) {
         initialPage = 'account';
-        navigateTo('account', null, true);
+        refreshWebSessionAuth(true).finally(function () {
+          navigateTo('account', null, true);
+        });
       } else {
         showHome();
       }
