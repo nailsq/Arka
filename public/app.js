@@ -22,6 +22,7 @@
   var isTelegramRuntime = false;
   var detachHomeHeroScroll = null;
   var detachMobileQuickCatsScroll = null;
+  var detachWebCatalogSheetBehavior = null;
   var MOBILE_CATS_COLLAPSED_KEY = 'arka_web_mobile_cats_collapsed';
   if (tg) {
     tg.ready();
@@ -1415,6 +1416,78 @@
     try { localStorage.removeItem(MOBILE_CATS_COLLAPSED_KEY); } catch (e) {}
   }
 
+  function bindWebCatalogSheetBehavior() {
+    if (detachWebCatalogSheetBehavior) {
+      detachWebCatalogSheetBehavior();
+      detachWebCatalogSheetBehavior = null;
+    }
+    var sheet = document.getElementById('web-catalog-sheet');
+    if (!sheet || isTelegramRuntime) return;
+
+    var handle = document.getElementById('web-catalog-sheet-handle');
+    var isMobileWeb = function () {
+      return !isTelegramRuntime && (window.innerWidth || 0) <= 900;
+    };
+    var setState = function (open) {
+      sheet.classList.toggle('web-catalog-sheet--open', !!open);
+      sheet.classList.toggle('web-catalog-sheet--closed', !open);
+      if (handle) {
+        handle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+    };
+
+    // Start with collapsed mobile sheet.
+    if (isMobileWeb()) setState(false);
+    else setState(true);
+
+    window.toggleWebCatalogSheet = function () {
+      if (!isMobileWeb()) return;
+      var open = sheet.classList.contains('web-catalog-sheet--open');
+      setState(!open);
+    };
+
+    var lastY = window.scrollY || 0;
+    var onScroll = function () {
+      if (!isMobileWeb()) return;
+      var y = window.scrollY || 0;
+      var hero = document.getElementById('site-hero');
+      var heroH = hero ? Math.max(hero.offsetHeight || 0, 1) : 1;
+      var openThreshold = Math.max(36, heroH * 0.18);
+      if (y >= openThreshold) {
+        setState(true);
+      } else if (y <= 8) {
+        setState(false);
+      } else {
+        // Minor direction hint near top for smoother close/open feel.
+        if (y < lastY && y < openThreshold * 0.55) setState(false);
+        if (y > lastY && y > openThreshold * 0.75) setState(true);
+      }
+      lastY = y;
+    };
+    var onResize = function () {
+      if (isMobileWeb()) {
+        if (!sheet.classList.contains('web-catalog-sheet--open') && !sheet.classList.contains('web-catalog-sheet--closed')) {
+          setState(false);
+        }
+      } else {
+        setState(true);
+      }
+      onScroll();
+    };
+
+    if (handle) handle.addEventListener('click', window.toggleWebCatalogSheet);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onResize);
+    onScroll();
+
+    detachWebCatalogSheetBehavior = function () {
+      if (handle) handle.removeEventListener('click', window.toggleWebCatalogSheet);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onResize);
+      if (window.toggleWebCatalogSheet) delete window.toggleWebCatalogSheet;
+    };
+  }
+
   function applyRuntimeLayoutMode() {
     if (!document || !document.body) return;
     document.body.classList.toggle('web-mode', !isTelegramRuntime);
@@ -1875,27 +1948,33 @@
       render(
         buildWebTopHeaderBar() +
         siteHero +
-        '<section class="web-shop-toolbar web-shop-toolbar--filters">' +
-          '<div id="web-quick-search" class="web-quick-search" aria-hidden="true">' +
-            '<div class="web-shop-search-wrap">' +
-              '<input id="web-shop-search" class="web-shop-search" type="search" placeholder="поиск по сайту" oninput="webHomeSearch(this.value)">' +
-              '<button class="web-shop-search-btn" type="button" aria-label="Поиск" onclick="focusWebSearch()">' +
-                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 4a6.8 6.8 0 1 1 0 13.6A6.8 6.8 0 0 1 10.8 4zm0 2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6zM16.3 15l3.7 3.7-1.4 1.4-3.7-3.7z"/></svg>' +
-              '</button>' +
+        '<section id="web-catalog-sheet" class="web-catalog-sheet web-catalog-sheet--closed">' +
+          '<button id="web-catalog-sheet-handle" class="web-catalog-sheet-handle" type="button" aria-label="Открыть каталог" aria-expanded="false">' +
+            '<span class="web-catalog-sheet-handle-bar"></span>' +
+          '</button>' +
+          '<section class="web-shop-toolbar web-shop-toolbar--filters">' +
+            '<div id="web-quick-search" class="web-quick-search" aria-hidden="true">' +
+              '<div class="web-shop-search-wrap">' +
+                '<input id="web-shop-search" class="web-shop-search" type="search" placeholder="поиск по сайту" oninput="webHomeSearch(this.value)">' +
+                '<button class="web-shop-search-btn" type="button" aria-label="Поиск" onclick="focusWebSearch()">' +
+                  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 4a6.8 6.8 0 1 1 0 13.6A6.8 6.8 0 0 1 10.8 4zm0 2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6zM16.3 15l3.7 3.7-1.4 1.4-3.7-3.7z"/></svg>' +
+                '</button>' +
+              '</div>' +
             '</div>' +
-          '</div>' +
-          '<div id="web-quick-cats" class="web-quick-cats">Загрузка...</div>' +
-        '</section>' +
-        '<section id="home-catalog" class="home-catalog-block">' +
-          '<div id="web-category-sections">Загрузка...</div>' +
-        '</section>' +
-        buildWebStoreInfoSection()
+            '<div id="web-quick-cats" class="web-quick-cats">Загрузка...</div>' +
+          '</section>' +
+          '<section id="home-catalog" class="home-catalog-block">' +
+            '<div id="web-category-sections">Загрузка...</div>' +
+          '</section>' +
+          buildWebStoreInfoSection() +
+        '</section>'
       );
       setActiveTab('home');
       updateFavBadge();
       updateCartBadge();
       bindHomeHeroAnimation();
       bindMobileQuickCatsLayerBehavior();
+      bindWebCatalogSheetBehavior();
       var loadWebHomeData = function () {
         Promise.all([fetchJSON('/api/categories'), fetchJSON('/api/products')]).then(function (res) {
           var cats = res[0] || [];
@@ -4786,6 +4865,10 @@
     if (page !== 'home' && detachMobileQuickCatsScroll) {
       detachMobileQuickCatsScroll();
       detachMobileQuickCatsScroll = null;
+    }
+    if (page !== 'home' && detachWebCatalogSheetBehavior) {
+      detachWebCatalogSheetBehavior();
+      detachWebCatalogSheetBehavior = null;
     }
     if (page !== 'home' && document && document.body) document.body.classList.remove('mobile-toolbar-fixed');
     if (page !== 'account') stopTrackingPoll();
