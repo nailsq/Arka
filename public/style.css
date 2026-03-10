@@ -1677,7 +1677,7 @@ body.web-mode .product-list {
 
 @media (max-width: 900px) {
   .site-hero {
-    min-height: 112vh;
+    min-height: 106vh;
   }
   body.web-mode .product-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1752,17 +1752,10 @@ body.web-mode .product-list {
     max-width: 100%;
   }
   .site-hero {
-    min-height: 102vh;
+    min-height: 106vh;
   }
   .site-hero-stage {
-    padding: 12px 14px 10px;
-  }
-  .site-hero-bouquet {
-    margin-top: 5vh;
-    width: min(320px, 80vw);
-  }
-  .site-hero-brand {
-    margin: 0;
+    padding: 18px 14px 20px;
   }
   .home-catalog-block {
     padding: 0 18px;
