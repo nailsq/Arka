@@ -1677,29 +1677,32 @@ body.web-mode .product-list {
 
 @media (max-width: 900px) {
   .site-hero {
-    min-height: 106vh;
+    min-height: 48vh;
+    margin: 0 0 10px;
   }
   .site-hero-stage {
-    padding-top: 12px;
-    padding-bottom: 20px;
-  }
-  .site-hero-bouquet {
-    margin-top: 6vh;
+    min-height: 48vh;
+    justify-content: flex-start;
+    gap: 10px;
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
   .site-hero-intro {
-    transform: translateY(calc(14vh * var(--hero-section-progress)));
+    transform: none;
     z-index: 220;
   }
   .site-hero-brand {
-    transform: translateY(calc(8px + (16vh * var(--hero-section-progress))));
+    transform: none;
+    margin: 0;
     z-index: 220;
   }
   .site-hero-hint {
-    transform: translateY(calc(6px + (10vh * var(--hero-section-progress))));
+    transform: none;
+    margin-top: 4px;
     z-index: 220;
   }
   body.web-mode .web-shop-toolbar--filters {
-    margin-top: -4vh;
+    margin-top: 0;
     position: relative;
     z-index: 100;
   }
@@ -1776,25 +1779,28 @@ body.web-mode .product-list {
     max-width: 100%;
   }
   .site-hero {
-    min-height: 106vh;
-  }
-  .site-hero-bouquet {
-    margin-top: 4vh;
+    min-height: 42vh;
+    margin: 0 0 8px;
   }
   .site-hero-intro {
-    transform: translateY(calc(16vh * var(--hero-section-progress)));
+    transform: none;
     z-index: 220;
   }
   .site-hero-brand {
-    transform: translateY(calc(10px + (18vh * var(--hero-section-progress))));
+    transform: none;
+    margin: 0;
     z-index: 220;
   }
   .site-hero-hint {
-    transform: translateY(calc(8px + (12vh * var(--hero-section-progress))));
+    transform: none;
+    margin-top: 4px;
     z-index: 220;
   }
   .site-hero-stage {
-    padding: 10px 14px 16px;
+    min-height: 42vh;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 8px 14px 10px;
   }
   .home-catalog-block {
     padding: 0 18px;
