@@ -1685,11 +1685,13 @@ body.web-mode .product-list {
 
 @media (max-width: 900px) {
   .site-hero {
-    min-height: 86vh;
+    min-height: 124vh;
     margin: 0 0 12px;
   }
   .site-hero-stage {
-    min-height: 86vh;
+    min-height: 100vh;
+    position: sticky;
+    top: calc(var(--web-marquee-offset) + var(--web-safe-top));
     justify-content: space-between;
     gap: 14px;
     padding-top: 14px;
@@ -1709,6 +1711,10 @@ body.web-mode .product-list {
     margin-top: 10px;
     z-index: 220;
   }
+  .site-hero-bouquet {
+    transform: none !important;
+    filter: none !important;
+  }
   .site-hero-title,
   .site-hero-subtitle,
   .site-hero-intro-title {
@@ -1721,7 +1727,8 @@ body.web-mode .product-list {
     background: #fff;
     border-radius: 18px 18px 0 0;
     box-shadow: 0 -10px 28px rgba(16, 18, 24, 0.08);
-    position: relative;
+    position: sticky;
+    top: calc(var(--web-marquee-offset) + var(--web-safe-top) + 2px);
     z-index: 100;
     transform: translateY(calc(-1 * var(--web-sheet-lift) * var(--web-sheet-progress)));
     transition: transform 0.18s linear, margin-top 0.28s ease;
@@ -1830,13 +1837,14 @@ body.web-mode .product-list {
     max-width: 100%;
   }
   .site-hero {
-    min-height: 80vh;
+    min-height: 118vh;
     margin: 0 0 10px;
   }
   .web-catalog-sheet {
     margin-top: -8vh;
     --web-sheet-lift: 6vh;
     border-radius: 16px 16px 0 0;
+    top: calc(var(--web-marquee-offset) + var(--web-safe-top) + 2px);
   }
   .web-catalog-sheet.web-catalog-sheet--open {
     --web-sheet-progress: 1;
@@ -1855,13 +1863,17 @@ body.web-mode .product-list {
     margin-top: 8px;
     z-index: 220;
   }
+  .site-hero-bouquet {
+    transform: none !important;
+    filter: none !important;
+  }
   .site-hero-title,
   .site-hero-subtitle,
   .site-hero-intro-title {
     transform: none !important;
   }
   .site-hero-stage {
-    min-height: 80vh;
+    min-height: calc(100vh - (var(--web-marquee-offset) + var(--web-safe-top)));
     justify-content: space-between;
     gap: 12px;
     padding: 12px 14px 16px;

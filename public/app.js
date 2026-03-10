@@ -1572,10 +1572,21 @@
       return;
     }
     var updateTargetsFromScroll = function () {
-      var rect = heroSection.getBoundingClientRect();
-      var viewH = window.innerHeight || 1;
-      var travel = Math.max((heroSection.offsetHeight || 1) - viewH, 1);
-      var raw = (-rect.top) / travel;
+      var raw = 0;
+      var isMobileWeb = !isTelegramRuntime && (window.innerWidth || 0) <= 900;
+      if (isMobileWeb) {
+        // Mobile web: keep intro static and drive only text-change phase
+        // from the first part of page scroll (sheet opening zone).
+        var y = window.scrollY || 0;
+        var start = 6;
+        var travel = 300;
+        raw = (y - start) / travel;
+      } else {
+        var rect = heroSection.getBoundingClientRect();
+        var viewH = window.innerHeight || 1;
+        var travelDesktop = Math.max((heroSection.offsetHeight || 1) - viewH, 1);
+        raw = (-rect.top) / travelDesktop;
+      }
       if (raw < 0) raw = 0;
       if (raw > 1) raw = 1;
       targetRawProgress = raw;
