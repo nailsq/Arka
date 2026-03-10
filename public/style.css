@@ -180,7 +180,7 @@ button, select {
 }
 
 body.web-mode {
-  --web-marquee-offset: 42px;
+  --web-marquee-offset: 38px;
   --web-safe-top: env(safe-area-inset-top, 0px);
   --web-toolbar-fixed-height: 176px;
 }
@@ -879,7 +879,7 @@ body.web-mode .web-shop-toolbar {
   z-index: 2;
   background: linear-gradient(90deg, #12131a 0%, #1a1c25 52%, #12131a 100%);
   color: #f8f8fa;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: none;
   overflow: hidden;
   white-space: nowrap;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18) inset;
@@ -942,7 +942,7 @@ body.web-mode .web-marquee {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1.15;
   letter-spacing: 0.09em;
@@ -1033,8 +1033,10 @@ body.web-mode .web-shop-toolbar--filters {
   display: grid;
   grid-template-columns: 168px 1fr 168px;
   gap: 10px;
-  padding: 10px 0 8px;
+  padding: 8px 0 6px;
   align-items: center;
+  position: relative;
+  min-height: 86px;
 }
 
 .web-shop-topline--search {
@@ -1047,6 +1049,7 @@ body.web-mode .web-shop-toolbar--filters {
   align-items: center;
   width: 168px;
   justify-content: flex-start;
+  z-index: 2;
 }
 
 .web-call-btn {
@@ -1101,13 +1104,17 @@ body.web-mode .web-shop-toolbar--filters {
   background: transparent;
   padding: 0;
   width: min(100%, 640px);
-  height: 94px;
+  height: 84px;
   min-width: 0;
-  margin: 0 auto;
+  margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
 }
 
 .web-header-logo img {
@@ -1122,6 +1129,8 @@ body.web-mode .web-shop-toolbar--filters {
   width: 168px;
   justify-content: flex-end;
   flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
 }
 
 .web-quick-cats {
@@ -1343,6 +1352,10 @@ body.web-mode #app {
   padding: 0 0 24px;
   background: #fff;
   overflow-x: clip;
+}
+
+body.web-mode {
+  overflow-x: hidden;
 }
 
 body.web-mode .web-flow-shell {
@@ -1579,7 +1592,7 @@ body.web-mode .product-list {
 
 @media (max-width: 560px) {
   body.web-mode {
-    --web-marquee-offset: 36px;
+    --web-marquee-offset: 32px;
     --web-safe-top: env(safe-area-inset-top, 0px);
   }
   body.web-mode::before {
@@ -1588,7 +1601,7 @@ body.web-mode .product-list {
     top: 0;
     left: 0;
     right: 0;
-    height: max(52px, calc(var(--web-safe-top) + 2px));
+    height: calc(var(--web-safe-top) + 1px);
     background: linear-gradient(90deg, #12131a 0%, #1a1c25 52%, #12131a 100%);
     z-index: 239;
     pointer-events: none;
@@ -1608,6 +1621,8 @@ body.web-mode .product-list {
   body.web-mode .product-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+    width: 100%;
+    max-width: 100%;
   }
   .site-hero {
     min-height: 124vh;
@@ -1669,7 +1684,7 @@ body.web-mode .product-list {
     z-index: 110;
   }
   .web-marquee-item {
-    font-size: 12px;
+    font-size: 11px;
     letter-spacing: 0.08em;
     padding: 0 14px;
   }
@@ -1687,6 +1702,14 @@ body.web-mode .product-list {
     min-height: 38px;
     font-size: clamp(12px, 3.2vw, 14px);
   }
+  body.web-mode .product-card,
+  body.web-mode .product-card-img-wrap,
+  body.web-mode .product-card-body,
+  body.web-mode .product-card-name,
+  body.web-mode .product-card-price {
+    max-width: 100%;
+    min-width: 0;
+  }
   .web-shop-topline {
     gap: 6px;
     padding: 8px 0 6px;
@@ -1694,7 +1717,8 @@ body.web-mode .product-list {
   .web-shop-topline--header {
     grid-template-columns: 44px 1fr auto;
     gap: 6px;
-    padding: 8px 0 6px;
+    padding: 7px 0 5px;
+    min-height: 68px;
   }
   .web-call-wrap {
     width: 44px;
@@ -1713,8 +1737,8 @@ body.web-mode .product-list {
     padding: 8px;
   }
   .web-header-logo {
-    width: min(100%, 392px);
-    height: 74px;
+    width: min(100%, 300px);
+    height: 62px;
   }
   .web-toolbar-actions {
     gap: 2px;
@@ -2154,6 +2178,7 @@ body.web-mode .product-card.card-inview {
 /* Web cards: keep same visual style as Mini App */
 body.web-mode .product-card {
   border-radius: 12px;
+  min-width: 0;
 }
 
 body.web-mode .product-card:hover {
@@ -2175,6 +2200,7 @@ body.web-mode .product-card-body {
   align-items: stretch;
   text-align: left;
   padding: 8px 4px 0;
+  min-width: 0;
 }
 
 body.web-mode .product-card-name {
@@ -2182,6 +2208,9 @@ body.web-mode .product-card-name {
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 body.web-mode .product-card-price {
