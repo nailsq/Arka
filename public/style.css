@@ -1696,18 +1696,23 @@ body.web-mode .product-list {
     padding-bottom: 18px;
   }
   .site-hero-intro {
-    transform: translateY(calc(-14px * var(--hero-intro-progress)));
+    transform: none;
     z-index: 220;
   }
   .site-hero-brand {
-    transform: translateY(calc(10px - (10px * var(--hero-title-progress))));
+    transform: none;
     margin: auto 0;
     z-index: 220;
   }
   .site-hero-hint {
-    transform: translateY(calc(6px - (6px * var(--hero-title-progress))));
+    transform: none;
     margin-top: 10px;
     z-index: 220;
+  }
+  .site-hero-title,
+  .site-hero-subtitle,
+  .site-hero-intro-title {
+    transform: none !important;
   }
   .web-catalog-sheet {
     --web-sheet-lift: 8vh;
@@ -1837,18 +1842,23 @@ body.web-mode .product-list {
     --web-sheet-progress: 1;
   }
   .site-hero-intro {
-    transform: translateY(calc(-12px * var(--hero-intro-progress)));
+    transform: none;
     z-index: 220;
   }
   .site-hero-brand {
-    transform: translateY(calc(8px - (8px * var(--hero-title-progress))));
+    transform: none;
     margin: auto 0;
     z-index: 220;
   }
   .site-hero-hint {
-    transform: translateY(calc(4px - (4px * var(--hero-title-progress))));
+    transform: none;
     margin-top: 8px;
     z-index: 220;
+  }
+  .site-hero-title,
+  .site-hero-subtitle,
+  .site-hero-intro-title {
+    transform: none !important;
   }
   .site-hero-stage {
     min-height: 80vh;
