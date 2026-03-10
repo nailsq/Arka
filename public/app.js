@@ -1701,9 +1701,8 @@
 
   function buildWebTopHeaderBar() {
     if (isTelegramRuntime) return '';
-    var isMobileWeb = (window.innerWidth || 0) <= 560;
-    var marqueeBeforeToolbar = isMobileWeb ? '' : buildWebMarqueeBar();
-    var marqueeInsideToolbar = isMobileWeb ? buildWebMarqueeBar() : '';
+    var marqueeBeforeToolbar = buildWebMarqueeBar();
+    var marqueeInsideToolbar = '';
     var shopPhone = getPrimaryPhone();
     var shopPhoneEsc = escapeHtml(shopPhone);
     var shopPhoneTel = phoneToTelHref(shopPhone);
@@ -1851,46 +1850,13 @@
     '</div>';
     setActiveTab('home');
     if (!isTelegramRuntime) {
-      var isMobileWeb = (window.innerWidth || 0) <= 560;
-      var marqueeBeforeToolbar = isMobileWeb ? '' : buildWebMarqueeBar();
-      var marqueeInsideToolbar = isMobileWeb ? buildWebMarqueeBar() : '';
       document.body.classList.remove('site-cover-active');
       document.body.classList.remove('mobile-toolbar-fixed');
       document.body.classList.remove('web-mobile-cats-collapsed');
-      var shopPhone = getPrimaryPhone();
-      var shopPhoneEsc = escapeHtml(shopPhone);
-      var shopPhoneTel = phoneToTelHref(shopPhone);
       render(
-        marqueeBeforeToolbar +
+        buildWebTopHeaderBar() +
         siteHero +
-        '<section class="web-shop-toolbar web-shop-toolbar--mobile-fixable' + ((showSiteHeroBlock && !isDesktopCoverOverlay) ? '' : ' web-shop-toolbar--no-hero') + '">' +
-          marqueeInsideToolbar +
-          '<div class="web-shop-topline web-shop-topline--header">' +
-            '<div id="web-call-wrap" class="web-call-wrap">' +
-              '<button class="web-call-btn" type="button" aria-label="Позвонить" onclick="toggleWebCallPanel(event)">' +
-                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.3 15.3 0 0 0 6.6 6.6l2.2-2.2c.2-.2.5-.3.8-.2 1 .3 2 .4 3 .4.5 0 .9.4.9.9V20c0 .5-.4.9-.9.9C10.7 20.9 3.1 13.3 3.1 3.9c0-.5.4-.9.9-.9h3.7c.5 0 .9.4.9.9 0 1 .1 2 .4 3 .1.3 0 .6-.2.8l-2.2 2.2z"/></svg>' +
-              '</button>' +
-              '<div id="web-call-panel" class="web-call-panel" onclick="event.stopPropagation()">' +
-                '<a href="' + shopPhoneTel + '" class="web-call-panel-link">Позвонить: ' + shopPhoneEsc + '</a>' +
-              '</div>' +
-            '</div>' +
-            '<button class="web-header-logo" type="button" onclick="navigateTo(\'home\')" aria-label="ARKA FLOWERS">' +
-              '<img src="/images/logo.svg" alt="АРКА СТУДИЯ ЦВЕТОВ">' +
-            '</button>' +
-            '<div class="web-toolbar-actions web-toolbar-actions--header">' +
-              '<button class="web-toolbar-action-btn" data-tab="account" onclick="navigateTo(\'account\')" aria-label="Профиль">' +
-                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.2 4.2 0 1 1 0-8.4A4.2 4.2 0 0 1 12 12zm0 2c4.2 0 7.6 2.6 7.6 5.8 0 .6-.4 1-1 1H5.4c-.6 0-1-.4-1-1C4.4 16.6 7.8 14 12 14zm0 2c-2.8 0-5 1.4-5.5 2.8h11c-.5-1.4-2.7-2.8-5.5-2.8z"/></svg>' +
-              '</button>' +
-              '<button class="web-toolbar-action-btn" data-tab="favorites" onclick="navigateTo(\'favorites\')" aria-label="Избранное">' +
-                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21.4l-1.4-1.3C5.6 15.4 2 12.1 2 8.3 2 5.4 4.2 3 7.1 3c1.7 0 3.3.8 4.3 2.1A5.4 5.4 0 0 1 15.7 3C18.7 3 21 5.4 21 8.3c0 3.8-3.6 7.1-8.6 11.8L12 21.4zm-4.9-16.4C5.3 5 4 6.4 4 8.3c0 2.9 3 5.7 8 10.2 5-4.5 8-7.3 8-10.2C20 6.4 18.7 5 16.9 5c-1.4 0-2.7.8-3.4 2l-1 .7-1-.7A4 4 0 0 0 7.1 5z"/></svg>' +
-                '<span id="web-toolbar-fav-badge" class="web-toolbar-badge" style="display:none"></span>' +
-              '</button>' +
-              '<button class="web-toolbar-action-btn" data-tab="cart" onclick="navigateTo(\'cart\')" aria-label="Корзина">' +
-                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18c-1.1 0-2 .9-2 2a2 2 0 1 0 4 0c0-1.1-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2a2 2 0 1 0 4 0c0-1.1-.9-2-2-2zM6.2 5l1.1 2.2h10.3a1 1 0 0 1 .9 1.5l-1.7 3.2a2 2 0 0 1-1.8 1H8.6l-.7 1.3h9.7v2H7.8a2 2 0 0 1-1.8-3l1-1.9L4.3 5H2V3h3a1 1 0 0 1 .9.6z"/></svg>' +
-                '<span id="web-toolbar-cart-badge" class="web-toolbar-badge" style="display:none"></span>' +
-              '</button>' +
-            '</div>' +
-          '</div>' +
+        '<section class="web-shop-toolbar web-shop-toolbar--filters">' +
           '<div class="web-shop-topline web-shop-topline--search">' +
             '<div class="web-shop-search-wrap">' +
               '<input id="web-shop-search" class="web-shop-search" type="search" placeholder="поиск по сайту" oninput="webHomeSearch(this.value)">' +
