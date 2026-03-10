@@ -1140,6 +1140,17 @@ body.web-mode .web-shop-toolbar--filters {
   z-index: 2;
 }
 
+/* Keep right-side icon order stable across layouts/cached markup */
+.web-toolbar-actions--header .web-toolbar-action-btn[data-tab="favorites"] {
+  order: 1;
+}
+.web-toolbar-actions--header .web-toolbar-action-btn[data-tab="cart"] {
+  order: 2;
+}
+.web-toolbar-actions--header .web-toolbar-action-btn[data-tab="account"] {
+  order: 3;
+}
+
 .web-quick-cats {
   display: flex;
   flex-wrap: wrap;
@@ -3004,15 +3015,13 @@ body.web-mode .product-detail-page {
 }
 
 body.web-mode .product-detail {
-  display: grid;
-  grid-template-columns: minmax(320px, 520px) 1fr;
-  align-items: start;
-  column-gap: 34px;
+  display: block;
 }
 
 body.web-mode .product-detail-media {
-  position: sticky;
-  top: 92px;
+  position: relative;
+  top: auto;
+  margin-bottom: 18px;
 }
 
 body.web-mode .product-detail-content {

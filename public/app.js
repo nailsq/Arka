@@ -1713,7 +1713,7 @@
         '<div class="web-shop-topline web-shop-topline--header">' +
           '<div id="web-call-wrap" class="web-call-wrap">' +
             '<button class="web-call-btn web-home-btn" type="button" aria-label="На главную" onclick="navigateTo(\'home\')">' +
-              '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 3 10.9V21h6.5v-6.1h5V21H21V10.9L12 3.2zm0 2.6 7 6V19h-2.5v-6.1h-9V19H5v-7.2l7-6z"/></svg>' +
+              '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3 9 12l5.7 5.7-1.4 1.4L6.2 12l7.1-7.1z"/><path d="M7 11h11v2H7z"/></svg>' +
             '</button>' +
             '<button class="web-call-btn" type="button" aria-label="Позвонить" onclick="toggleWebCallPanel(event)">' +
               '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.3 15.3 0 0 0 6.6 6.6l2.2-2.2c.2-.2.5-.3.8-.2 1 .3 2 .4 3 .4.5 0 .9.4.9.9V20c0 .5-.4.9-.9.9C10.7 20.9 3.1 13.3 3.1 3.9c0-.5.4-.9.9-.9h3.7c.5 0 .9.4.9.9 0 1 .1 2 .4 3 .1.3 0 .6-.2.8l-2.2 2.2z"/></svg>' +
