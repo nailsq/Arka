@@ -21,11 +21,10 @@
   var tg = window.Telegram && window.Telegram.WebApp;
   var isTelegramRuntime = false;
   var detachHomeHeroScroll = null;
-  var detachMobileHeroSlider = null;
   var detachMobileQuickCatsScroll = null;
   var detachWebCatalogSheetBehavior = null;
-  // Mobile sheet should open right under the web header line.
-  var webCatalogSheetTopOffset = 'calc(var(--web-marquee-offset) + var(--web-safe-top) + 74px)';
+  // Keep intro text visible: sheet stops lower by default.
+  var webCatalogSheetTopOffset = '36%';
   var MOBILE_CATS_COLLAPSED_KEY = 'arka_web_mobile_cats_collapsed';
   if (tg) {
     tg.ready();
@@ -775,10 +774,6 @@
   }
 
   function render(html) {
-    if (detachMobileHeroSlider && String(html || '').indexOf('site-hero-mobile-slider') < 0) {
-      detachMobileHeroSlider();
-      detachMobileHeroSlider = null;
-    }
     appEl.innerHTML = html;
     window.scrollTo(0, 0);
   }
@@ -1625,10 +1620,6 @@
       detachHomeHeroScroll();
       detachHomeHeroScroll = null;
     }
-    if (detachMobileHeroSlider) {
-      detachMobileHeroSlider();
-      detachMobileHeroSlider = null;
-    }
     var heroSection = document.getElementById('site-hero');
     if (!heroSection) {
       if (document && document.body) {
@@ -1688,7 +1679,6 @@
       heroSection.style.setProperty('--hero-section-progress', '1');
       heroSection.style.setProperty('--hero-image-progress', '1');
       document.body.classList.remove('mobile-toolbar-fixed');
-      detachMobileHeroSlider = initMobileHeroSlider(heroSection);
       syncWebQuickNavVisibility('home');
       return;
     }
@@ -1793,30 +1783,12 @@
     var isDesktop = !isTelegramRuntime && (window.innerWidth || 0) >= 900;
     var isMobileWeb = !isTelegramRuntime && (window.innerWidth || 0) <= 900;
     if (isMobileWeb) {
-      var slides = getMobileHeroSlidesFromSettings();
-      var hasSlides = slides.length > 0;
-      var slidesHtml = '';
-      var dotsHtml = '';
-      if (hasSlides) {
-        for (var sIdx = 0; sIdx < slides.length; sIdx++) {
-          slidesHtml += '<div class="site-hero-mobile-slide' + (sIdx === 0 ? ' is-active' : '') + '">' +
-            '<img class="site-hero-mobile-slide-img" src="' + escapeHtml(slides[sIdx]) + '" alt="АРКА студия цветов">' +
-          '</div>';
-          dotsHtml += '<button type="button" class="site-hero-mobile-dot' + (sIdx === 0 ? ' is-active' : '') + '" data-idx="' + sIdx + '" aria-label="Слайд ' + (sIdx + 1) + '"></button>';
-        }
-      } else {
-        slidesHtml = '<div class="site-hero-mobile-slide is-active site-hero-mobile-slide--fallback"></div>';
-      }
       return '' +
         '<section id="site-hero" class="site-hero site-hero--mobile-static">' +
           '<div class="site-hero-stage">' +
-            '<div id="site-hero-mobile-slider" class="site-hero-mobile-slider' + (hasSlides ? '' : ' site-hero-mobile-slider--plain') + '">' +
-              '<div class="site-hero-mobile-track">' + slidesHtml + '</div>' +
-              '<div class="site-hero-mobile-caption' + (hasSlides ? '' : ' site-hero-mobile-caption--plain') + '">' +
-                '<div class="site-hero-mobile-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
-                '<div class="site-hero-mobile-subtitle">Доставка по Саратову и Энгельсу</div>' +
-              '</div>' +
-              (dotsHtml ? '<div class="site-hero-mobile-dots">' + dotsHtml + '</div>' : '') +
+            '<div class="site-hero-mobile-caption site-hero-mobile-caption--plain">' +
+              '<div class="site-hero-mobile-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
+              '<div class="site-hero-mobile-subtitle">Доставка по Саратову и Энгельсу</div>' +
             '</div>' +
           '</div>' +
         '</section>';
@@ -1931,133 +1903,6 @@
     return out;
   }
 
-  function getMobileHeroSlidesFromSettings() {
-    var raw = String(appSettings.web_quick_cat_photos || '').trim();
-    if (!raw) return [];
-    var map = {};
-    try {
-      var parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') {
-        Object.keys(parsed).forEach(function (k) {
-          var val = String(parsed[k] || '').trim();
-          if (val) map[k] = val;
-        });
-      }
-    } catch (e) {
-      raw.split(/\r?\n/).forEach(function (lineRaw) {
-        var line = String(lineRaw || '').trim();
-        if (!line) return;
-        var idx = line.indexOf('|');
-        if (idx <= 0) return;
-        var key = String(line.slice(0, idx) || '').trim();
-        var val = String(line.slice(idx + 1) || '').trim();
-        if (key && val) map[key] = val;
-      });
-    }
-    var urls = [];
-    Object.keys(map).forEach(function (k) {
-      var val = String(map[k] || '').trim();
-      if (!val) return;
-      if (urls.indexOf(val) >= 0) return;
-      urls.push(val);
-    });
-    return urls.slice(0, 16);
-  }
-
-  function initMobileHeroSlider(heroSection) {
-    var root = heroSection ? heroSection.querySelector('#site-hero-mobile-slider') : null;
-    if (!root) return null;
-    var track = root.querySelector('.site-hero-mobile-track');
-    if (!track) return null;
-    var slides = root.querySelectorAll('.site-hero-mobile-slide');
-    var dots = root.querySelectorAll('.site-hero-mobile-dot');
-    var total = slides.length;
-    if (!total) return null;
-
-    var idx = 0;
-    var timer = 0;
-    var touchStartX = 0;
-    var touchStartY = 0;
-    var touchMoved = false;
-
-    var setSlide = function (nextIdx) {
-      var i = Number(nextIdx);
-      if (!isFinite(i)) i = 0;
-      if (i < 0) i = total - 1;
-      if (i >= total) i = 0;
-      idx = i;
-      track.style.transform = 'translateX(-' + (idx * 100) + '%)';
-      for (var s = 0; s < slides.length; s++) slides[s].classList.toggle('is-active', s === idx);
-      for (var d = 0; d < dots.length; d++) dots[d].classList.toggle('is-active', d === idx);
-    };
-
-    var stopTimer = function () {
-      if (!timer) return;
-      clearInterval(timer);
-      timer = 0;
-    };
-    var startTimer = function () {
-      if (total < 2) return;
-      stopTimer();
-      timer = setInterval(function () {
-        setSlide(idx + 1);
-      }, 4000);
-    };
-
-    var onTouchStart = function (e) {
-      var t = e.touches && e.touches[0];
-      if (!t) return;
-      touchStartX = t.clientX;
-      touchStartY = t.clientY;
-      touchMoved = false;
-      stopTimer();
-    };
-    var onTouchMove = function (e) {
-      var t = e.touches && e.touches[0];
-      if (!t) return;
-      var dx = Math.abs(t.clientX - touchStartX);
-      var dy = Math.abs(t.clientY - touchStartY);
-      if (dx > 8 || dy > 8) touchMoved = true;
-    };
-    var onTouchEnd = function (e) {
-      var t = e.changedTouches && e.changedTouches[0];
-      if (!t) {
-        startTimer();
-        return;
-      }
-      var dx = t.clientX - touchStartX;
-      var dy = t.clientY - touchStartY;
-      if (touchMoved && Math.abs(dx) > 44 && Math.abs(dx) > Math.abs(dy)) {
-        setSlide(dx < 0 ? (idx + 1) : (idx - 1));
-      }
-      startTimer();
-    };
-    var onDotClick = function (e) {
-      var btn = e.target && e.target.closest ? e.target.closest('.site-hero-mobile-dot') : null;
-      if (!btn) return;
-      var targetIdx = parseInt(btn.getAttribute('data-idx') || '0', 10);
-      stopTimer();
-      setSlide(targetIdx);
-      startTimer();
-    };
-
-    root.addEventListener('touchstart', onTouchStart, { passive: true });
-    root.addEventListener('touchmove', onTouchMove, { passive: true });
-    root.addEventListener('touchend', onTouchEnd, { passive: true });
-    if (dots.length) root.addEventListener('click', onDotClick);
-
-    setSlide(0);
-    startTimer();
-
-    return function () {
-      stopTimer();
-      root.removeEventListener('touchstart', onTouchStart);
-      root.removeEventListener('touchmove', onTouchMove);
-      root.removeEventListener('touchend', onTouchEnd);
-      if (dots.length) root.removeEventListener('click', onDotClick);
-    };
-  }
-
   function buildWebMarqueeBar() {
     var enabled = String(appSettings.marquee_enabled || '1') !== '0';
     if (!enabled) return '';
@@ -2136,10 +1981,6 @@
     if (isTelegramRuntime) {
       render(contentHtml);
       return;
-    }
-    if (detachMobileHeroSlider) {
-      detachMobileHeroSlider();
-      detachMobileHeroSlider = null;
     }
     if (document && document.body) {
       document.body.classList.remove('web-home-static-open');
