@@ -24,8 +24,8 @@
   var detachMobileHeroSlider = null;
   var detachMobileQuickCatsScroll = null;
   var detachWebCatalogSheetBehavior = null;
-  // Keep intro text visible: sheet stops lower by default.
-  var webCatalogSheetTopOffset = '36%';
+  // Mobile sheet should open right under the web header line.
+  var webCatalogSheetTopOffset = 'calc(var(--web-marquee-offset) + var(--web-safe-top) + 74px)';
   var MOBILE_CATS_COLLAPSED_KEY = 'arka_web_mobile_cats_collapsed';
   if (tg) {
     tg.ready();
@@ -1811,11 +1811,11 @@
           '<div class="site-hero-stage">' +
             '<div id="site-hero-mobile-slider" class="site-hero-mobile-slider">' +
               '<div class="site-hero-mobile-track">' + slidesHtml + '</div>' +
+              '<div class="site-hero-mobile-caption">' +
+                '<div class="site-hero-mobile-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
+                '<div class="site-hero-mobile-subtitle">Доставка по Саратову и Энгельсу</div>' +
+              '</div>' +
               (dotsHtml ? '<div class="site-hero-mobile-dots">' + dotsHtml + '</div>' : '') +
-            '</div>' +
-            '<div class="site-hero-brand site-hero-brand--textonly">' +
-              '<div class="site-hero-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
-              '<div class="site-hero-subtitle">Доставка по Саратову и Энгельсу</div>' +
             '</div>' +
           '</div>' +
         '</section>';
