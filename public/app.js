@@ -1425,6 +1425,7 @@
     if (!sheet || isTelegramRuntime) return;
 
     var handle = document.getElementById('web-catalog-sheet-handle');
+    var overlay = document.getElementById('web-catalog-sheet-overlay');
     var isMobileWeb = function () {
       return !isTelegramRuntime && (window.innerWidth || 0) <= 900;
     };
@@ -1438,6 +1439,13 @@
       var isClosed = p <= 0.1;
       sheet.classList.toggle('web-catalog-sheet--open', isOpen);
       sheet.classList.toggle('web-catalog-sheet--closed', isClosed);
+      if (overlay) {
+        overlay.style.opacity = String((0.34 * p).toFixed(3));
+        overlay.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+      }
+      if (document && document.body) {
+        document.body.classList.toggle('web-sheet-open', isOpen && isMobileWeb());
+      }
       if (handle) handle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     };
 
@@ -1455,6 +1463,10 @@
       var isOpenNow = (parseFloat(sheet.style.getPropertyValue('--web-sheet-progress')) || 0) >= 0.9;
       var targetY = isOpenNow ? 0 : (start + range);
       window.scrollTo({ top: targetY, behavior: 'smooth' });
+    };
+    var closeSheet = function () {
+      if (!isMobileWeb()) return;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     };
     var onScroll = function () {
       if (!isMobileWeb()) {
@@ -1484,18 +1496,46 @@
     };
 
     if (handle) handle.addEventListener('click', window.toggleWebCatalogSheet);
+    if (overlay) overlay.addEventListener('click', closeSheet);
+
+    // Simple swipe-down dismiss from handle area.
+    var touchStartY = null;
+    var onHandleTouchStart = function (e) {
+      if (!isMobileWeb()) return;
+      var t = e.touches && e.touches[0];
+      touchStartY = t ? t.clientY : null;
+    };
+    var onHandleTouchEnd = function (e) {
+      if (!isMobileWeb()) return;
+      if (touchStartY === null) return;
+      var t = e.changedTouches && e.changedTouches[0];
+      var endY = t ? t.clientY : touchStartY;
+      var dy = endY - touchStartY;
+      touchStartY = null;
+      if (dy > 56) closeSheet();
+    };
+    if (handle) {
+      handle.addEventListener('touchstart', onHandleTouchStart, { passive: true });
+      handle.addEventListener('touchend', onHandleTouchEnd, { passive: true });
+    }
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
     onScroll();
 
     detachWebCatalogSheetBehavior = function () {
       if (handle) handle.removeEventListener('click', window.toggleWebCatalogSheet);
+      if (overlay) overlay.removeEventListener('click', closeSheet);
+      if (handle) {
+        handle.removeEventListener('touchstart', onHandleTouchStart);
+        handle.removeEventListener('touchend', onHandleTouchEnd);
+      }
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
       if (window.toggleWebCatalogSheet) delete window.toggleWebCatalogSheet;
       if (document && document.body) {
         document.body.classList.remove('web-sheet-intro-phase');
         document.body.classList.remove('web-sheet-natural');
+        document.body.classList.remove('web-sheet-open');
       }
     };
   }
@@ -1971,6 +2011,7 @@
       render(
         buildWebTopHeaderBar() +
         siteHero +
+        '<div id="web-catalog-sheet-overlay" class="web-catalog-sheet-overlay" aria-hidden="true"></div>' +
         '<section id="web-catalog-sheet" class="web-catalog-sheet web-catalog-sheet--closed">' +
           '<button id="web-catalog-sheet-handle" class="web-catalog-sheet-handle" type="button" aria-label="Открыть каталог" aria-expanded="false">' +
             '<span class="web-catalog-sheet-handle-bar"></span>' +
