@@ -1710,17 +1710,17 @@ body.web-mode .product-list {
     pointer-events: auto;
   }
   .site-hero {
-    min-height: 120vh;
-    margin: 0 0 12px;
+    min-height: 98vh;
+    margin: 0 0 8px;
   }
   .site-hero-stage {
-    min-height: 100vh;
+    min-height: 78vh;
     position: sticky;
     top: calc(var(--web-marquee-offset) + var(--web-safe-top));
-    justify-content: space-between;
-    gap: 14px;
-    padding-top: 14px;
-    padding-bottom: 18px;
+    justify-content: flex-start;
+    gap: 8px;
+    padding-top: 10px;
+    padding-bottom: 8px;
   }
   .site-hero-intro {
     transform: none;
@@ -1728,7 +1728,7 @@ body.web-mode .product-list {
   }
   .site-hero-brand {
     transform: none;
-    margin: auto 0;
+    margin: 18vh 0 0;
     position: sticky;
     top: 8px;
     z-index: 220;
@@ -1823,6 +1823,7 @@ body.web-mode .product-list {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+    touch-action: pan-y;
   }
   body.web-mode.web-sheet-open {
     overflow: hidden;
@@ -1907,8 +1908,8 @@ body.web-mode .product-list {
     max-width: 100%;
   }
   .site-hero {
-    min-height: 114vh;
-    margin: 0 0 10px;
+    min-height: 90vh;
+    margin: 0 0 6px;
   }
   .web-catalog-sheet {
     --web-sheet-top-offset: 15%;
@@ -1924,7 +1925,7 @@ body.web-mode .product-list {
   }
   .site-hero-brand {
     transform: none;
-    margin: auto 0;
+    margin: 15vh 0 0;
     position: sticky;
     top: 6px;
     z-index: 220;
@@ -1940,10 +1941,10 @@ body.web-mode .product-list {
     transform: none !important;
   }
   .site-hero-stage {
-    min-height: calc(100vh - (var(--web-marquee-offset) + var(--web-safe-top)));
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 14px 16px;
+    min-height: 72vh;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 8px 14px 8px;
   }
   .home-catalog-block {
     padding: 0 18px;

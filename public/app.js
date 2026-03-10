@@ -1432,7 +1432,6 @@
     var targetProgress = 0;
     var currentProgress = 0;
     var rafId = 0;
-    var introPhaseActive = true;
     var isMobileWeb = function () {
       return !isTelegramRuntime && (window.innerWidth || 0) <= 900;
     };
@@ -1520,16 +1519,11 @@
       var heroH = hero ? Math.max(hero.offsetHeight || 0, 1) : 1;
       var start = Math.max(8, heroH * 0.06);
       var range = Math.max(140, heroH * 0.34);
-      var introPhaseEnd = start + range + 24;
-      // Hysteresis to avoid jitter around intro/natural switch point.
-      if (introPhaseActive && y > (introPhaseEnd + 20)) introPhaseActive = false;
-      if (!introPhaseActive && y < (introPhaseEnd - 28)) introPhaseActive = true;
-      var inIntroPhase = introPhaseActive;
       if (document && document.body) {
-        document.body.classList.toggle('web-sheet-intro-phase', inIntroPhase);
-        document.body.classList.toggle('web-sheet-natural', !inIntroPhase);
+        document.body.classList.add('web-sheet-intro-phase');
+        document.body.classList.remove('web-sheet-natural');
       }
-      var progress = inIntroPhase ? ((y - start) / range) : 1;
+      var progress = (y - start) / range;
       setProgress(progress);
     };
     var onResize = function () {
