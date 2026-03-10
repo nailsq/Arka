@@ -1431,6 +1431,7 @@
     var overlay = document.getElementById('web-catalog-sheet-overlay');
     var targetProgress = 0;
     var currentProgress = 0;
+    var staticMobileLanding = !!(document && document.body && document.body.classList.contains('web-home-static-open'));
     var rafId = 0;
     var isMobileWeb = function () {
       return !isTelegramRuntime && (window.innerWidth || 0) <= 900;
@@ -1452,7 +1453,7 @@
         overlay.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
       }
       if (document && document.body) {
-        document.body.classList.toggle('web-sheet-open', isOpen && isMobileWeb());
+        document.body.classList.toggle('web-sheet-open', isOpen && isMobileWeb() && !staticMobileLanding);
       }
       if (handle) handle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     };
@@ -1478,7 +1479,7 @@
     };
 
     // Start with collapsed mobile sheet.
-    if (isMobileWeb()) {
+    if (isMobileWeb() && !staticMobileLanding) {
       targetProgress = 0;
       currentProgress = 0;
       applyProgress(0);
@@ -1490,6 +1491,7 @@
 
     window.toggleWebCatalogSheet = function () {
       if (!isMobileWeb()) return;
+      if (staticMobileLanding) return;
       var y = window.scrollY || 0;
       var hero = document.getElementById('site-hero');
       var heroH = hero ? Math.max(hero.offsetHeight || 0, 1) : 1;
@@ -1501,6 +1503,7 @@
     };
     var closeSheet = function () {
       if (!isMobileWeb()) return;
+      if (staticMobileLanding) return;
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
     var onScroll = function () {
@@ -1511,6 +1514,17 @@
         if (document && document.body) {
           document.body.classList.remove('web-sheet-intro-phase');
           document.body.classList.remove('web-sheet-natural');
+        }
+        return;
+      }
+      if (staticMobileLanding) {
+        targetProgress = 1;
+        currentProgress = 1;
+        applyProgress(1);
+        if (document && document.body) {
+          document.body.classList.remove('web-sheet-intro-phase');
+          document.body.classList.remove('web-sheet-natural');
+          document.body.classList.remove('web-sheet-open');
         }
         return;
       }
@@ -1658,6 +1672,16 @@
       };
       return;
     }
+    if (heroSection.classList.contains('site-hero--mobile-static')) {
+      heroSection.style.setProperty('--hero-intro-progress', '1');
+      heroSection.style.setProperty('--hero-title-progress', '1');
+      heroSection.style.setProperty('--hero-subtitle-progress', '1');
+      heroSection.style.setProperty('--hero-section-progress', '1');
+      heroSection.style.setProperty('--hero-image-progress', '1');
+      document.body.classList.remove('mobile-toolbar-fixed');
+      syncWebQuickNavVisibility('home');
+      return;
+    }
     var targetRawProgress = 0;
     var currentRawProgress = 0;
     var rafId = 0;
@@ -1757,6 +1781,18 @@
 
   function buildHomeHero(cityName) {
     var isDesktop = !isTelegramRuntime && (window.innerWidth || 0) >= 900;
+    var isMobileWeb = !isTelegramRuntime && (window.innerWidth || 0) <= 900;
+    if (isMobileWeb) {
+      return '' +
+        '<section id="site-hero" class="site-hero site-hero--mobile-static">' +
+          '<div class="site-hero-stage">' +
+            '<div class="site-hero-brand site-hero-brand--textonly">' +
+              '<div class="site-hero-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
+              '<div class="site-hero-subtitle">Доставка по Саратову и Энгельсу</div>' +
+            '</div>' +
+          '</div>' +
+        '</section>';
+    }
     // Keep intro scroll-driven on all layouts to avoid fixed overlay behavior.
     var useDesktopScriptIntro = false;
     if (isDesktop && useDesktopScriptIntro) {
@@ -1946,6 +1982,9 @@
       render(contentHtml);
       return;
     }
+    if (document && document.body) {
+      document.body.classList.remove('web-home-static-open');
+    }
     render(buildWebTopHeaderBar() + contentHtml);
     updateFavBadge();
     updateCartBadge();
@@ -2052,9 +2091,11 @@
     '</div>';
     setActiveTab('home');
     if (!isTelegramRuntime) {
+      var isMobileWeb = (window.innerWidth || 0) <= 900;
       document.body.classList.remove('site-cover-active');
       document.body.classList.remove('mobile-toolbar-fixed');
       document.body.classList.remove('web-mobile-cats-collapsed');
+      document.body.classList.toggle('web-home-static-open', isMobileWeb);
       render(
         buildWebTopHeaderBar() +
         siteHero +
@@ -2119,6 +2160,7 @@
       }
       return;
     }
+    document.body.classList.remove('web-home-static-open');
 
     render(
       buildWebMarqueeBar() +
