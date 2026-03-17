@@ -1319,6 +1319,102 @@ app.put('/api/admin/orders/:id', adminAuth, async function (req, res) {
 });
 
 // ============================================================
+// CRM: Orders API (new CRM surface)
+// ============================================================
+
+app.get('/api/admin/crm/me', adminAuth, async function (req, res) {
+  var telegramId = String(req.headers['x-telegram-id'] || '');
+  var isAdmin = await isAdminUser(telegramId, '');
+  res.json({
+    ok: true,
+    telegram_id: telegramId || null,
+    is_admin: !!isAdmin,
+    is_super_admin: isSuperAdmin(telegramId)
+  });
+});
+
+app.get('/api/admin/crm/orders', adminAuth, async function (req, res) {
+  var status = String(req.query.status || '').trim();
+  var search = String(req.query.search || '').trim();
+  var sql = 'SELECT * FROM orders';
+  var conditions = [];
+  var params = [];
+
+  if (status) {
+    conditions.push('status = ?');
+    params.push(status);
+  }
+  if (search) {
+    conditions.push('(CAST(id AS TEXT) LIKE ? OR user_phone LIKE ? OR receiver_phone LIKE ? OR user_name LIKE ?)');
+    var like = '%' + search + '%';
+    params.push(like, like, like, like);
+  }
+
+  if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
+  sql += ' ORDER BY created_at DESC';
+
+  var stmt = await db.prepare(sql);
+  var orders = params.length ? await stmt.all.apply(stmt, params) : await stmt.all();
+
+  for (var i = 0; i < orders.length; i++) {
+    orders[i].items = await db.prepare(
+      'SELECT oi.*, p.name as product_name, p.image_url FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?'
+    ).all(orders[i].id);
+  }
+
+  res.json(orders);
+});
+
+app.get('/api/admin/crm/orders/:id', adminAuth, async function (req, res) {
+  var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  order.items = await db.prepare(
+    'SELECT oi.*, p.name as product_name, p.image_url FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?'
+  ).all(order.id);
+  res.json(order);
+});
+
+app.put('/api/admin/crm/orders/:id', adminAuth, async function (req, res) {
+  var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+
+  var b = req.body;
+  var fields = [];
+  var params = [];
+  var allowedFields = {
+    comment: 'TEXT', user_name: 'TEXT', user_phone: 'TEXT', user_email: 'TEXT',
+    user_telegram: 'TEXT', receiver_name: 'TEXT', receiver_phone: 'TEXT',
+    delivery_address: 'TEXT', delivery_date: 'TEXT', delivery_interval: 'TEXT',
+    exact_time: 'TEXT', delivery_cost: 'INT', delivery_type: 'TEXT', status: 'TEXT'
+  };
+
+  Object.keys(allowedFields).forEach(function (key) {
+    if (b[key] !== undefined) {
+      fields.push(key + ' = ?');
+      params.push(allowedFields[key] === 'INT' ? parseInt(b[key]) || 0 : String(b[key]));
+    }
+  });
+
+  if (!fields.length) return res.status(400).json({ error: 'No fields to update' });
+  params.push(req.params.id);
+  await db.prepare('UPDATE orders SET ' + fields.join(', ') + ' WHERE id = ?').run.apply(null, params);
+  res.json({ ok: true });
+});
+
+app.post('/api/admin/crm/orders/:id/status', adminAuth, async function (req, res) {
+  var validStatuses = [
+    'Новый', 'Оплачен', 'Собирается', 'Собран', 'Отправлен',
+    'Доставлен', 'Выдан', 'Готов к выдаче', 'Выполнен', 'Отменен', 'Возврат'
+  ];
+  var newStatus = String(req.body.status || '').trim();
+  if (!validStatuses.includes(newStatus)) {
+    return res.status(400).json({ error: 'Invalid status' });
+  }
+  await db.prepare('UPDATE orders SET status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newStatus, req.params.id);
+  res.json({ ok: true });
+});
+
+// ============================================================
 // ADMIN: Categories CRUD
 // ============================================================
 
@@ -2062,6 +2158,14 @@ app.get('/admin', function (req, res) {
 
 app.get('/admin/*', function (req, res) {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+app.get('/crm', function (req, res) {
+  res.sendFile(path.join(__dirname, 'public', 'crm.html'));
+});
+
+app.get('/crm/*', function (req, res) {
+  res.sendFile(path.join(__dirname, 'public', 'crm.html'));
 });
 
 // ============================================================
