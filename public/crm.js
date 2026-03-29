@@ -298,6 +298,10 @@
   }
 
   function rerenderDataView() {
+    if (state.section === "new-client") {
+      renderShownInfo();
+      return;
+    }
     if (state.section === "kanban") {
       renderBoard();
       bindBoardDnd();
@@ -310,6 +314,11 @@
   function renderShownInfo() {
     const el = byId("crm-shown-info");
     if (!el) return;
+    if (state.menu === "orders" && state.section === "new-client") {
+      el.textContent = "";
+      el.classList.add("crm-hidden");
+      return;
+    }
     const shown = state.filtered.length;
     const total = state.orders.length;
     if (state.menu !== "orders") {
@@ -481,8 +490,14 @@
       return;
     }
 
-    if (state.section !== "all") {
+    if (state.section !== "all" && state.section !== "new-client") {
       tbody.innerHTML = `<tr><td colspan="6" class="crm-empty">Раздел "${state.section}" открыт в рабочем режиме меню.</td></tr>`;
+      renderShownInfo();
+      return;
+    }
+
+    if (state.section === "new-client") {
+      tbody.innerHTML = "";
       renderShownInfo();
       return;
     }
@@ -1320,6 +1335,403 @@
     renderProductCategoriesView();
   }
 
+  function renderNewClientOrderView() {
+    const root = byId("crm-new-client-order-view");
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="crm-nco-inner">
+        <div class="crm-nco-head">
+          <button type="button" class="crm-nco-back" id="crm-nco-back">← Назад</button>
+          <div class="crm-nco-titles">
+            <h1 class="crm-nco-title">Новый клиент</h1>
+            <p class="crm-nco-sub">Карточка клиента и оформление заказа на одном экране</p>
+          </div>
+        </div>
+
+        <div class="crm-nco-grid">
+          <div class="crm-nco-panel">
+            <h2 class="crm-nco-panel-title">Информация о клиенте</h2>
+
+            <div class="crm-nco-field">
+              <label class="crm-nco-label" for="crm-nco-client-name">Имя <span class="req">*</span></label>
+              <input class="crm-nco-input" id="crm-nco-client-name" maxlength="64" placeholder="Имя" autocomplete="name">
+              <div class="crm-nco-counter"><span id="crm-nco-cnt-name">0</span>/64</div>
+            </div>
+
+            <div class="crm-nco-field">
+              <label class="crm-nco-label">Телефон <span class="req">*</span></label>
+              <div class="crm-nco-row-phone">
+                <select class="crm-nco-select" id="crm-nco-phone-cc" aria-label="Код страны">
+                  <option value="+7">+7 (Россия)</option>
+                  <option value="+375">+375 (Беларусь)</option>
+                  <option value="+7">+7 (Казахстан)</option>
+                </select>
+                <input class="crm-nco-input" id="crm-nco-client-phone" type="tel" placeholder="900 000-00-00" autocomplete="tel">
+              </div>
+            </div>
+
+            <div class="crm-nco-field">
+              <label class="crm-nco-label" for="crm-nco-client-email">Email</label>
+              <input class="crm-nco-input" id="crm-nco-client-email" type="email" maxlength="64" placeholder="email@example.com" autocomplete="email">
+              <div class="crm-nco-counter"><span id="crm-nco-cnt-email">0</span>/64</div>
+            </div>
+
+            <div class="crm-nco-row-2">
+              <div class="crm-nco-field">
+                <label class="crm-nco-label" for="crm-nco-gender">Пол <span class="req">*</span></label>
+                <select class="crm-nco-select" id="crm-nco-gender">
+                  <option value="">Не определён</option>
+                  <option value="f">Женский</option>
+                  <option value="m">Мужской</option>
+                </select>
+              </div>
+              <div class="crm-nco-field">
+                <label class="crm-nco-label" for="crm-nco-legal">Тип лица</label>
+                <select class="crm-nco-select" id="crm-nco-legal">
+                  <option value="person">Физическое лицо</option>
+                  <option value="company">Юридическое лицо</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="crm-nco-field">
+              <label class="crm-nco-label" for="crm-nco-insta">Инстаграм</label>
+              <input class="crm-nco-input" id="crm-nco-insta" maxlength="64" placeholder="@nickname">
+              <div class="crm-nco-counter"><span id="crm-nco-cnt-insta">0</span>/64</div>
+            </div>
+
+            <div class="crm-nco-field">
+              <label class="crm-nco-label" for="crm-nco-birth">Дата рождения</label>
+              <input class="crm-nco-input" id="crm-nco-birth" type="date">
+            </div>
+
+            <div class="crm-nco-row-2">
+              <div class="crm-nco-field">
+                <label class="crm-nco-label" for="crm-nco-source">Откуда узнал о нас</label>
+                <select class="crm-nco-select" id="crm-nco-source">
+                  <option value="">Выберите</option>
+                  <option value="site">Сайт</option>
+                  <option value="tg">Telegram</option>
+                  <option value="inst">Instagram</option>
+                  <option value="friend">Рекомендация</option>
+                </select>
+              </div>
+              <div class="crm-nco-field">
+                <label class="crm-nco-label" for="crm-nco-pref">Предпочтения</label>
+                <select class="crm-nco-select" id="crm-nco-pref">
+                  <option value="">Выберите</option>
+                  <option value="mono">Монобукеты</option>
+                  <option value="mix">Смешанные</option>
+                  <option value="premium">Премиум</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="crm-nco-field">
+              <label class="crm-nco-label" for="crm-nco-card">Номер карты</label>
+              <input class="crm-nco-input" id="crm-nco-card" maxlength="32" placeholder="Карта лояльности" autocomplete="off">
+              <div class="crm-nco-counter"><span id="crm-nco-cnt-card">0</span>/32</div>
+            </div>
+
+            <div class="crm-nco-field">
+              <label class="crm-nco-label" for="crm-nco-client-notes">Комментарий</label>
+              <textarea class="crm-nco-textarea" id="crm-nco-client-notes" maxlength="500" placeholder="Заметки о клиенте"></textarea>
+              <div class="crm-nco-counter"><span id="crm-nco-cnt-notes">0</span>/500</div>
+            </div>
+          </div>
+
+          <div class="crm-nco-panel">
+            <h2 class="crm-nco-panel-title">Информация о заказе</h2>
+
+            <div class="crm-nco-field">
+              <label class="crm-nco-label" for="crm-nco-order-client">Клиент</label>
+              <div class="crm-nco-inline-actions">
+                <select class="crm-nco-select" id="crm-nco-order-client" style="flex:1; min-width:0;">
+                  <option value="new">Новый клиент — заполните форму слева</option>
+                </select>
+                <button type="button" class="crm-nco-btn-outline" id="crm-nco-focus-client" title="Перейти к полям клиента">Добавить нового клиента</button>
+              </div>
+            </div>
+
+            <div class="crm-nco-row-2">
+              <div class="crm-nco-field">
+                <label class="crm-nco-label" for="crm-nco-budget">Бюджет</label>
+                <input class="crm-nco-input" id="crm-nco-budget" placeholder="0 ₽">
+              </div>
+              <div class="crm-nco-field">
+                <label class="crm-nco-label" for="crm-nco-deal-source">Источник сделки <span class="req">*</span></label>
+                <select class="crm-nco-select" id="crm-nco-deal-source">
+                  <option value="terminal">Терминал</option>
+                  <option value="site">Сайт</option>
+                  <option value="tg">Telegram</option>
+                  <option value="phone">Телефон</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="crm-nco-field">
+              <label class="crm-nco-label" for="crm-nco-pos">Точка продаж <span class="req">*</span></label>
+              <select class="crm-nco-select" id="crm-nco-pos">
+                <option value="main">Основная</option>
+                <option value="site">Сайт</option>
+                <option value="mini">Мини-приложение</option>
+              </select>
+            </div>
+
+            <div class="crm-nco-sbp">
+              <span class="crm-nco-sbp-title">Формирование ссылки СБП</span>
+              <button type="button" class="crm-nco-btn-purple" id="crm-nco-sbp-connect">Подключить</button>
+            </div>
+
+            <div class="crm-nco-advances">
+              <span class="crm-nco-label" style="margin-bottom:6px;">Авансы</span>
+              <a href="#" id="crm-nco-add-advance">+ Добавить аванс</a>
+            </div>
+
+            <div class="crm-nco-field">
+              <label class="crm-nco-label">Изображение к заказу</label>
+              <div class="crm-nco-upload" id="crm-nco-upload" tabindex="0" role="button" aria-label="Загрузить изображение">
+                <span>Чтобы добавить изображение, нажмите или перетащите файл</span>
+                <span style="font-size:12px;">PNG, JPG до 10 МБ</span>
+              </div>
+              <input type="file" id="crm-nco-upload-input" accept="image/*" class="crm-hidden" aria-hidden="true">
+            </div>
+
+            <div class="crm-nco-field">
+              <label class="crm-nco-label" for="crm-nco-wishes">Пожелания заказчика</label>
+              <textarea class="crm-nco-textarea" id="crm-nco-wishes" style="min-height:88px;" placeholder="Пожелания, стиль, повод…"></textarea>
+            </div>
+
+            <div class="crm-nco-field">
+              <span class="crm-nco-label">Теги</span>
+              <div class="crm-nco-tags" id="crm-nco-tags">
+                <button type="button" class="crm-nco-tag" data-tag="Моно">Моно</button>
+                <button type="button" class="crm-nco-tag" data-tag="Маленький">Маленький</button>
+                <button type="button" class="crm-nco-tag" data-tag="WOW эффект">WOW эффект</button>
+                <button type="button" class="crm-nco-tag" data-tag="Нежный">Нежный</button>
+                <button type="button" class="crm-nco-tag" data-tag="Большой">Большой</button>
+                <button type="button" class="crm-nco-tag" data-tag="Девушке">Девушке</button>
+                <button type="button" class="crm-nco-tag" data-tag="Маме">Маме</button>
+                <button type="button" class="crm-nco-tag" data-tag="Бабушке">Бабушке</button>
+              </div>
+            </div>
+
+            <div class="crm-nco-row-2">
+              <div class="crm-nco-field">
+                <label class="crm-nco-label" for="crm-nco-exec-date">Дата исполнения</label>
+                <input class="crm-nco-input" id="crm-nco-exec-date" type="date">
+              </div>
+              <div class="crm-nco-field">
+                <label class="crm-nco-label" for="crm-nco-exec-time">Время исполнения</label>
+                <input class="crm-nco-input" id="crm-nco-exec-time" type="time">
+              </div>
+            </div>
+
+            <div class="crm-nco-field">
+              <span class="crm-nco-label">Тип</span>
+              <div class="crm-nco-radio-row">
+                <label class="crm-nco-radio"><input type="radio" name="crm-nco-delivery-type" value="delivery" checked> Доставка</label>
+                <label class="crm-nco-radio"><input type="radio" name="crm-nco-delivery-type" value="pickup"> Самовывоз</label>
+              </div>
+            </div>
+
+            <div id="crm-nco-address-block" class="crm-nco-address-block">
+              <div class="crm-nco-row-2">
+                <div class="crm-nco-field">
+                  <label class="crm-nco-label" for="crm-nco-city">Город <span class="req">*</span></label>
+                  <input class="crm-nco-input" id="crm-nco-city" placeholder="Город">
+                </div>
+                <div class="crm-nco-field">
+                  <label class="crm-nco-label" for="crm-nco-street">Улица <span class="req">*</span></label>
+                  <input class="crm-nco-input" id="crm-nco-street" placeholder="Улица">
+                </div>
+              </div>
+              <div class="crm-nco-row-2">
+                <div class="crm-nco-field">
+                  <label class="crm-nco-label" for="crm-nco-house">Дом <span class="req">*</span></label>
+                  <input class="crm-nco-input" id="crm-nco-house" placeholder="Дом">
+                </div>
+                <div class="crm-nco-field">
+                  <label class="crm-nco-label" for="crm-nco-apt">Квартира</label>
+                  <input class="crm-nco-input" id="crm-nco-apt" placeholder="Кв.">
+                </div>
+              </div>
+              <div class="crm-nco-field">
+                <label class="crm-nco-label" for="crm-nco-building">Корпус</label>
+                <input class="crm-nco-input" id="crm-nco-building" placeholder="Корпус">
+              </div>
+              <div class="crm-nco-field">
+                <label class="crm-nco-label" for="crm-nco-recipient">Имя получателя</label>
+                <input class="crm-nco-input" id="crm-nco-recipient" placeholder="Получатель">
+              </div>
+              <div class="crm-nco-row-phone">
+                <select class="crm-nco-select" id="crm-nco-rec-cc" aria-label="Код страны получателя">
+                  <option value="+7">+7 (Россия)</option>
+                </select>
+                <input class="crm-nco-input" id="crm-nco-rec-phone" type="tel" placeholder="Телефон получателя">
+              </div>
+              <div class="crm-nco-row-2">
+                <div class="crm-nco-field">
+                  <label class="crm-nco-label" for="crm-nco-del-from">Доставка с</label>
+                  <input class="crm-nco-input" id="crm-nco-del-from" type="time">
+                </div>
+                <div class="crm-nco-field">
+                  <label class="crm-nco-label" for="crm-nco-del-to">Доставка до</label>
+                  <input class="crm-nco-input" id="crm-nco-del-to" type="time">
+                </div>
+              </div>
+              <div class="crm-nco-field">
+                <label class="crm-nco-label" for="crm-nco-del-comment">Комментарий к доставке</label>
+                <textarea class="crm-nco-textarea" id="crm-nco-del-comment" style="min-height:72px;"></textarea>
+              </div>
+            </div>
+
+            <div class="crm-nco-footer">
+              <button type="button" class="crm-nco-btn-create-client" id="crm-nco-create-client" disabled>Создать клиента</button>
+              <button type="button" class="crm-nco-btn-cancel" id="crm-nco-cancel">Отмена</button>
+              <button type="button" class="crm-nco-btn-order" id="crm-nco-create-order">Создать заказ</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const syncOrderClientLabel = () => {
+      const n = (root.querySelector("#crm-nco-client-name") && root.querySelector("#crm-nco-client-name").value) || "";
+      const p = (root.querySelector("#crm-nco-client-phone") && root.querySelector("#crm-nco-client-phone").value) || "";
+      const sel = root.querySelector("#crm-nco-order-client");
+      if (!sel) return;
+      const t = `${n.trim() || "Клиент"}${p.trim() ? " · " + p.trim() : ""}`.trim();
+      sel.innerHTML = `<option value="new">${escapeHtml(t || "Новый клиент — заполните слева")}</option>`;
+    };
+
+    const syncDeliveryBlock = () => {
+      const v = root.querySelector('input[name="crm-nco-delivery-type"]:checked');
+      const addr = root.querySelector("#crm-nco-address-block");
+      if (!addr) return;
+      addr.classList.toggle("crm-hidden", v && v.value === "pickup");
+    };
+
+    const syncClientBtn = () => {
+      const n = ((root.querySelector("#crm-nco-client-name") || {}).value || "").trim();
+      const p = ((root.querySelector("#crm-nco-client-phone") || {}).value || "").trim();
+      const btn = root.querySelector("#crm-nco-create-client");
+      const ok = n.length > 0 && p.length > 0;
+      if (btn) {
+        btn.disabled = !ok;
+        btn.classList.toggle("is-ready", ok);
+      }
+    };
+
+    const bindCounter = (inputId, spanId, max) => {
+      const inp = root.querySelector(inputId);
+      const sp = root.querySelector(spanId);
+      if (!inp || !sp) return;
+      const upd = () => {
+        sp.textContent = String(Math.min(max, (inp.value || "").length));
+      };
+      inp.addEventListener("input", upd);
+      upd();
+    };
+
+    bindCounter("#crm-nco-client-name", "#crm-nco-cnt-name", 64);
+    bindCounter("#crm-nco-client-email", "#crm-nco-cnt-email", 64);
+    bindCounter("#crm-nco-insta", "#crm-nco-cnt-insta", 64);
+    bindCounter("#crm-nco-card", "#crm-nco-cnt-card", 32);
+    bindCounter("#crm-nco-client-notes", "#crm-nco-cnt-notes", 500);
+
+    root.querySelector("#crm-nco-client-name")?.addEventListener("input", () => {
+      syncOrderClientLabel();
+      syncClientBtn();
+    });
+    root.querySelector("#crm-nco-client-phone")?.addEventListener("input", () => {
+      syncOrderClientLabel();
+      syncClientBtn();
+    });
+    syncOrderClientLabel();
+    syncClientBtn();
+
+    root.querySelectorAll('input[name="crm-nco-delivery-type"]').forEach((r) => {
+      r.addEventListener("change", syncDeliveryBlock);
+    });
+    syncDeliveryBlock();
+
+    root.querySelector("#crm-nco-tags")?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".crm-nco-tag");
+      if (!btn) return;
+      btn.classList.toggle("is-active");
+    });
+
+    root.querySelector("#crm-nco-focus-client")?.addEventListener("click", () => {
+      root.querySelector("#crm-nco-client-name")?.focus();
+    });
+
+    root.querySelector("#crm-nco-back")?.addEventListener("click", () => {
+      state.section = "all";
+      document.querySelectorAll(".crm-submenu-item").forEach((x) => x.classList.remove("active"));
+      document.querySelector('.crm-submenu-item[data-section="all"]')?.classList.add("active");
+      renderOrdersArea();
+      rerenderDataView();
+    });
+
+    root.querySelector("#crm-nco-cancel")?.addEventListener("click", () => {
+      state.section = "all";
+      document.querySelectorAll(".crm-submenu-item").forEach((x) => x.classList.remove("active"));
+      document.querySelector('.crm-submenu-item[data-section="all"]')?.classList.add("active");
+      renderOrdersArea();
+      rerenderDataView();
+    });
+
+    root.querySelector("#crm-nco-create-client")?.addEventListener("click", () => {
+      const n = ((root.querySelector("#crm-nco-client-name") || {}).value || "").trim();
+      const p = ((root.querySelector("#crm-nco-client-phone") || {}).value || "").trim();
+      if (!n || !p) {
+        setNotice("Укажите имя и телефон клиента.", "warn");
+        return;
+      }
+      setNotice("Клиент будет сохранён при подключении к API (пока демо-форма).", "info");
+    });
+
+    root.querySelector("#crm-nco-create-order")?.addEventListener("click", () => {
+      setNotice("Создание заказа из CRM: следующий шаг — привязка к API заказов.", "info");
+    });
+
+    root.querySelector("#crm-nco-sbp-connect")?.addEventListener("click", () => {
+      setNotice("СБП: интеграция подключается отдельно.", "info");
+    });
+
+    root.querySelector("#crm-nco-add-advance")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      setNotice("Авансы: будет доступно после связки с оплатой.", "info");
+    });
+
+    const up = root.querySelector("#crm-nco-upload");
+    const upIn = root.querySelector("#crm-nco-upload-input");
+    if (up && upIn) {
+      up.addEventListener("click", () => upIn.click());
+      up.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        up.style.borderColor = "#2f77d0";
+      });
+      up.addEventListener("dragleave", () => {
+        up.style.borderColor = "";
+      });
+      up.addEventListener("drop", (e) => {
+        e.preventDefault();
+        up.style.borderColor = "";
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          setNotice("Файл выбран (загрузка на сервер — в следующей итерации).", "info");
+        }
+      });
+      upIn.addEventListener("change", () => {
+        if (upIn.files && upIn.files[0]) {
+          setNotice("Изображение выбрано (загрузка на сервер — в следующей итерации).", "info");
+        }
+      });
+    }
+  }
+
   function renderOrdersArea() {
     const ordersCard = document.querySelector(".crm-orders-card");
     const productsView = byId("crm-products-view");
@@ -1336,6 +1748,7 @@
 
     if (state.menu !== "orders") {
       if (ordersCard) ordersCard.classList.add("crm-hidden");
+      if (byId("crm-new-client-order-view")) byId("crm-new-client-order-view").classList.add("crm-hidden");
       if (productsView) productsView.classList.toggle("crm-hidden", state.menu !== "products");
       if (peopleView) peopleView.classList.toggle("crm-hidden", state.menu !== "people");
       if (analyticsView) analyticsView.classList.toggle("crm-hidden", state.menu !== "analytics");
@@ -1348,6 +1761,28 @@
       renderShownInfo();
       return;
     }
+
+    const ncoView = byId("crm-new-client-order-view");
+    const shownInfoEl = byId("crm-shown-info");
+
+    if (state.section === "new-client") {
+      if (ncoView) {
+        ncoView.classList.remove("crm-hidden");
+        renderNewClientOrderView();
+      }
+      if (ordersCard) ordersCard.classList.add("crm-hidden");
+      if (productsView) productsView.classList.add("crm-hidden");
+      if (peopleView) peopleView.classList.add("crm-hidden");
+      if (analyticsView) analyticsView.classList.add("crm-hidden");
+      controls.forEach((x) => x && x.classList.add("crm-hidden"));
+      if (shownInfoEl) shownInfoEl.classList.add("crm-hidden");
+      if (tableWrap) tableWrap.classList.add("crm-hidden");
+      if (board) board.classList.add("crm-hidden");
+      renderShownInfo();
+      return;
+    }
+
+    if (ncoView) ncoView.classList.add("crm-hidden");
 
     if (ordersCard) ordersCard.classList.remove("crm-hidden");
     if (productsView) productsView.classList.add("crm-hidden");

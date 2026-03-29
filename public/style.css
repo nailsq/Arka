@@ -18,6 +18,16 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Nexa Thin';
+  src: local('Nexa Thin'),
+       local('Nexa-Thin'),
+       url('/fonts/Nexa-Thin.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
 *, *::before, *::after {
   margin: 0;
   padding: 0;
@@ -25,11 +35,11 @@
 }
 
 html, body {
-  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Nexa Thin', 'Nexa', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   background: #fff;
   color: #000;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
@@ -39,6 +49,16 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+}
+
+/* Mini-app (Telegram): use Nexa Regular + heavier weight so it reads bolder than site skin */
+body.telegram-mode,
+body.telegram-mode button,
+body.telegram-mode input,
+body.telegram-mode select,
+body.telegram-mode textarea {
+  font-family: 'Nexa', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-weight: 600;
 }
 
 a {
