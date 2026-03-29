@@ -26,8 +26,21 @@
   if (tg) {
     tg.ready();
     tg.expand();
-    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-      tgUser = tg.initDataUnsafe.user;
+    // Только реальный пользователь Mini App: у объекта user есть числовой id. Пустой {} в браузере даёт truthy без id — иначе скрывалась кнопка «Выйти» на сайте.
+    var miniUser = tg.initDataUnsafe && tg.initDataUnsafe.user;
+    if (miniUser && typeof miniUser.id === 'number') {
+      tgUser = miniUser;
+    }
+  }
+
+  /** Мини-приложение Telegram: initDataUnsafe.user с числовым id. В веб-браузере user часто отсутствует или это пустой объект — тогда показываем выход из аккаунта на сайте. */
+  function isTelegramMiniAppWithUser() {
+    try {
+      var w = window.Telegram && window.Telegram.WebApp;
+      var u = w && w.initDataUnsafe && w.initDataUnsafe.user;
+      return !!(u && typeof u.id === 'number');
+    } catch (e) {
+      return false;
     }
   }
 
@@ -314,12 +327,15 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     }).then(function (r) {
-      if (!r.ok) {
-        return r.text().then(function (t) {
-          try { return JSON.parse(t); } catch (e) { throw new Error('Server error: ' + r.status); }
-        });
-      }
-      return r.json();
+      return r.text().then(function (t) {
+        var parsed = null;
+        try { parsed = t ? JSON.parse(t) : {}; } catch (e) { parsed = {}; }
+        if (!r.ok) {
+          var msg = (parsed && parsed.error) || ('Ошибка ' + r.status);
+          throw new Error(msg);
+        }
+        return parsed;
+      });
     });
   }
 
@@ -536,6 +552,97 @@
     try { return localStorage.getItem('arka_tg_id') || ''; } catch (e) { return ''; }
   }
 
+  function isWebPhoneUser() {
+    var id = dbUser && dbUser.telegram_id;
+    return !!id && String(id).indexOf('phone_') === 0;
+  }
+
+  function mountStoreTelegramWidget() {
+    var wrap = document.getElementById('tg-store-widget-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = '<div class="profile-login-loading">Загрузка кнопки Telegram…</div>';
+    fetchJSON('/api/client-config').then(function (cfg) {
+      wrap.innerHTML = '';
+      if (!cfg || !cfg.telegram_bot_username) {
+        wrap.innerHTML = '<p class="profile-login-warn">На сервере задайте TELEGRAM_BOT_USERNAME в .env (имя бота без @), чтобы кнопка входа заработала.</p>';
+        return;
+      }
+      var s = document.createElement('script');
+      s.src = 'https://telegram.org/js/telegram-widget.js?22';
+      s.async = true;
+      s.setAttribute('data-telegram-login', cfg.telegram_bot_username);
+      s.setAttribute('data-size', 'large');
+      s.setAttribute('data-userpic', 'true');
+      s.setAttribute('data-request-access', 'write');
+      s.setAttribute('data-onauth', 'onTelegramStoreAuth(user)');
+      wrap.appendChild(s);
+    }).catch(function () {
+      wrap.innerHTML = '<p class="profile-login-warn">Не удалось загрузить настройки входа.</p>';
+    });
+  }
+
+  window.onTelegramStoreAuth = function (user) {
+    var payload = Object.assign({}, user);
+    if (dbUser && dbUser.telegram_id && String(dbUser.telegram_id).indexOf('phone_') === 0) {
+      payload.merge_from_telegram_id = dbUser.telegram_id;
+    }
+    postJSON('/api/auth/telegram-widget', payload).then(function (r) {
+      if (r && r.user) {
+        dbUser = r.user;
+        var tid = r.user.telegram_id;
+        tgUser = {
+          id: /^\d+$/.test(String(tid)) ? Number(tid) : tid,
+          first_name: user.first_name || r.user.first_name || '',
+          last_name: user.last_name || '',
+          username: user.username || '',
+          photo_url: user.photo_url || ''
+        };
+        try {
+          localStorage.setItem('arka_tg_id', String(r.user.telegram_id));
+          localStorage.setItem('arka_user', JSON.stringify(r.user));
+        } catch (e) {}
+        showAccount();
+        showToast('Вход выполнен');
+      }
+    }).catch(function (err) {
+      showToast(err.message || 'Не удалось войти через Telegram');
+    });
+  };
+
+  window.submitPhoneLogin = function () {
+    var inp = document.getElementById('profile-login-phone');
+    var raw = inp ? inp.value.trim() : '';
+    if (!validatePhone(raw)) return;
+    postJSON('/api/auth/phone', { phone: raw }).then(function (r) {
+      if (r && r.user) {
+        dbUser = r.user;
+        tgUser = null;
+        try {
+          localStorage.setItem('arka_tg_id', String(r.user.telegram_id));
+          localStorage.setItem('arka_user', JSON.stringify(r.user));
+        } catch (e) {}
+        showAccount();
+        showToast('Вы вошли по номеру');
+      }
+    }).catch(function (err) {
+      showToast(err.message || 'Ошибка входа');
+    });
+  };
+
+  /** Выход только для веб-версии (браузер). В меню Telegram не вызывается — кнопки там нет. */
+  window.logoutWebAccount = function () {
+    if (isTelegramMiniAppWithUser()) return;
+    try {
+      localStorage.removeItem('arka_tg_id');
+      localStorage.removeItem('arka_user');
+    } catch (e) {}
+    dbUser = null;
+    tgUser = null;
+    stopTrackingPoll();
+    showToast('Вы вышли из аккаунта');
+    showAccount();
+  };
+
   function stopTrackingPoll() {
     if (trackingPollInterval) {
       clearInterval(trackingPollInterval);
@@ -670,17 +777,31 @@
     });
 
     if (tgUser) {
-      postJSON('/api/auth/telegram', {
+      var mergeFromPhoneSession = '';
+      try {
+        var rawSaved = localStorage.getItem('arka_user');
+        if (rawSaved) {
+          var su = JSON.parse(rawSaved);
+          if (su && su.telegram_id && String(su.telegram_id).indexOf('phone_') === 0) {
+            mergeFromPhoneSession = String(su.telegram_id);
+          }
+        }
+      } catch (e) {}
+      var authPayload = {
         telegram_id: tgUser.id,
         first_name: tgUser.first_name || '',
         init_data: tg ? tg.initData : ''
-      }).then(function (r) {
+      };
+      if (mergeFromPhoneSession) authPayload.merge_from_telegram_id = mergeFromPhoneSession;
+      postJSON('/api/auth/telegram', authPayload).then(function (r) {
         if (r && r.user) {
           dbUser = r.user;
           try { localStorage.setItem('arka_tg_id', String(tgUser.id)); } catch (e) {}
           try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
         }
-      }).catch(function () {});
+      }).catch(function (err) {
+        console.warn('[auth/telegram]', err && err.message ? err.message : err);
+      });
     } else {
       try {
         var savedUser = localStorage.getItem('arka_user');
@@ -1410,7 +1531,7 @@
     var userPhone = df['field-phone'] || (dbUser && dbUser.phone) || '';
     var userEmail = df['field-email'] || '';
     var userAddr = (dbUser && dbUser.default_address) || '';
-    var tgUsername = df['field-tg'] || ((tgUser && tgUser.username) ? '@' + tgUser.username : '');
+    var tgUsername = df['field-tg'] || ((tgUser && tgUser.username) ? '@' + tgUser.username : (isWebPhoneUser() ? 'Сайт (вход по телефону)' : ''));
 
     var intervals = getIntervals();
     var sNow = saratovNow();
@@ -1813,7 +1934,12 @@
         var phone = document.getElementById('field-phone').value.trim();
         var tg = document.getElementById('field-tg').value.trim();
         var email = document.getElementById('field-email').value.trim();
-        if (!phone || !tg) {
+        var allowNoTg = isWebPhoneUser();
+        if (!phone) {
+          showToast('Укажите телефон');
+          return;
+        }
+        if (!allowNoTg && !tg) {
           showToast('Заполните Telegram и телефон');
           return;
         }
@@ -1930,7 +2056,8 @@
       var phone = (document.getElementById('field-phone') || {}).value || '';
       var email = (document.getElementById('field-email') || {}).value || '';
       var emailOk = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
-      var ready1 = tg.trim().length > 0 && phone.replace(/\D/g, '').length >= 11 && emailOk;
+      var allowNoTg = isWebPhoneUser();
+      var ready1 = (allowNoTg || tg.trim().length > 0) && phone.replace(/\D/g, '').length >= 11 && emailOk;
       btn1.classList.toggle('btn-dimmed', !ready1);
     }
 
@@ -2488,10 +2615,19 @@
     if (!tgUser && !dbUser && !getTelegramId()) {
       render(
         '<div class="section-title">Профиль</div>' +
-        '<div class="account-section">' +
-          '<p>Откройте приложение через Telegram для доступа к профилю.</p>' +
+        '<div class="account-section profile-login">' +
+          '<p class="profile-login-lead">Войдите через Telegram или по номеру телефона — заказы и адреса будут привязаны к аккаунту.</p>' +
+          '<div id="tg-store-widget-wrap" class="tg-widget-wrap"></div>' +
+          '<div class="profile-login-divider">или</div>' +
+          '<div class="form-group">' +
+            '<label>Телефон</label>' +
+            '<input type="tel" id="profile-login-phone" placeholder="+7 (___) ___-__-__" oninput="formatPhoneInput(this)" maxlength="18">' +
+          '</div>' +
+          '<button type="button" class="nav-btn nav-btn--filled profile-login-btn" onclick="submitPhoneLogin()">Войти по номеру</button>' +
+          '<p class="profile-login-hint">В Telegram-боте вы по-прежнему можете открыть то же приложение — один аккаунт на сайте и в мини-приложении после входа по Telegram.</p>' +
         '</div>'
       );
+      mountStoreTelegramWidget();
       return;
     }
 
@@ -2513,7 +2649,7 @@
         avatarHtml +
         '<div class="profile-info">' +
           '<div class="profile-name">' + escapeHtml(fullName) + '<span id="admin-crown" class="admin-crown" style="display:none"></span><span id="admin-badge" style="display:none" class="admin-badge">ADMIN</span></div>' +
-          (username ? '<div class="profile-username">@' + escapeHtml(username) + '</div>' : '') +
+          (username ? '<div class="profile-username">@' + escapeHtml(username) + '</div>' : (isWebPhoneUser() && dbUser && dbUser.phone ? '<div class="profile-username">' + escapeHtml(dbUser.phone) + '</div>' : '')) +
         '</div>' +
       '</div>' +
 
@@ -2532,6 +2668,12 @@
         '<button class="nav-btn" onclick="toggleProfileSection(\'addresses\')">Мои адреса</button>' +
         '<button class="nav-btn" onclick="toggleProfileSection(\'orders\')">История заказов</button>' +
       '</div>' +
+
+      (!isTelegramMiniAppWithUser()
+        ? '<div class="profile-logout-wrap">' +
+          '<button type="button" class="profile-logout-btn profile-logout-btn--block" onclick="logoutWebAccount()">Выйти из аккаунта</button>' +
+          '</div>'
+        : '') +
 
       '<div id="section-addresses" class="profile-section" style="display:none">' +
         '<div class="profile-section-header">' +
@@ -2921,6 +3063,8 @@
         showToast('Данные сохранены');
         navigateTo('account');
       }
+    }).catch(function (err) {
+      showToast(err.message || 'Не удалось сохранить');
     });
   };
 
@@ -2935,7 +3079,7 @@
       render(
         '<span class="back-link" onclick="navigateTo(\'account\')">К профилю</span>' +
         '<div class="section-title">Заказы</div>' +
-        '<div class="empty-state">Откройте приложение через Telegram для отслеживания заказов.</div>'
+        '<div class="empty-state">Войдите в профиль (Telegram или номер телефона), чтобы видеть заказы.</div>'
       );
       return;
     }

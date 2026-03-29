@@ -146,6 +146,56 @@
   // Auth
   // ============================================================
 
+  function mountAdminTelegramWidget() {
+    var wrap = document.getElementById('tg-admin-widget-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = '<div class="login-tg-loading">Загрузка…</div>';
+    fetch('/api/client-config').then(function (r) { return r.json(); }).then(function (cfg) {
+      wrap.innerHTML = '';
+      if (!cfg || !cfg.telegram_bot_username) {
+        wrap.innerHTML = '<p class="login-tg-hint">Для входа через Telegram добавьте на сервер TELEGRAM_BOT_USERNAME в .env</p>';
+        return;
+      }
+      var s = document.createElement('script');
+      s.src = 'https://telegram.org/js/telegram-widget.js?22';
+      s.async = true;
+      s.setAttribute('data-telegram-login', cfg.telegram_bot_username);
+      s.setAttribute('data-size', 'large');
+      s.setAttribute('data-userpic', 'true');
+      s.setAttribute('data-onauth', 'onTelegramAdminAuth(user)');
+      wrap.appendChild(s);
+    }).catch(function () {
+      wrap.innerHTML = '<p class="login-tg-hint">Не удалось загрузить настройки</p>';
+    });
+  }
+
+  window.onTelegramAdminAuth = function (user) {
+    fetch('/api/admin/telegram-widget-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(user)
+    }).then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok) throw new Error((data && data.error) || 'Ошибка входа');
+        return data;
+      });
+    }).then(function (data) {
+      if (data.token) {
+        token = data.token;
+        currentTelegramId = String(user.id);
+        localStorage.setItem('arka_admin_token', token);
+        localStorage.setItem('arka_admin_tg_id', currentTelegramId);
+        isSuperAdmin = !!data.is_super_admin;
+        canDeleteOrders = !!data.can_delete_orders;
+        localStorage.setItem('arka_admin_is_super', isSuperAdmin ? '1' : '0');
+        localStorage.setItem('arka_admin_can_delete', canDeleteOrders ? '1' : '0');
+        showDashboard();
+      }
+    }).catch(function (err) {
+      adminToast(err.message || 'Нет доступа', 'error');
+    });
+  };
+
   function showLogin() {
     document.getElementById('logout-btn').style.display = 'none';
     document.getElementById('sidebar-nav').style.display = 'none';
@@ -168,9 +218,15 @@
             '</div>' +
             '<button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px">Войти</button>' +
           '</form>' +
+          '<div class="login-divider">или</div>' +
+          '<div class="login-tg-block">' +
+            '<div class="form-label" style="margin-bottom:8px">Войти как администратор через Telegram</div>' +
+            '<div id="tg-admin-widget-wrap" class="tg-widget-wrap"></div>' +
+          '</div>' +
         '</div>' +
       '</div>'
     );
+    mountAdminTelegramWidget();
   }
 
   window.doLogin = function (e) {

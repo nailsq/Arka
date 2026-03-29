@@ -13,6 +13,7 @@ var PORT = process.env.PORT || 3000;
 var ADMIN_LOGIN = process.env.ADMIN_LOGIN || 'admin';
 var ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 var BOT_TOKEN = process.env.BOT_TOKEN || '';
+var TELEGRAM_BOT_USERNAME = (process.env.TELEGRAM_BOT_USERNAME || '').replace(/^@/, '');
 var PAYMENT_PROVIDER = process.env.PAYMENT_PROVIDER || 'test';
 var PUBLIC_URL = process.env.PUBLIC_URL || ('http://localhost:' + PORT);
 var ADMIN_TELEGRAM_IDS = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
@@ -219,6 +220,40 @@ function validateTelegramInitData(initData) {
   return null;
 }
 
+/** Telegram Login Widget (website) — https://core.telegram.org/widgets/login#checking-authorization */
+function validateTelegramLoginWidget(body) {
+  if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') return null;
+  if (!body || !body.hash) return null;
+  var hash = String(body.hash);
+  var pairs = [];
+  Object.keys(body).sort().forEach(function (k) {
+    if (k === 'hash') return;
+    if (body[k] === undefined || body[k] === null) return;
+    pairs.push(k + '=' + body[k]);
+  });
+  var dataCheckString = pairs.join('\n');
+  var secretKey = crypto.createHash('sha256').update(BOT_TOKEN).digest();
+  var computed = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+  if (computed !== hash) return null;
+  var authDate = Number(body.auth_date);
+  if (!authDate || Math.abs(Date.now() / 1000 - authDate) > 86400) return null;
+  return {
+    id: String(body.id),
+    first_name: body.first_name || '',
+    last_name: body.last_name || '',
+    username: body.username || '',
+    photo_url: body.photo_url || ''
+  };
+}
+
+function normalizeRuPhone(phone) {
+  var d = String(phone || '').replace(/\D/g, '');
+  if (d.length === 10 && d.charAt(0) === '9') d = '7' + d;
+  if (d.length === 11 && d.charAt(0) === '8') d = '7' + d.slice(1);
+  if (d.length === 11 && d.charAt(0) === '7') return d;
+  return null;
+}
+
 function adminAuth(req, res, next) {
   var token = req.headers['x-admin-token'];
   if (!token || !adminTokens.has(token)) {
@@ -387,16 +422,42 @@ app.get('/api/settings', async function (req, res) {
 // AUTH: Telegram
 // ============================================================
 
+/** Phone login uses telegram_id like phone_7999...; after Telegram login we merge into one row (real id, username on client). */
+async function mergeSyntheticUserIntoReal(mergeFromTgId, realUser) {
+  if (!mergeFromTgId || !realUser || !realUser.id) return realUser;
+  var sid = String(mergeFromTgId);
+  if (sid.indexOf('phone_') !== 0) return realUser;
+  var synth = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(sid);
+  if (!synth || synth.id === realUser.id) return realUser;
+  try {
+    await db.prepare('UPDATE orders SET user_id = ? WHERE user_id = ?').run(realUser.id, synth.id);
+    await db.prepare('UPDATE user_addresses SET user_id = ? WHERE user_id = ?').run(realUser.id, synth.id);
+    var real = await db.prepare('SELECT * FROM users WHERE id = ?').get(realUser.id);
+    if (real && (!real.phone || !String(real.phone).trim()) && synth.phone) {
+      await db.prepare('UPDATE users SET phone = ? WHERE id = ?').run(synth.phone, real.id);
+    }
+    await db.prepare('DELETE FROM users WHERE id = ?').run(synth.id);
+    console.log('[Auth] Merged phone-only user ' + sid + ' (db id=' + synth.id + ') into telegram_id=' + realUser.telegram_id);
+  } catch (err) {
+    console.error('[Auth] Merge failed:', err.message);
+  }
+  return await db.prepare('SELECT * FROM users WHERE id = ?').get(realUser.id);
+}
+
 app.post('/api/auth/telegram', async function (req, res) {
   var telegramId = req.body.telegram_id;
   var firstName = req.body.first_name || '';
   var initData = req.body.init_data || '';
+  var mergeFrom = req.body.merge_from_telegram_id || '';
 
   if (!telegramId) {
     return res.status(400).json({ error: 'telegram_id required' });
   }
 
-  if (BOT_TOKEN && BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE' && initData) {
+  if (BOT_TOKEN && BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE') {
+    if (!initData) {
+      return res.status(403).json({ error: 'init_data required' });
+    }
     var validated = validateTelegramInitData(initData);
     if (!validated || String(validated.id) !== String(telegramId)) {
       return res.status(403).json({ error: 'Invalid init data' });
@@ -409,10 +470,78 @@ app.post('/api/auth/telegram', async function (req, res) {
       await db.prepare('UPDATE users SET first_name = ? WHERE id = ?').run(firstName, existing.id);
       existing.first_name = firstName;
     }
+    existing = await mergeSyntheticUserIntoReal(mergeFrom, existing);
     return res.json({ user: existing });
   }
 
   var info = await db.prepare('INSERT INTO users (telegram_id, first_name) VALUES (?, ?)').run(String(telegramId), firstName);
+  var user = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+  user = await mergeSyntheticUserIntoReal(mergeFrom, user);
+  res.json({ user: user });
+});
+
+app.get('/api/client-config', function (req, res) {
+  res.json({ telegram_bot_username: TELEGRAM_BOT_USERNAME });
+});
+
+app.post('/api/auth/telegram-widget', async function (req, res) {
+  var mergeFrom = req.body.merge_from_telegram_id || '';
+  var bodyForWidget = Object.assign({}, req.body);
+  delete bodyForWidget.merge_from_telegram_id;
+  var tUser = validateTelegramLoginWidget(bodyForWidget);
+  if (!tUser) {
+    return res.status(403).json({ error: 'Invalid Telegram auth' });
+  }
+  var telegramId = tUser.id;
+  var firstName = tUser.first_name || '';
+  var existing = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
+  if (existing) {
+    if (firstName && firstName !== existing.first_name) {
+      await db.prepare('UPDATE users SET first_name = ? WHERE id = ?').run(firstName, existing.id);
+      existing.first_name = firstName;
+    }
+    existing = await mergeSyntheticUserIntoReal(mergeFrom, existing);
+    return res.json({ user: existing });
+  }
+  var info = await db.prepare('INSERT INTO users (telegram_id, first_name) VALUES (?, ?)').run(String(telegramId), firstName);
+  var user = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+  user = await mergeSyntheticUserIntoReal(mergeFrom, user);
+  res.json({ user: user });
+});
+
+function formatRuPhoneDisplay(norm11) {
+  var n = String(norm11 || '');
+  if (n.length !== 11 || n[0] !== '7') return '+' + n;
+  return '+7 (' + n.slice(1, 4) + ') ' + n.slice(4, 7) + '-' + n.slice(7, 9) + '-' + n.slice(9, 11);
+}
+
+app.post('/api/auth/phone', async function (req, res) {
+  var norm = normalizeRuPhone(req.body.phone);
+  if (!norm) {
+    return res.status(400).json({ error: 'Введите корректный номер телефона' });
+  }
+  var syntheticTg = 'phone_' + norm;
+  var pretty = formatRuPhoneDisplay(norm);
+
+  var phoneDigitsExpr = 'REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone,\'\'),\'+\',\'\'),\' \',\'\'),\'-\',\'\'),\'(\',\'\')';
+  // Prefer real Telegram account (numeric telegram_id) over phone_* if both rows share the same number.
+  var row = await db.prepare(
+    'SELECT * FROM users WHERE ' + phoneDigitsExpr + ' = ? ORDER BY CASE WHEN telegram_id LIKE \'phone_%\' THEN 1 ELSE 0 END LIMIT 1'
+  ).get(norm);
+
+  if (!row) {
+    row = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(syntheticTg);
+  }
+
+  if (row) {
+    if (!row.phone || row.phone.replace(/\D/g, '') !== norm) {
+      await db.prepare('UPDATE users SET phone = ? WHERE id = ?').run(pretty, row.id);
+      row.phone = pretty;
+    }
+    return res.json({ user: row });
+  }
+
+  var info = await db.prepare('INSERT INTO users (telegram_id, first_name, phone) VALUES (?, ?, ?)').run(syntheticTg, 'Клиент', pretty);
   var user = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
   res.json({ user: user });
 });
@@ -523,6 +652,23 @@ app.post('/api/abandoned-cart', async function (req, res) {
 });
 
 // ============================================================
+// Google Sheets: only after payment (not on order draft / before Pay click)
+// ============================================================
+
+async function exportOrderToGoogleSheets(orderId) {
+  try {
+    var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+    if (!order) return;
+    var orderItems = await db.prepare(
+      'SELECT oi.*, p.name FROM order_items oi LEFT JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?'
+    ).all(orderId);
+    await gsheets.appendOrder(order, orderItems);
+  } catch (gsErr) {
+    console.error('[Google Sheets] export error:', gsErr.message);
+  }
+}
+
+// ============================================================
 // PUBLIC API: Create order
 // ============================================================
 
@@ -595,16 +741,6 @@ app.post('/api/orders', async function (req, res) {
     }
 
     res.json({ success: true, order_id: orderId, total_amount: totalAmount });
-
-    try {
-      var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
-      var orderItems = await db.prepare(
-        'SELECT oi.*, p.name FROM order_items oi LEFT JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?'
-      ).all(orderId);
-      gsheets.appendOrder(order, orderItems);
-    } catch (gsErr) {
-      console.error('Google Sheets export error:', gsErr.message);
-    }
   } catch (err) {
     console.error('Order creation error:', err);
     res.status(500).json({ error: 'Order creation failed: ' + err.message });
@@ -734,8 +870,13 @@ app.get('/api/payments/test-complete/:orderId', async function (req, res) {
   var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
   if (!order) return res.status(404).send('Order not found');
 
+  var wasUnpaid = !order.is_paid;
   await db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run('Оплачен', orderId);
+
+  if (wasUnpaid) {
+    await exportOrderToGoogleSheets(orderId);
+  }
 
   res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Оплата</title><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff;color:#000}div{text-align:center;border:1px solid #000;padding:40px}a{display:inline-block;margin-top:20px;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:8px}</style></head><body><div><p>Оплата прошла успешно</p><p>Заказ N ' + orderId + '</p><p>Статус заказа обновлен на "Оплачен"</p><a href="/">Вернуться в магазин</a></div></body></html>');
 });
@@ -745,24 +886,30 @@ app.get('/api/payments/tochka-success/:orderId', async function (req, res) {
   var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
   if (!order) return res.status(404).send('Заказ не найден');
 
-  if (!order.is_paid) {
-    await db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .run('Оплачен', orderId);
-    console.log('[Tochka] Order #' + orderId + ' marked as paid via redirect');
+  // Важно: не помечаем is_paid по этому GET. Банк может перенаправить сюда до фактического
+  // списания или при отмене — тогда заказ ошибочно попадал в «оплачен / на сборке».
+  // Подтверждение оплаты только через POST /api/payments/webhook (JWT status APPROVED).
+  var paid = order && Number(order.is_paid) === 1;
 
-    if (BOT_TOKEN && order.user_id) {
-      try {
-        var u = await db.prepare('SELECT telegram_id FROM users WHERE id = ?').get(order.user_id);
-        if (u && u.telegram_id) {
-          var payMsg = await buildPaymentNotification(order);
-          sendTelegramMessage(u.telegram_id, payMsg);
-        }
-      } catch (e) {}
-    notifyAdminsNewOrder(order);
-    }
-  }
+  var htmlOk =
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата</title>' +
+    '<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#fff;color:#000}' +
+    'div{text-align:center;padding:40px;max-width:420px}h2{margin-bottom:16px;color:#2e7d32}p{color:#555;margin-bottom:24px;line-height:1.5}' +
+    'a{display:inline-block;padding:14px 28px;background:#000;color:#fff;text-decoration:none;border-radius:10px;font-size:15px}</style></head><body><div>' +
+    '<h2>Оплата подтверждена</h2><p>Заказ №' + orderId + ' оплачен. Спасибо!</p>' +
+    '<a href="/">Вернуться в магазин</a></div></body></html>';
 
-  res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата</title><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff;color:#000}div{text-align:center;padding:40px;max-width:400px}h2{margin-bottom:16px;color:#2e7d32}p{color:#555;margin-bottom:24px}a{display:inline-block;padding:14px 28px;background:#000;color:#fff;text-decoration:none;border-radius:10px;font-size:15px}</style></head><body><div><h2>✅ Оплата прошла успешно!</h2><p>Заказ №' + orderId + ' уже в работе. Спасибо, что выбрали нас!</p><a href="/">Вернуться в магазин</a></div></body></html>');
+  var htmlWait =
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата</title>' +
+    '<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#fff;color:#000}' +
+    'div{text-align:center;padding:40px;max-width:440px}h2{margin-bottom:16px;color:#333;font-size:1.2rem}p{color:#555;margin-bottom:16px;line-height:1.55;font-size:15px}' +
+    'a{display:inline-block;padding:14px 28px;background:#000;color:#fff;text-decoration:none;border-radius:10px;font-size:15px;margin-top:8px}</style></head><body><div>' +
+    '<h2>Ожидаем подтверждение банка</h2>' +
+    '<p>Если вы успешно оплатили заказ №' + orderId + ', статус обновится автоматически в течение минуты после подтверждения платёжной системы.</p>' +
+    '<p>Если вы отменили оплату или закрыли страницу банка, заказ остаётся неоплаченным — вы сможете оплатить его позже из профиля или оформить заново.</p>' +
+    '<a href="/">Вернуться в магазин</a></div></body></html>';
+
+  res.send(paid ? htmlOk : htmlWait);
 });
 
 app.post('/api/payments/webhook', async function (req, res) {
@@ -812,6 +959,8 @@ app.post('/api/payments/webhook', async function (req, res) {
             } catch (e) {}
           notifyAdminsNewOrder(order);
           }
+
+          await exportOrderToGoogleSheets(order.id);
         }
       }
     }
@@ -864,6 +1013,37 @@ app.post('/api/admin/telegram-login', async function (req, res) {
   if (!isSuperAdmin(telegramId)) {
     var clean2 = (username || '').replace(/^@/, '').toLowerCase();
     var adminRow = await db.prepare('SELECT can_delete_orders FROM admin_users WHERE telegram_id = ? OR LOWER(telegram_username) = ?').get(String(telegramId), clean2);
+    if (adminRow) canDelete = !!adminRow.can_delete_orders;
+  } else {
+    canDelete = true;
+  }
+  var token = crypto.randomBytes(32).toString('hex');
+  adminTokens.add(token);
+  res.json({ token: token, is_super_admin: isSuperAdmin(telegramId), can_delete_orders: canDelete });
+});
+
+app.post('/api/admin/telegram-widget-login', async function (req, res) {
+  var tUser = validateTelegramLoginWidget(req.body);
+  if (!tUser) {
+    return res.status(403).json({ error: 'Invalid Telegram auth' });
+  }
+  var telegramId = String(tUser.id);
+  var username = String(tUser.username || '');
+  var isAdmin = await isAdminUser(telegramId, username);
+  if (!isAdmin) {
+    return res.status(403).json({ error: 'Not an admin' });
+  }
+  if (username) {
+    var clean = username.replace(/^@/, '').toLowerCase();
+    var row = await db.prepare('SELECT id FROM admin_users WHERE LOWER(telegram_username) = ?').get(clean);
+    if (row) {
+      await db.prepare('UPDATE admin_users SET telegram_id = ? WHERE id = ?').run(telegramId, row.id);
+    }
+  }
+  var canDelete = false;
+  if (!isSuperAdmin(telegramId)) {
+    var clean2 = username.replace(/^@/, '').toLowerCase();
+    var adminRow = await db.prepare('SELECT can_delete_orders FROM admin_users WHERE telegram_id = ? OR LOWER(telegram_username) = ?').get(telegramId, clean2);
     if (adminRow) canDelete = !!adminRow.can_delete_orders;
   } else {
     canDelete = true;
