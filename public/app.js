@@ -3912,6 +3912,13 @@
       avatarHtml = '<div class="profile-avatar-placeholder">' + escapeHtml(name.charAt(0).toUpperCase()) + '</div>';
     }
 
+    var adminPanelHref = '/admin';
+    var tidAdmin = getTelegramId();
+    if (tidAdmin) {
+      adminPanelHref = '/admin.html?tg_auth=' + encodeURIComponent(tidAdmin);
+      if (tgUsername) adminPanelHref += '&tg_user=' + encodeURIComponent(tgUsername);
+    }
+
     renderWithWebTop(
       '<div class="web-flow-shell web-flow-shell--profile">' +
         '<div class="web-centered-page-card">' +
@@ -3937,6 +3944,11 @@
         '<div class="nav-buttons">' +
           '<button class="nav-btn" onclick="toggleProfileSection(\'addresses\')">╨Ь╨╛╨╕ ╨░╨┤╤А╨╡╤Б╨░</button>' +
           '<button class="nav-btn" onclick="toggleProfileSection(\'orders\')">╨Ш╤Б╤В╨╛╤А╨╕╤П ╨╖╨░╨║╨░╨╖╨╛╨▓</button>' +
+        '</div>' +
+
+        '<div class="profile-admin-entry">' +
+          '<a class="profile-admin-link" href="' + escapeHtml(adminPanelHref) + '">\u0410\u0434\u043c\u0438\u043d-\u043f\u0430\u043d\u0435\u043b\u044c</a>' +
+          '<span class="profile-admin-hint">\u0434\u043b\u044f \u0441\u043e\u0442\u0440\u0443\u0434\u043d\u0438\u043a\u043e\u0432</span>' +
         '</div>' +
 
         '<div id="section-addresses" class="profile-section" style="display:none">' +

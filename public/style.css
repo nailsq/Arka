@@ -39,7 +39,7 @@ html, body {
   background: #fff;
   color: #000;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
@@ -58,7 +58,39 @@ body.telegram-mode input,
 body.telegram-mode select,
 body.telegram-mode textarea {
   font-family: 'Nexa', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  font-weight: 600;
+  font-weight: 700;
+}
+
+/* Сайт (не Telegram): без Nexa Thin — иначе текст выглядит слишком тонким */
+body.web-mode {
+  font-family: 'Nexa', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-weight: 700;
+}
+
+.profile-admin-entry {
+  margin: 14px 0 6px;
+  text-align: center;
+}
+
+.profile-admin-link {
+  display: inline-block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.profile-admin-link:hover {
+  color: #333;
+}
+
+.profile-admin-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #888;
 }
 
 a {
