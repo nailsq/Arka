@@ -5,6 +5,45 @@ var SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID || '';
 var SHEET_DELIVERY = 'Доставка';
 var SHEET_PICKUP = 'Самовывоз';
 
+function formatSaratovDateTime(value) {
+  var dt = null;
+  if (value) {
+    var src = String(value).trim();
+    // SQLite CURRENT_TIMESTAMP usually stores UTC as "YYYY-MM-DD HH:MM:SS".
+    // Convert explicitly to ISO UTC to avoid locale-dependent parsing shifts.
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(src)) {
+      dt = new Date(src.replace(' ', 'T') + 'Z');
+    } else {
+      dt = new Date(src);
+    }
+  } else {
+    dt = new Date();
+  }
+
+  if (!dt || isNaN(dt.getTime())) dt = new Date();
+  return dt.toLocaleString('ru-RU', { timeZone: 'Europe/Saratov' });
+}
+
+function formatAbandonedStep(step, stepName) {
+  var n = Number(step) || 0;
+  var map = {
+    1: 'Шаг 1: Заказчик',
+    2: 'Шаг 2: Доставка',
+    3: 'Шаг 3: Получатель'
+  };
+  if (map[n]) return map[n];
+  if (stepName && String(stepName).trim()) return String(stepName).trim();
+  return 'Шаг не определён';
+}
+
+function formatAbandonedReason(reason, stepLabel) {
+  var r = String(reason || '').trim();
+  if (!r) return 'Клиент прервал оформление на этапе "' + stepLabel + '"';
+  if (r === 'Бездействие 10 мин') return 'Клиент неактивен 10 минут на этапе "' + stepLabel + '"';
+  if (r === 'Свернул/закрыл приложение') return 'Клиент свернул или закрыл мини-приложение на этапе "' + stepLabel + '"';
+  return r + ' (этап: "' + stepLabel + '")';
+}
+
 function getAuth() {
   var email = process.env.GOOGLE_SERVICE_EMAIL;
   var key = process.env.GOOGLE_PRIVATE_KEY;
@@ -75,11 +114,7 @@ async function appendOrder(order, items) {
 
     await ensureHeaders(api, sheetName);
 
-    var date = order.created_at || new Date().toISOString();
-    try {
-      var d = new Date(date);
-      date = d.toLocaleString('ru-RU', { timeZone: 'Europe/Saratov' });
-    } catch (e) {}
+    var date = formatSaratovDateTime(order.created_at);
 
     var row = [
       order.id,
@@ -150,12 +185,14 @@ async function appendAbandonedCart(data) {
 
     await ensureAbandonedHeaders(api);
 
-    var date = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Saratov' });
+    var date = formatSaratovDateTime(null);
     var items = (data.cart || []).map(function (c) {
       return c.name + ' × ' + c.quantity + ' = ' + (c.price * c.quantity) + ' ₽';
     }).join('\n');
 
-    var stepLabel = data.step_name || ('Шаг ' + (data.step || '?'));
+    var stepLabel = formatAbandonedStep(data.step, data.step_name);
+
+    var reasonLabel = formatAbandonedReason(data.reason, stepLabel);
 
     var row = [
       date,
@@ -164,7 +201,7 @@ async function appendAbandonedCart(data) {
       data.email || '—',
       String(data.user_id || ''),
       stepLabel,
-      data.reason || '—',
+      reasonLabel,
       items,
       data.total || 0
     ];

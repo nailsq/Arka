@@ -7,10 +7,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Cinzel+Decorative:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=20260329-2">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
+  <div id="site-preloader" class="site-preloader">
+    <div class="site-preloader-inner">
+      <img src="/images/logo.svg" alt="АРКА СТУДИЯ ЦВЕТОВ" class="site-preloader-logo" onerror="this.style.display='none'">
+      <div class="site-preloader-title">АРКА СТУДИЯ ЦВЕТОВ</div>
+    </div>
+  </div>
+
   <header id="header">
     <a href="#" id="logo-link" onclick="navigateTo('home'); return false;">
       <img src="/images/logo.png" alt="АРКА СТУДИЯ ЦВЕТОВ" id="logo"
@@ -31,6 +38,24 @@
       Корзина<span id="cart-badge" class="tab-badge" style="display:none"></span>
     </button>
     <button class="tab-btn" data-tab="account" onclick="navigateTo('account')">Профиль</button>
+  </nav>
+
+  <nav id="web-quick-nav" class="web-quick-nav" aria-label="Веб-навигация">
+    <button id="web-quick-toggle" class="web-quick-toggle" type="button" aria-label="Открыть меню" aria-expanded="false">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <div class="web-quick-nav-panel">
+      <button class="web-quick-nav-btn active" data-tab="home" onclick="navigateTo('home')">Каталог</button>
+      <button class="web-quick-nav-btn" data-tab="favorites" onclick="navigateTo('favorites')">
+        Избранное<span id="web-fav-badge" class="web-quick-badge" style="display:none"></span>
+      </button>
+      <button class="web-quick-nav-btn" data-tab="cart" onclick="navigateTo('cart')">
+        Корзина<span id="web-cart-badge" class="web-quick-badge" style="display:none"></span>
+      </button>
+      <button class="web-quick-nav-btn" data-tab="account" onclick="navigateTo('account')">Профиль</button>
+    </div>
   </nav>
 
   <main id="app"></main>
@@ -68,8 +93,13 @@
   </div>
 
   <div id="toast-container"></div>
+  <div id="cookie-consent" class="cookie-consent" style="display:none">
+    <div class="cookie-consent-text">
+      Используя данный сайт, вы даете согласие на использование файлов cookie, помогающих нам сделать его удобнее для вас.
+    </div>
+    <button id="cookie-consent-ok" class="cookie-consent-btn" type="button">OK</button>
+  </div>
 
-  <script src="/app.js"></script>
-  <script src="/size-image-override-v2.js"></script>
+  <script src="/app.js?v=20260329-2"></script>
 </body>
 </html>

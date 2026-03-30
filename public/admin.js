@@ -932,7 +932,11 @@
           canvas.height = th;
           var ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, tw, th);
-          var out = canvas.toDataURL('image/jpeg', quality);
+          var out = '';
+          try { out = canvas.toDataURL('image/webp', quality); } catch (e1) {}
+          if (!out || out.indexOf('data:image/webp') !== 0) {
+            out = canvas.toDataURL('image/jpeg', quality);
+          }
           resolve(out);
         };
         img.onerror = function () {
@@ -941,6 +945,47 @@
         img.src = String(e.target.result || '');
       };
       reader.onerror = function () { resolve(''); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function resizeImageToBlob(file, maxSide, quality) {
+    return new Promise(function (resolve) {
+      if (!file) return resolve(null);
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var img = new Image();
+        img.onload = function () {
+          var w = img.width;
+          var h = img.height;
+          var scale = 1;
+          if (Math.max(w, h) > maxSide) scale = maxSide / Math.max(w, h);
+          var tw = Math.max(1, Math.round(w * scale));
+          var th = Math.max(1, Math.round(h * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = tw;
+          canvas.height = th;
+          var ctx = canvas.getContext('2d');
+          if (!ctx) return resolve(file);
+          ctx.drawImage(img, 0, 0, tw, th);
+          canvas.toBlob(function (blobWebp) {
+            if (blobWebp && blobWebp.size > 0) {
+              blobWebp._ext = 'webp';
+              return resolve(blobWebp);
+            }
+            canvas.toBlob(function (blobJpeg) {
+              if (blobJpeg && blobJpeg.size > 0) {
+                blobJpeg._ext = 'jpg';
+                return resolve(blobJpeg);
+              }
+              resolve(file);
+            }, 'image/jpeg', quality);
+          }, 'image/webp', quality);
+        };
+        img.onerror = function () { resolve(file); };
+        img.src = String(e.target.result || '');
+      };
+      reader.onerror = function () { resolve(file); };
       reader.readAsDataURL(file);
     });
   }
@@ -1024,16 +1069,28 @@
     fd.append('flower_step', '1');
     fd.append('price_per_flower', '0');
     var fileInput = document.getElementById('pf-images');
-    if (fileInput && fileInput.files.length) {
-      for (var i = 0; i < fileInput.files.length; i++) {
-        fd.append('images', fileInput.files[i]);
-      }
-    }
 
     var url = editingProduct ? '/api/admin/products/' + editingProduct : '/api/admin/products';
     var method = editingProduct ? 'PUT' : 'POST';
 
-    apiUpload(method, url, fd).then(function (result) {
+    var compressPromise = Promise.resolve([]);
+    if (fileInput && fileInput.files && fileInput.files.length) {
+      var originalFiles = Array.prototype.slice.call(fileInput.files);
+      compressPromise = Promise.all(originalFiles.map(function (file) {
+        return resizeImageToBlob(file, 1800, 0.82).then(function (blob) {
+          if (!blob) return file;
+          if (blob === file) return file;
+          var baseName = String(file.name || 'image').replace(/\.[^.]+$/, '');
+          var ext = blob._ext || 'webp';
+          return new File([blob], baseName + '.' + ext, { type: blob.type || ('image/' + ext) });
+        });
+      }));
+    }
+
+    compressPromise.then(function (optimizedFiles) {
+      optimizedFiles.forEach(function (f) { fd.append('images', f); });
+      return apiUpload(method, url, fd);
+    }).then(function (result) {
       var productId = editingProduct || result.id;
 
       var sizeSavePromises = [];
@@ -1182,7 +1239,13 @@
   // ============================================================
 
   function loadSettings() {
-    api('GET', '/api/admin/settings').then(function (s) {
+    Promise.all([
+      api('GET', '/api/admin/settings'),
+      api('GET', '/api/admin/categories').catch(function () { return []; })
+    ]).then(function (res) {
+      var s = res[0] || {};
+      var adminCats = res[1] || [];
+      window._adminCategories = adminCats;
       var el = document.getElementById('tab-content');
       var h = '<form onsubmit="saveSettings(event)">';
 
@@ -1271,9 +1334,57 @@
       h += '</div>';
 
       h += '<div class="settings-section">';
+      h += '<div class="settings-section-title">Отключение ночной доставки</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Отметьте дни недели, в которые ночные интервалы должны быть недоступны для клиентов.</div>';
+      h += '<div style="display:flex;gap:10px;flex-wrap:wrap">';
+      h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-1" style="margin-right:6px">Пн</label>';
+      h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-2" style="margin-right:6px">Вт</label>';
+      h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-3" style="margin-right:6px">Ср</label>';
+      h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-4" style="margin-right:6px">Чт</label>';
+      h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-5" style="margin-right:6px">Пт</label>';
+      h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-6" style="margin-right:6px">Сб</label>';
+      h += '<label class="form-label" style="margin:0;font-weight:500"><input type="checkbox" id="s-night-off-7" style="margin-right:6px">Вс</label>';
+      h += '</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin:12px 0 8px">Или отметьте конкретные даты в календаре (приоритетнее дней недели).</div>';
+      h += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">';
+      h += '<button type="button" class="btn btn-sm" onclick="shiftNightCalendarMonth(-1)">← Месяц</button>';
+      h += '<input type="month" class="form-input" id="s-night-month-picker" style="width:auto;min-width:170px" onchange="setNightCalendarMonth(this.value)">';
+      h += '<button type="button" class="btn btn-sm" onclick="shiftNightCalendarMonth(1)">Месяц →</button>';
+      h += '<button type="button" class="btn btn-sm btn-danger" onclick="clearNightCalendarMonth()">Очистить месяц</button>';
+      h += '</div>';
+      h += '<div id="s-night-calendar-grid"></div>';
+      h += '</div>';
+
+      h += '<div class="settings-section">';
       h += '<div class="settings-section-title">Информация о доставке</div>';
       h += '<div class="form-group"><label class="form-label">Текст для клиентов (отображается в приложении)</label>' +
         '<textarea class="form-textarea" id="s-delivery-info" rows="4">' + esc(s.delivery_info || '') + '</textarea></div>';
+      h += '</div>';
+
+      h += '<div class="settings-section">';
+      h += '<div class="settings-section-title">Бегущая строка (сайт + Mini App)</div>';
+      h += '<div class="form-group"><label class="form-label"><input type="checkbox" id="s-marquee-enabled"' + (s.marquee_enabled !== '0' ? ' checked' : '') + ' style="margin-right:6px">Показывать бегущую строку на сайте и в Mini App</label></div>';
+      h += '<div class="form-group"><label class="form-label">Текст бегущей строки</label>' +
+        '<input type="text" class="form-input" id="s-marquee-text" value="' + esc(s.marquee_text || 'Доставка круглосуточно') + '" placeholder="Доставка круглосуточно | Свежие цветы каждый день"></div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:-6px;margin-bottom:10px">Можно указать несколько фраз через <b>|</b> — строка обработает их автоматически (для сайта и Mini App).</div>';
+      h += '<div class="form-group"><label class="form-label">Скорость на сайте (секунд на проход)</label>' +
+        '<input type="number" min="8" max="80" step="1" class="form-input" id="s-marquee-speed-web" value="' + esc(s.marquee_speed_sec_web || s.marquee_speed_sec || '18') + '" style="max-width:140px"></div>';
+      h += '<div class="form-group"><label class="form-label">Скорость в Mini App (секунд на проход)</label>' +
+        '<input type="number" min="8" max="80" step="1" class="form-input" id="s-marquee-speed-mini" value="' + esc(s.marquee_speed_sec_mini || s.marquee_speed_sec || '18') + '" style="max-width:140px"></div>';
+      h += '<div class="form-group"><label class="form-label">Направление на сайте</label>' +
+        '<select class="form-select" id="s-marquee-direction-web" style="max-width:220px">' +
+          '<option value="left"' + ((s.marquee_direction_web || s.marquee_direction || 'left') === 'left' ? ' selected' : '') + '>Справа налево</option>' +
+          '<option value="right"' + ((s.marquee_direction_web || s.marquee_direction || 'left') === 'right' ? ' selected' : '') + '>Слева направо</option>' +
+        '</select></div>';
+      h += '<div class="form-group"><label class="form-label">Направление в Mini App</label>' +
+        '<select class="form-select" id="s-marquee-direction-mini" style="max-width:220px">' +
+          '<option value="left"' + ((s.marquee_direction_mini || s.marquee_direction || 'left') === 'left' ? ' selected' : '') + '>Справа налево</option>' +
+          '<option value="right"' + ((s.marquee_direction_mini || s.marquee_direction || 'left') === 'right' ? ' selected' : '') + '>Слева направо</option>' +
+        '</select></div>';
+      h += '<div class="form-group"><label class="form-label">Картинки для закрывающегося слоя категорий (mobile web)</label>' +
+        '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Без URL: просто загрузи фото для нужных категорий.</div>' +
+        '<div id="s-web-quick-cat-photos-editor"></div>' +
+        '<input type="hidden" id="s-web-quick-cat-photos" value="' + esc(s.web_quick_cat_photos || '') + '"></div>';
       h += '</div>';
 
       h += '<div class="settings-section">';
@@ -1346,6 +1457,7 @@
       }
 
       el.innerHTML = h;
+      renderWebQuickCatPhotosEditor(s.web_quick_cat_photos || '', adminCats);
       setTimeout(function () { if (window.checkBackupStatus) window.checkBackupStatus(); }, 0);
       renderInfoPagesEditor(parseInfoPagesSetting(s.info_pages_json || ''));
 
@@ -1384,6 +1496,15 @@
       console.log('[LoadSettings] regular day:', JSON.stringify(regDay), 'night:', JSON.stringify(regNight));
       renderIntervals(regDay, 'regular-day');
       renderIntervals(regNight, 'regular-night');
+
+      var disabledWeekdays = [];
+      try { disabledWeekdays = JSON.parse(s.night_disabled_weekdays || '[]'); } catch (e) {}
+      if (!Array.isArray(disabledWeekdays)) disabledWeekdays = [];
+      disabledWeekdays.forEach(function (d) {
+        var cb = document.getElementById('s-night-off-' + d);
+        if (cb) cb.checked = true;
+      });
+      initNightCalendarEditor(s.night_disabled_dates || '[]');
 
       // Holidays are intentionally disabled in admin settings.
     });
@@ -1528,6 +1649,135 @@
     console.log('[Intervals] Regular day:', JSON.stringify(regDay), 'night:', JSON.stringify(regNight));
   }
 
+  function collectNightDisabledWeekdays() {
+    var out = [];
+    for (var d = 1; d <= 7; d++) {
+      var cb = document.getElementById('s-night-off-' + d);
+      if (cb && cb.checked) out.push(d);
+    }
+    return out;
+  }
+
+  var _nightDisabledDateMap = {};
+  var _nightCalendarCursor = null;
+
+  function parseDateKeyToDate(key) {
+    var p = String(key || '').split('.');
+    if (p.length !== 3) return null;
+    var d = parseInt(p[0], 10);
+    var m = parseInt(p[1], 10) - 1;
+    var y = parseInt(p[2], 10);
+    if (!d || m < 0 || !y) return null;
+    var dt = new Date(y, m, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m || dt.getDate() !== d) return null;
+    return dt;
+  }
+
+  function toDateKey(dt) {
+    return String(dt.getDate()).padStart(2, '0') + '.' +
+      String(dt.getMonth() + 1).padStart(2, '0') + '.' +
+      dt.getFullYear();
+  }
+
+  function monthInputValue(dt) {
+    return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
+  }
+
+  function initNightCalendarEditor(raw) {
+    _nightDisabledDateMap = {};
+    var arr = [];
+    try { arr = JSON.parse(raw || '[]'); } catch (e) {}
+    if (!Array.isArray(arr)) arr = [];
+    arr.forEach(function (key) {
+      var dt = parseDateKeyToDate(key);
+      if (!dt) return;
+      _nightDisabledDateMap[toDateKey(dt)] = true;
+    });
+    _nightCalendarCursor = new Date();
+    var monthInput = document.getElementById('s-night-month-picker');
+    if (monthInput) monthInput.value = monthInputValue(_nightCalendarCursor);
+    renderNightCalendarEditor();
+  }
+
+  function renderNightCalendarEditor() {
+    var grid = document.getElementById('s-night-calendar-grid');
+    if (!grid) return;
+    var monthInput = document.getElementById('s-night-month-picker');
+    if (!_nightCalendarCursor) _nightCalendarCursor = new Date();
+    if (monthInput && monthInput.value) {
+      var m = /^(\d{4})-(\d{2})$/.exec(monthInput.value);
+      if (m) _nightCalendarCursor = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, 1);
+    } else if (monthInput) {
+      monthInput.value = monthInputValue(_nightCalendarCursor);
+    }
+
+    var y = _nightCalendarCursor.getFullYear();
+    var mo = _nightCalendarCursor.getMonth();
+    var first = new Date(y, mo, 1);
+    var daysInMonth = new Date(y, mo + 1, 0).getDate();
+    var startOffset = (first.getDay() + 6) % 7;
+    var weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    var h = '<div style="display:grid;grid-template-columns:repeat(7,minmax(36px,1fr));gap:6px;max-width:420px">';
+    weekdays.forEach(function (wd) {
+      h += '<div style="text-align:center;font-size:12px;color:var(--text-secondary);font-weight:600">' + wd + '</div>';
+    });
+    for (var i = 0; i < startOffset; i++) h += '<div></div>';
+    for (var d = 1; d <= daysInMonth; d++) {
+      var dt = new Date(y, mo, d);
+      var key = toDateKey(dt);
+      var active = !!_nightDisabledDateMap[key];
+      h += '<button type="button" class="btn btn-sm' + (active ? ' btn-danger' : '') +
+        '" onclick="toggleNightCalendarDate(\'' + key + '\')" style="padding:6px 0;min-width:0">' + d + '</button>';
+    }
+    h += '</div>';
+    h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Красным отмечены даты, где ночная доставка выключена.</div>';
+    grid.innerHTML = h;
+  }
+
+  window.toggleNightCalendarDate = function (dateKey) {
+    if (_nightDisabledDateMap[dateKey]) delete _nightDisabledDateMap[dateKey];
+    else _nightDisabledDateMap[dateKey] = true;
+    renderNightCalendarEditor();
+  };
+
+  window.setNightCalendarMonth = function (value) {
+    var m = /^(\d{4})-(\d{2})$/.exec(String(value || ''));
+    if (!m) return;
+    _nightCalendarCursor = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, 1);
+    var monthInput = document.getElementById('s-night-month-picker');
+    if (monthInput) monthInput.value = monthInputValue(_nightCalendarCursor);
+    renderNightCalendarEditor();
+  };
+
+  window.shiftNightCalendarMonth = function (delta) {
+    if (!_nightCalendarCursor) _nightCalendarCursor = new Date();
+    _nightCalendarCursor = new Date(_nightCalendarCursor.getFullYear(), _nightCalendarCursor.getMonth() + (parseInt(delta, 10) || 0), 1);
+    var monthInput = document.getElementById('s-night-month-picker');
+    if (monthInput) monthInput.value = monthInputValue(_nightCalendarCursor);
+    renderNightCalendarEditor();
+  };
+
+  window.clearNightCalendarMonth = function () {
+    if (!_nightCalendarCursor) _nightCalendarCursor = new Date();
+    var y = _nightCalendarCursor.getFullYear();
+    var mo = _nightCalendarCursor.getMonth();
+    var daysInMonth = new Date(y, mo + 1, 0).getDate();
+    for (var d = 1; d <= daysInMonth; d++) {
+      delete _nightDisabledDateMap[toDateKey(new Date(y, mo, d))];
+    }
+    renderNightCalendarEditor();
+  };
+
+  function collectNightDisabledDates() {
+    var keys = Object.keys(_nightDisabledDateMap);
+    keys.sort(function (a, b) {
+      var da = parseDateKeyToDate(a);
+      var db = parseDateKeyToDate(b);
+      return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
+    });
+    return keys;
+  }
+
   function collectDeliveryTiers() {
     var hiddenSar = document.getElementById('s-delivery-tiers');
     if (hiddenSar) hiddenSar.value = collectTiersFrom('s-tiers-list-saratov');
@@ -1663,6 +1913,100 @@
     return JSON.stringify(collectInfoPagesData());
   }
 
+  function parseWebQuickCatPhotosSetting(raw) {
+    var map = {};
+    var src = String(raw || '').trim();
+    if (!src) return map;
+    try {
+      var parsed = JSON.parse(src);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        Object.keys(parsed).forEach(function (k) {
+          var key = String(k || '').trim();
+          var val = String(parsed[k] || '').trim();
+          if (key && val) map[key] = val;
+        });
+        return map;
+      }
+    } catch (e) {}
+    // Backward compatibility: old "name|url" lines
+    src.split(/\r?\n/).forEach(function (lineRaw) {
+      var line = String(lineRaw || '').trim();
+      if (!line) return;
+      var idx = line.indexOf('|');
+      if (idx <= 0) return;
+      var key = String(line.slice(0, idx) || '').trim();
+      var val = String(line.slice(idx + 1) || '').trim();
+      if (key && val) map[key] = val;
+    });
+    return map;
+  }
+
+  function renderWebQuickCatPhotosEditor(rawSetting, categories) {
+    var wrap = document.getElementById('s-web-quick-cat-photos-editor');
+    var hidden = document.getElementById('s-web-quick-cat-photos');
+    if (!wrap || !hidden) return;
+    var cats = (categories && categories.length ? categories : (window._adminCategories || [])).slice();
+    var parsed = parseWebQuickCatPhotosSetting(rawSetting || hidden.value || '');
+    var byId = {};
+    cats.forEach(function (c) {
+      var idKey = String(c.id);
+      if (parsed[idKey]) byId[idKey] = parsed[idKey];
+      else if (parsed[c.name]) byId[idKey] = parsed[c.name];
+    });
+    window._webQuickCatPhotosById = byId;
+    hidden.value = JSON.stringify(byId);
+    if (!cats.length) {
+      wrap.innerHTML = '<div style="font-size:12px;color:var(--text-secondary)">Сначала добавьте категории в разделе "Категории".</div>';
+      return;
+    }
+    var html = '';
+    cats.forEach(function (c) {
+      var idKey = String(c.id);
+      var photo = byId[idKey] || '';
+      html += '<div class="card" style="padding:10px 12px;margin-bottom:8px;border:1px solid #ececf1;border-radius:10px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">' +
+          '<div style="font-weight:600">' + esc(c.name) + '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+            '<input type="file" accept="image/*" onchange="updateWebQuickCatPhoto(this,\'' + esc(idKey).replace(/'/g, "\\'") + '\')">' +
+            (photo ? '<button type="button" class="btn btn-sm" onclick="clearWebQuickCatPhoto(\'' + esc(idKey).replace(/'/g, "\\'") + '\')">Удалить</button>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div id="s-web-quick-cat-photo-preview-' + esc(idKey) + '" style="margin-top:8px">' +
+          (photo ? '<img src="' + esc(photo) + '" style="width:42px;height:42px;object-fit:cover;border-radius:50%;border:1px solid #e4e5ea">' : '') +
+        '</div>' +
+      '</div>';
+    });
+    wrap.innerHTML = html;
+  }
+
+  window.updateWebQuickCatPhoto = function (input, catId) {
+    var hidden = document.getElementById('s-web-quick-cat-photos');
+    if (!hidden) return;
+    var file = input && input.files && input.files[0] ? input.files[0] : null;
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var val = e && e.target ? String(e.target.result || '') : '';
+      if (!val) return;
+      var map = window._webQuickCatPhotosById || {};
+      map[String(catId)] = val;
+      window._webQuickCatPhotosById = map;
+      hidden.value = JSON.stringify(map);
+      renderWebQuickCatPhotosEditor(hidden.value, window._adminCategories || []);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.clearWebQuickCatPhoto = function (catId) {
+    var hidden = document.getElementById('s-web-quick-cat-photos');
+    if (!hidden) return;
+    var map = window._webQuickCatPhotosById || {};
+    delete map[String(catId)];
+    window._webQuickCatPhotosById = map;
+    hidden.value = JSON.stringify(map);
+    renderWebQuickCatPhotosEditor(hidden.value, window._adminCategories || []);
+  };
+
   window.saveSettings = function (e) {
     e.preventDefault();
     collectDeliveryTiers();
@@ -1689,8 +2033,19 @@
       intervals_holiday_day: '[]',
       intervals_holiday_night: '[]',
       holiday_dates: '[]',
+      night_disabled_weekdays: JSON.stringify(collectNightDisabledWeekdays()),
+      night_disabled_dates: JSON.stringify(collectNightDisabledDates()),
       exact_time_enabled: document.getElementById('s-exact-enabled').checked ? '1' : '0',
       exact_time_surcharge: document.getElementById('s-exact-surcharge').value,
+      marquee_enabled: document.getElementById('s-marquee-enabled').checked ? '1' : '0',
+      marquee_text: document.getElementById('s-marquee-text').value,
+      marquee_speed_sec_web: document.getElementById('s-marquee-speed-web').value,
+      marquee_speed_sec_mini: document.getElementById('s-marquee-speed-mini').value,
+      marquee_direction_web: document.getElementById('s-marquee-direction-web').value,
+      marquee_direction_mini: document.getElementById('s-marquee-direction-mini').value,
+      marquee_direction: document.getElementById('s-marquee-direction-web').value,
+      web_quick_cat_photos: document.getElementById('s-web-quick-cat-photos').value,
+      marquee_speed_sec: document.getElementById('s-marquee-speed-web').value,
       pickup_cutoff_hour: document.getElementById('s-pickup-cutoff').value,
       delivery_info: document.getElementById('s-delivery-info').value,
       free_service_name: document.getElementById('s-free-service').value,
@@ -1789,7 +2144,8 @@
       h += '<div class="card-header"><span class="card-title">Администраторы</span></div>';
       h += '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">' +
         'Добавляйте администраторов по их Telegram username. Они получат доступ к админ-панели при входе через Telegram.<br>' +
-        '<b>Чистка</b> — разрешение на удаление старых заказов (раздел в Настройках). По умолчанию выключено.</div>';
+        '<b>Чистка</b> — разрешение на удаление старых заказов (раздел в Настройках). По умолчанию выключено.<br>' +
+        '<b>Сообщения</b> — разрешение на команды в клиентском боте: <code>/msg</code> и <code>/broadcast</code>.</div>';
 
       h += '<form onsubmit="addAdmin(event)" class="admin-add-form">' +
         '<div class="form-group" style="flex:1;margin-bottom:0">' +
@@ -1807,6 +2163,9 @@
           var deleteToggle = a.can_delete_orders
             ? '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#e8d5f5;color:#5b2d8e;border-color:#d4b3e8;margin-right:6px" onclick="toggleAdminDeletePerm(' + a.id + ',0)">Чистка ✓</button>'
             : '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#f5f5f5;color:#999;border-color:#e0e0e0;margin-right:6px" onclick="toggleAdminDeletePerm(' + a.id + ',1)">Чистка</button>';
+          var messageToggle = a.can_message_users
+            ? '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#d9f2e2;color:#1e7a44;border-color:#b7e5c9;margin-right:6px" onclick="toggleAdminMessagePerm(' + a.id + ',0)">Сообщения ✓</button>'
+            : '<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#f5f5f5;color:#999;border-color:#e0e0e0;margin-right:6px" onclick="toggleAdminMessagePerm(' + a.id + ',1)">Сообщения</button>';
           h += '<div class="admin-list-item" id="admin-row-' + a.id + '">' +
             '<div class="admin-list-info">' +
               '<div class="admin-list-username">@' + esc(a.telegram_username) + '</div>' +
@@ -1816,6 +2175,7 @@
               '</div>' +
             '</div>' +
             '<div style="display:flex;align-items:center">' +
+              messageToggle +
               deleteToggle +
               '<button class="btn btn-sm btn-danger" onclick="removeAdmin(' + a.id + ',\'' + esc(a.telegram_username) + '\')">Удалить</button>' +
             '</div>' +
@@ -1852,6 +2212,13 @@
   window.toggleAdminDeletePerm = function (id, newValue) {
     api('PUT', '/api/admin/admins/' + id + '/permissions', { can_delete_orders: newValue }).then(function () {
       adminToast(newValue ? 'Право на чистку заказов выдано' : 'Право на чистку заказов отозвано', 'success');
+      loadAdmins();
+    });
+  };
+
+  window.toggleAdminMessagePerm = function (id, newValue) {
+    api('PUT', '/api/admin/admins/' + id + '/permissions', { can_message_users: newValue }).then(function () {
+      adminToast(newValue ? 'Право на /msg и /broadcast выдано' : 'Право на /msg и /broadcast отозвано', 'success');
       loadAdmins();
     });
   };

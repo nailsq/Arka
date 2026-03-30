@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM - ARKA</title>
+  <link rel="stylesheet" href="/crm.css?v=20260329-1">
+</head>
+<body>
+  <div id="crm-welcome-splash" class="crm-welcome-splash">
+    <div class="crm-welcome-text">Добро пожаловать в CRM</div>
+  </div>
+  <main class="crm-shell">
+    <aside class="crm-sidebar">
+      <div class="crm-logo">ARCA CRM</div>
+      <button id="crm-add-order-btn" class="crm-primary-btn">Добавить заказ</button>
+
+      <nav class="crm-menu">
+        <div class="crm-orders-group">
+          <button id="crm-orders-toggle" class="crm-menu-item active crm-menu-item-expand" data-menu="orders" aria-expanded="true">
+            <span class="crm-menu-item-label">Заказы</span>
+            <span class="crm-chevron"></span>
+          </button>
+          <div id="crm-orders-submenu" class="crm-submenu is-open">
+            <button class="crm-submenu-item active" data-section="all"><span class="crm-mini-icon"></span>Все заказы</button>
+            <button class="crm-submenu-item" data-section="kanban"><span class="crm-mini-icon"></span>Доска Канбан</button>
+            <button class="crm-submenu-item" data-section="feedback"><span class="crm-mini-icon"></span>Заказы обратной связи</button>
+            <button class="crm-submenu-item" data-section="archive"><span class="crm-mini-icon"></span>Архив заказов</button>
+            <button class="crm-submenu-item" data-section="new-client" data-menu="orders"><span class="crm-mini-icon"></span>Новый клиент</button>
+          </div>
+        </div>
+        <button class="crm-menu-item" data-menu="chats">Чаты с клиентами</button>
+        <div class="crm-products-group">
+          <button id="crm-products-toggle" class="crm-menu-item crm-menu-item-expand" data-menu="products" aria-expanded="false">
+            <span class="crm-menu-item-label">Товары</span>
+            <span class="crm-chevron"></span>
+          </button>
+          <div id="crm-products-submenu" class="crm-submenu">
+            <button class="crm-submenu-item" data-menu="products" data-section="product-categories"><span class="crm-mini-icon"></span>Категории</button>
+            <button class="crm-submenu-item" data-menu="products" data-section="product-items"><span class="crm-mini-icon"></span>Товары</button>
+            <button class="crm-submenu-item" data-menu="products" data-section="product-stock"><span class="crm-mini-icon"></span>Остатки</button>
+            <button class="crm-submenu-item" data-menu="products" data-section="product-filters"><span class="crm-mini-icon"></span>Фильтры</button>
+            <button class="crm-submenu-item" data-menu="products" data-section="product-tags"><span class="crm-mini-icon"></span>Теги</button>
+          </div>
+        </div>
+        <div class="crm-people-group">
+          <button id="crm-people-toggle" class="crm-menu-item crm-menu-item-expand" data-menu="people" aria-expanded="false">
+            <span class="crm-menu-item-label">Клиенты и сотрудники</span>
+            <span class="crm-chevron"></span>
+          </button>
+          <div id="crm-people-submenu" class="crm-submenu">
+            <button class="crm-submenu-item" data-menu="people" data-section="people-clients"><span class="crm-mini-icon"></span>База клиентов</button>
+            <button class="crm-submenu-item" data-menu="people" data-section="people-staff"><span class="crm-mini-icon"></span>База сотрудников</button>
+          </div>
+        </div>
+        <button class="crm-menu-item" data-menu="site">Настройка сайта</button>
+        <button class="crm-menu-item" data-menu="analytics">Аналитика</button>
+      </nav>
+    </aside>
+
+    <section class="crm-main">
+      <div class="crm-topbar">
+        <input id="crm-search-global" type="text" placeholder="Поиск: ID, имя, телефон">
+        <button id="crm-refresh-btn">Обновить</button>
+        <button id="crm-logout-btn">Выйти</button>
+      </div>
+      <div id="crm-notice" class="crm-notice crm-hidden"></div>
+
+      <div id="crm-day-strip" class="crm-day-strip"></div>
+
+      <section class="crm-filters-grid">
+        <div class="crm-filter-col">
+          <input id="crm-filter-order-id" type="text" placeholder="Номер заказа:">
+          <input id="crm-filter-buyer-phone" type="text" placeholder="Номер покупателя:">
+          <div class="crm-filter-actions">
+            <button id="crm-apply-filters" class="crm-btn-blue">Применить фильтр</button>
+            <button id="crm-reset-filters" class="crm-btn-pink">Сбросить фильтр</button>
+          </div>
+        </div>
+        <div class="crm-filter-col">
+          <select id="crm-filter-status">
+            <option value="">Статус заказа</option>
+            <option>Новый</option>
+            <option>Оформлен</option>
+            <option>Оплачен</option>
+            <option>Собирается</option>
+            <option>Собран</option>
+            <option>Отправлен</option>
+            <option>Доставлен</option>
+            <option>Выдан</option>
+            <option>Выполнен</option>
+            <option>Отменен</option>
+            <option>Возврат</option>
+          </select>
+          <div class="crm-date-range">
+            <input id="crm-filter-date-from" type="date">
+            <input id="crm-filter-date-to" type="date">
+          </div>
+        </div>
+      </section>
+
+      <div id="crm-status-pills" class="crm-status-pills"></div>
+      <div id="crm-shown-info" class="crm-shown-info"></div>
+
+      <section class="crm-orders-card">
+        <div class="crm-orders-head">
+          <button id="crm-edit-mode-btn" class="crm-muted-btn">Изменить</button>
+        </div>
+        <div class="crm-table-wrap">
+          <table class="crm-table">
+            <thead>
+              <tr>
+                <th>№</th>
+                <th>Тип</th>
+                <th>Дата доставки</th>
+                <th>Покупатель</th>
+                <th>Статус заказа</th>
+                <th>Сумма к оплате</th>
+              </tr>
+            </thead>
+            <tbody id="crm-orders-tbody"></tbody>
+          </table>
+        </div>
+        <div id="crm-orders-board" class="crm-orders-board crm-hidden"></div>
+      </section>
+
+      <section id="crm-new-client-order-view" class="crm-new-client-order-view crm-hidden" aria-label="Новый клиент и заказ"></section>
+
+      <section id="crm-products-view" class="crm-products-view crm-hidden"></section>
+      <section id="crm-people-view" class="crm-products-view crm-hidden"></section>
+      <section id="crm-analytics-view" class="crm-products-view crm-hidden"></section>
+    </section>
+  </main>
+  <section id="crm-product-editor" class="crm-product-editor crm-hidden"></section>
+  <section id="crm-deal-editor" class="crm-deal-editor crm-hidden"></section>
+  <section id="crm-client-editor" class="crm-deal-editor crm-hidden"></section>
+
+  <script src="/crm.js?v=20260329-1"></script>
+</body>
+</html>

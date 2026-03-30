@@ -10,17 +10,14 @@ if errorlevel 1 (
   exit /b 1
 )
 
-REM Stale lock from old script
 del /F /Q "%LOCALAPPDATA%\Temp\arcaflowers-deploy.lock" 2>nul
 
 REM SSH: Cyrillic user path breaks Git/MSYS; HOME uses ASCII-only path for ssh keys
 set "HOME=%ProgramData%\arka-git-ssh"
 if not exist "%HOME%" mkdir "%HOME%" 2>nul
 if not exist "%HOME%\.ssh" mkdir "%HOME%\.ssh" 2>nul
-REM Git reads global config from HOME/.gitconfig — with HOME above it would miss your real profile. Force standard global config path:
 if defined USERPROFILE set "GIT_CONFIG_GLOBAL=%USERPROFILE%\.gitconfig"
 
-REM Prefer Windows OpenSSH; else Git's ssh
 if exist "%SystemRoot%\System32\OpenSSH\ssh.exe" (
   set "GIT_SSH_COMMAND=%SystemRoot%\System32\OpenSSH\ssh.exe -o StrictHostKeyChecking=accept-new"
 ) else (
@@ -39,7 +36,6 @@ if errorlevel 1 (
   exit /b 1
 )
 
-REM Git would use mingw ssh; core.sshCommand fixes ~/.ssh with Cyrillic profile path
 if exist "%SystemRoot%\System32\OpenSSH\ssh.exe" (
   git config core.sshCommand "%SystemRoot:\=/%/System32/OpenSSH/ssh.exe -o StrictHostKeyChecking=accept-new"
 )
@@ -98,7 +94,6 @@ if not "!CHANGED!"=="0" (
 
 echo.
 echo --- Sync with GitHub: fetch + merge origin/main ---
-echo    (merge is easier than rebase if histories diverged^)
 set "DIDSTASH="
 for /f %%i in ('git status --porcelain ^| find /c /v ""') do set WC=%%i
 if not "!WC!"=="0" (
@@ -121,20 +116,19 @@ if errorlevel 1 (
 git merge origin/main --no-edit
 if errorlevel 1 (
   echo.
-  echo ERROR: merge conflict with GitHub. In files remove markers ^<^<^<  ^=^=^=  ^>^>^>^, keep correct code, then run in this folder:
+  echo ERROR: merge conflict. Remove ^<^<^<  ^=^=^=  ^>^>^> in files, then:
   echo   git add -A
   echo   git commit -m "resolve merge"
   echo   deploy.bat
-  if defined DIDSTASH echo Saved work is in stash. After commit:  git stash pop
+  if defined DIDSTASH echo Stash:  git stash pop  (after commit^)
   pause
   exit /b 1
 )
 if defined DIDSTASH (
-  echo Restoring your uncommitted files from stash...
+  echo Restoring stashed files...
   git stash pop
   if errorlevel 1 (
-    echo.
-    echo ERROR: conflict after stash pop. Fix files, then:  git add -A  ^&^&  git commit -m "wip"  ^&^&  deploy.bat
+    echo ERROR: conflict after stash pop. Fix, then:  git add -A ^&^& git commit -m "wip" ^&^& deploy.bat
     pause
     exit /b 1
   )
@@ -144,30 +138,25 @@ echo.
 echo --- git push origin main ---
 git push origin main
 if errorlevel 1 (
-  echo.
-  echo ERROR: push to GitHub ^(origin^) failed. Internet, credentials, or run pull again.
+  echo ERROR: push to GitHub failed. Check internet and credentials.
   pause
   exit /b 1
 )
 
 echo.
-echo --- git push production main ^(SSH to VPS^) ---
+echo --- git push production main ^(SSH^) ---
 echo If asked for password: enter root password for the server.
 git push production main
 if errorlevel 1 (
-  echo.
-  echo ERROR: push to production failed. Typical causes:
-  echo   - Wrong SSH password or key not added on server
-  echo   - Server down or firewall
-  echo   - Path on server: root@217.198.5.229:/var/git/arka-flowers.git
+  echo ERROR: push to production failed. SSH password or server path.
   pause
   exit /b 1
 )
 
 echo.
 echo ============================================================
-echo   PUSH OK. On the server ^(SSH^) run one line:
-echo   cd /root/arka-flowers/arka-flowers ^&^& git pull ^&^& pm2 restart arka-flowers
+echo   PUSH OK. On server ^(SSH^): git pull + pm2 restart arka-flowers
 echo ============================================================
 echo.
 pause
+exit /b 0
