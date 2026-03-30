@@ -97,11 +97,55 @@ if not "!CHANGED!"=="0" (
 )
 
 echo.
+echo --- Sync with GitHub: fetch + merge origin/main ---
+echo    (merge is easier than rebase if histories diverged^)
+set "DIDSTASH="
+for /f %%i in ('git status --porcelain ^| find /c /v ""') do set WC=%%i
+if not "!WC!"=="0" (
+  echo Uncommitted files — saving to stash, then merge...
+  git stash push -u -m "deploy-pre-pull"
+  if errorlevel 1 (
+    echo ERROR: git stash failed. Close Cursor/IDE or programs locking files, then retry.
+    pause
+    exit /b 1
+  )
+  set DIDSTASH=1
+)
+git fetch origin
+if errorlevel 1 (
+  echo ERROR: git fetch failed — internet or github.com unreachable.
+  if defined DIDSTASH echo Restore work:  git stash pop
+  pause
+  exit /b 1
+)
+git merge origin/main --no-edit
+if errorlevel 1 (
+  echo.
+  echo ERROR: merge conflict with GitHub. In files remove markers ^<^<^<  ^=^=^=  ^>^>^>^, keep correct code, then run in this folder:
+  echo   git add -A
+  echo   git commit -m "resolve merge"
+  echo   deploy.bat
+  if defined DIDSTASH echo Saved work is in stash. After commit:  git stash pop
+  pause
+  exit /b 1
+)
+if defined DIDSTASH (
+  echo Restoring your uncommitted files from stash...
+  git stash pop
+  if errorlevel 1 (
+    echo.
+    echo ERROR: conflict after stash pop. Fix files, then:  git add -A  ^&^&  git commit -m "wip"  ^&^&  deploy.bat
+    pause
+    exit /b 1
+  )
+)
+
+echo.
 echo --- git push origin main ---
 git push origin main
 if errorlevel 1 (
   echo.
-  echo ERROR: push to GitHub ^(origin^) failed. Check internet and credentials.
+  echo ERROR: push to GitHub ^(origin^) failed. Internet, credentials, or run pull again.
   pause
   exit /b 1
 )
