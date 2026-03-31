@@ -1,5 +1,6 @@
 require('dotenv').config();
 var express = require('express');
+var fs = require('fs');
 var path = require('path');
 var crypto = require('crypto');
 var multer = require('multer');
@@ -19,10 +20,24 @@ var PUBLIC_URL = process.env.PUBLIC_URL || ('http://localhost:' + PORT);
 var ADMIN_TELEGRAM_IDS = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 
 var TOCHKA_API_URL = process.env.TOCHKA_API_URL || 'https://enter.tochka.com/sandbox/v2';
-var TOCHKA_JWT = process.env.TOCHKA_JWT || 'sandbox.jwt.token';
+var TOCHKA_JWT = String(process.env.TOCHKA_JWT || '').trim();
+if (!TOCHKA_JWT && process.env.TOCHKA_JWT_FILE) {
+  try {
+    var jwtPath = String(process.env.TOCHKA_JWT_FILE || '').trim();
+    if (jwtPath && fs.existsSync(jwtPath)) {
+      TOCHKA_JWT = fs.readFileSync(jwtPath, 'utf8').replace(/^\uFEFF/, '').trim();
+    }
+  } catch (jwtReadErr) {
+    console.error('[Tochka] TOCHKA_JWT_FILE read error:', jwtReadErr.message);
+  }
+}
+if (!TOCHKA_JWT) {
+  TOCHKA_JWT = 'sandbox.jwt.token';
+}
 var TOCHKA_CUSTOMER_CODE = process.env.TOCHKA_CUSTOMER_CODE || '';
 var TOCHKA_MERCHANT_ID = process.env.TOCHKA_MERCHANT_ID || '';
 var TOCHKA_CLIENT_ID = process.env.TOCHKA_CLIENT_ID || '';
+var TOCHKA_FALLBACK_EMAIL = process.env.TOCHKA_FALLBACK_EMAIL || 'no-reply@shoparkaflowers.ru';
 
 var adminTokens = new Set();
 
@@ -509,6 +524,28 @@ app.post('/api/auth/telegram-widget', async function (req, res) {
   res.json({ user: user });
 });
 
+// Web-only Telegram login (window.onTelegramAuth)
+app.post('/api/auth/telegram-web', async function (req, res) {
+  var bodyForWidget = Object.assign({}, req.body);
+  var tUser = validateTelegramLoginWidget(bodyForWidget);
+  if (!tUser) {
+    return res.status(403).json({ error: 'Invalid Telegram auth' });
+  }
+  var telegramId = tUser.id;
+  var firstName = tUser.first_name || '';
+  var existing = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
+  if (existing) {
+    if (firstName && firstName !== existing.first_name) {
+      await db.prepare('UPDATE users SET first_name = ? WHERE id = ?').run(firstName, existing.id);
+      existing.first_name = firstName;
+    }
+    return res.json({ user: existing });
+  }
+  var info = await db.prepare('INSERT INTO users (telegram_id, first_name) VALUES (?, ?)').run(String(telegramId), firstName);
+  var user = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+  res.json({ user: user });
+});
+
 function formatRuPhoneDisplay(norm11) {
   var n = String(norm11 || '');
   if (n.length !== 11 || n[0] !== '7') return '+' + n;
@@ -544,6 +581,85 @@ app.post('/api/auth/phone', async function (req, res) {
   var info = await db.prepare('INSERT INTO users (telegram_id, first_name, phone) VALUES (?, ?, ?)').run(syntheticTg, 'Клиент', pretty);
   var user = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
   res.json({ user: user });
+});
+
+// ============================================================
+// PHONE VERIFY VIA TELEGRAM
+// ============================================================
+
+app.post('/api/phone/start-verify', async function (req, res) {
+  try {
+    var telegramId = req.body.telegram_id;
+    var phoneRaw = req.body.phone;
+    var firstName = (req.body.first_name || '').trim() || 'Клиент';
+    if (!telegramId) return res.status(400).json({ error: 'telegram_id required' });
+    var norm = normalizeRuPhone(phoneRaw);
+    if (!norm) return res.status(400).json({ error: 'Введите корректный номер телефона' });
+
+    var pretty = formatRuPhoneDisplay(norm);
+    var code = String(Math.floor(1000 + Math.random() * 9000));
+    var expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+    await db.prepare('INSERT INTO phone_verifications (telegram_id, phone, code, expires_at) VALUES (?,?,?,?)')
+      .run(String(telegramId), pretty, code, expiresAt);
+
+    var text = 'Код для подтверждения номера ' + pretty + ':\n\n' + code + '\n\nНикому его не сообщайте.';
+    try {
+      sendTelegramMessage(String(telegramId), text);
+    } catch (e) {}
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[PhoneVerify] start error:', err.message);
+    res.status(500).json({ error: 'Не удалось отправить код' });
+  }
+});
+
+app.post('/api/phone/confirm', async function (req, res) {
+  try {
+    var telegramId = req.body.telegram_id;
+    var phoneRaw = req.body.phone;
+    var code = String(req.body.code || '').trim();
+    var firstName = (req.body.first_name || '').trim() || 'Клиент';
+    if (!telegramId) return res.status(400).json({ error: 'telegram_id required' });
+    var norm = normalizeRuPhone(phoneRaw);
+    if (!norm) return res.status(400).json({ error: 'Введите корректный номер телефона' });
+    if (!code) return res.status(400).json({ error: 'code required' });
+
+    var pretty = formatRuPhoneDisplay(norm);
+    var v = await db.prepare(
+      'SELECT * FROM phone_verifications WHERE telegram_id = ? AND phone = ? AND used_at IS NULL ORDER BY created_at DESC LIMIT 1'
+    ).get(String(telegramId), pretty);
+    if (!v) return res.status(400).json({ error: 'Код не найден, запросите новый' });
+
+    var now = Date.now();
+    var exp = Date.parse(v.expires_at);
+    if (isFinite(exp) && now > exp) {
+      return res.status(400).json({ error: 'Срок действия кода истёк, запросите новый' });
+    }
+    if (v.code !== code) {
+      await db.prepare('UPDATE phone_verifications SET attempts = attempts + 1 WHERE id = ?').run(v.id);
+      return res.status(400).json({ error: 'Неверный код' });
+    }
+
+    await db.prepare('UPDATE phone_verifications SET used_at = CURRENT_TIMESTAMP WHERE id = ?').run(v.id);
+
+    var user = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
+    if (!user) {
+      var info = await db.prepare('INSERT INTO users (telegram_id, first_name, phone) VALUES (?,?,?)')
+        .run(String(telegramId), firstName, pretty);
+      user = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+    } else {
+      await db.prepare('UPDATE users SET phone = ?, first_name = COALESCE(NULLIF(first_name, \'\'), ?) WHERE id = ?')
+        .run(pretty, firstName, user.id);
+      user = await db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
+    }
+
+    res.json({ user: user });
+  } catch (err) {
+    console.error('[PhoneVerify] confirm error:', err.message);
+    res.status(500).json({ error: 'Не удалось подтвердить номер' });
+  }
 });
 
 // ============================================================
@@ -659,6 +775,11 @@ async function exportOrderToGoogleSheets(orderId) {
   try {
     var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
     if (!order) return;
+    // Safety gate: never export unpaid orders to the paid-orders sheet.
+    if (Number(order.is_paid) !== 1) {
+      console.log('[Google Sheets] Skip unpaid order #' + orderId);
+      return;
+    }
     var orderItems = await db.prepare(
       'SELECT oi.*, p.name FROM order_items oi LEFT JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?'
     ).all(orderId);
@@ -666,6 +787,41 @@ async function exportOrderToGoogleSheets(orderId) {
   } catch (gsErr) {
     console.error('[Google Sheets] export error:', gsErr.message);
   }
+}
+
+/** Match bank order to our DB row: payment_id may be operationId or payment URL; JWT may include paymentLinkId (our order id). */
+async function findOrderForTochkaAcquiringWebhook(jwtPayload) {
+  var opId = jwtPayload.operationId || jwtPayload.OperationId || jwtPayload.operation_id || '';
+  var linkId = jwtPayload.paymentLinkId || jwtPayload.PaymentLinkId || jwtPayload.payment_link_id || '';
+  opId = opId ? String(opId).trim() : '';
+  linkId = linkId ? String(linkId).trim() : '';
+
+  var order = null;
+  if (opId) {
+    order = await db.prepare('SELECT * FROM orders WHERE payment_id = ?').get(opId);
+    if (!order) {
+      order = await db.prepare('SELECT * FROM orders WHERE payment_id = ?').get(opId.toLowerCase());
+    }
+  }
+  if (!order && linkId) {
+    var numId = parseInt(linkId, 10);
+    if (numId > 0) {
+      order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(numId);
+    }
+    if (!order) {
+      order = await db.prepare('SELECT * FROM orders WHERE payment_id = ?').get(linkId);
+    }
+  }
+  if (!order && jwtPayload.purpose) {
+    var pm = String(jwtPayload.purpose).match(/№\s*(\d+)/);
+    if (pm && pm[1]) {
+      var oid = parseInt(pm[1], 10);
+      if (oid > 0) {
+        order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(oid);
+      }
+    }
+  }
+  return order;
 }
 
 // ============================================================
@@ -800,6 +956,7 @@ app.post('/api/payments/create', async function (req, res) {
       var basePublicUrl = PUBLIC_URL.replace(/^http:\/\//, 'https://');
       var redirectUrl = basePublicUrl + '/api/payments/tochka-success/' + orderId;
 
+      var clientEmail = (order.user_email && String(order.user_email).trim()) || TOCHKA_FALLBACK_EMAIL;
       var tochkaBody = {
         Data: {
           customerCode: TOCHKA_CUSTOMER_CODE,
@@ -810,7 +967,7 @@ app.post('/api/payments/create', async function (req, res) {
           ttl: 60,
           paymentLinkId: String(orderId),
           Client: {
-            email: order.user_email || undefined
+            email: clientEmail
           },
           Items: receiptItems
         }
@@ -827,7 +984,8 @@ app.post('/api/payments/create', async function (req, res) {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer ' + TOCHKA_JWT,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'CustomerCode': TOCHKA_CUSTOMER_CODE
         },
         body: JSON.stringify(tochkaBody)
       });
@@ -870,7 +1028,7 @@ app.get('/api/payments/test-complete/:orderId', async function (req, res) {
   var order = await db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
   if (!order) return res.status(404).send('Order not found');
 
-  var wasUnpaid = !order.is_paid;
+  var wasUnpaid = Number(order.is_paid) !== 1;
   await db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run('Оплачен', orderId);
 
@@ -914,6 +1072,9 @@ app.get('/api/payments/tochka-success/:orderId', async function (req, res) {
 
 app.post('/api/payments/webhook', async function (req, res) {
   var body = req.body;
+  if (Buffer.isBuffer(body)) {
+    body = body.toString('utf8');
+  }
   console.log('[Webhook] Received, content-type:', req.headers['content-type'], ', body type:', typeof body);
 
   try {
@@ -937,30 +1098,49 @@ app.post('/api/payments/webhook', async function (req, res) {
     }
 
     if (jwtPayload) {
-      var opId = jwtPayload.operationId || jwtPayload.OperationId || jwtPayload.operation_id || '';
-      var status = jwtPayload.status || jwtPayload.Status || '';
+      var hookType = jwtPayload.webhookType || jwtPayload.WebhookType || jwtPayload.webhook_type || '';
+      var hookNorm = String(hookType || '').replace(/\s+/g, '').toLowerCase();
+      var skipWebhookTypes = {
+        incomingpayment: true,
+        outgoingpayment: true,
+        incomingsbppayment: true,
+        incomingsbpb2bpayment: true
+      };
+      if (hookNorm && skipWebhookTypes[hookNorm]) {
+        console.log('[Webhook] Skip event (not payment link): webhookType=' + hookType);
+      } else {
+        var opId = jwtPayload.operationId || jwtPayload.OperationId || jwtPayload.operation_id || '';
+        var statusRaw = jwtPayload.status || jwtPayload.Status || '';
+        var statusNorm = String(statusRaw || '').trim().toUpperCase();
 
-      console.log('[Webhook] operationId=' + opId + ', status=' + status);
+        console.log('[Webhook] operationId=' + opId + ', status=' + statusRaw);
 
-      if (opId && (status === 'APPROVED' || status === 'approved')) {
-        var order = await db.prepare('SELECT * FROM orders WHERE payment_id = ?').get(String(opId));
-        if (order && !order.is_paid) {
-          await db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-            .run('Оплачен', order.id);
-          console.log('[Webhook] Order #' + order.id + ' marked as paid');
+        // СБП по платёжной ссылке — тот же acquiringInternetPayment, status APPROVED (док. Точки).
+        if ((opId || jwtPayload.paymentLinkId || jwtPayload.purpose) && statusNorm === 'APPROVED') {
+          var order = await findOrderForTochkaAcquiringWebhook(jwtPayload);
+          if (!order) {
+            console.log('[Webhook] No order row for operationId=' + opId);
+          } else if (Number(order.is_paid) !== 1) {
+            await db.prepare('UPDATE orders SET is_paid = 1, paid_at = CURRENT_TIMESTAMP, status = ?, status_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+              .run('Оплачен', order.id);
+            console.log('[Webhook] Order #' + order.id + ' marked as paid');
 
-          if (BOT_TOKEN && order.user_id) {
             try {
-              var u = await db.prepare('SELECT telegram_id FROM users WHERE id = ?').get(order.user_id);
-              if (u && u.telegram_id) {
-                var payMsg2 = await buildPaymentNotification(order);
-                sendTelegramMessage(u.telegram_id, payMsg2);
+              if (BOT_TOKEN && order.user_id) {
+                try {
+                  var u = await db.prepare('SELECT telegram_id FROM users WHERE id = ?').get(order.user_id);
+                  if (u && u.telegram_id) {
+                    var payMsg2 = await buildPaymentNotification(order);
+                    sendTelegramMessage(u.telegram_id, payMsg2);
+                  }
+                } catch (e) {}
               }
-            } catch (e) {}
-          notifyAdminsNewOrder(order);
+              await notifyAdminsNewOrder(order);
+              await exportOrderToGoogleSheets(order.id);
+            } catch (sideErr) {
+              console.error('[Webhook] Post-payment error:', sideErr.message);
+            }
           }
-
-          await exportOrderToGoogleSheets(order.id);
         }
       }
     }
@@ -1753,7 +1933,8 @@ async function registerTochkaWebhook() {
       method: 'PUT',
       headers: {
         'Authorization': 'Bearer ' + TOCHKA_JWT,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'CustomerCode': TOCHKA_CUSTOMER_CODE
       },
       body: JSON.stringify({
         url: webhookUrl,

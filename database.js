@@ -140,6 +140,17 @@ var SCHEMA = "\
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\
   );\
 \
+  CREATE TABLE IF NOT EXISTS phone_verifications (\
+    id INTEGER PRIMARY KEY AUTOINCREMENT,\
+    telegram_id TEXT NOT NULL,\
+    phone TEXT NOT NULL,\
+    code TEXT NOT NULL,\
+    expires_at DATETIME NOT NULL,\
+    used_at DATETIME,\
+    attempts INTEGER DEFAULT 0,\
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP\
+  );\
+\
   CREATE TABLE IF NOT EXISTS admin_users (\
     id INTEGER PRIMARY KEY AUTOINCREMENT,\
     telegram_username TEXT NOT NULL UNIQUE,\

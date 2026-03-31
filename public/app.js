@@ -22,26 +22,16 @@
   var isTelegramRuntime = false;
   var detachHomeHeroScroll = null;
   var detachMobileQuickCatsScroll = null;
+  var detachWebCatalogSheetBehavior = null;
+  // Keep intro text visible: sheet stops lower by default.
+  var webCatalogSheetTopOffset = '36%';
   var MOBILE_CATS_COLLAPSED_KEY = 'arka_web_mobile_cats_collapsed';
   if (tg) {
     tg.ready();
     tg.expand();
     isTelegramRuntime = !!(tg.initData && tg.initData.length);
-    // Только реальный пользователь Mini App: у объекта user есть числовой id. Пустой {} в браузере даёт truthy без id — иначе скрывалась кнопка «Выйти» на сайте.
-    var miniUser = tg.initDataUnsafe && tg.initDataUnsafe.user;
-    if (miniUser && typeof miniUser.id === 'number') {
-      tgUser = miniUser;
-    }
-  }
-
-  /** Мини-приложение Telegram: initDataUnsafe.user с числовым id. В веб-браузере user часто отсутствует или это пустой объект — тогда показываем выход из аккаунта на сайте. */
-  function isTelegramMiniAppWithUser() {
-    try {
-      var w = window.Telegram && window.Telegram.WebApp;
-      var u = w && w.initDataUnsafe && w.initDataUnsafe.user;
-      return !!(u && typeof u.id === 'number');
-    } catch (e) {
-      return false;
+    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      tgUser = tg.initDataUnsafe.user;
     }
   }
 
@@ -81,21 +71,21 @@
     var overlay = document.getElementById('city-overlay');
     var list = document.getElementById('city-list');
     overlay.style.display = 'flex';
-    list.innerHTML = '<div style="text-align:center;padding:20px;font-size:14px">╨Ч╨░╨│╤А╤Г╨╖╨║╨░...</div>';
+    list.innerHTML = '<div style="text-align:center;padding:20px;font-size:14px">Загрузка...</div>';
 
     fetchJSON('/api/cities').then(function (cities) {
       citiesList = cities || [];
       if (!citiesList.length) {
         citiesList = [
-          { id: 1, name: '╨б╨░╤А╨░╤В╨╛╨▓' },
-          { id: 2, name: '╨н╨╜╨│╨╡╨╗╤М╤Б' }
+          { id: 1, name: 'Саратов' },
+          { id: 2, name: 'Энгельс' }
         ];
       }
       renderCityList(list);
     }).catch(function () {
       citiesList = [
-        { id: 1, name: '╨б╨░╤А╨░╤В╨╛╨▓' },
-        { id: 2, name: '╨н╨╜╨│╨╡╨╗╤М╤Б' }
+        { id: 1, name: 'Саратов' },
+        { id: 2, name: 'Энгельс' }
       ];
       renderCityList(list);
     });
@@ -154,10 +144,10 @@
     var idx = favs.indexOf(productId);
     if (idx >= 0) {
       favs.splice(idx, 1);
-      showToast('╨г╨▒╤А╨░╨╜╨╛ ╨╕╨╖ ╨╕╨╖╨▒╤А╨░╨╜╨╜╨╛╨│╨╛');
+      showToast('Убрано из избранного');
     } else {
       favs.push(productId);
-      showToast('╨Ф╨╛╨▒╨░╨▓╨╗╨╡╨╜╨╛ ╨▓ ╨╕╨╖╨▒╤А╨░╨╜╨╜╨╛╨╡');
+      showToast('Добавлено в избранное');
     }
     saveFavorites(favs);
   }
@@ -257,7 +247,7 @@
     syncFreeService(cart);
     saveCart(cart);
     updateCartBadge();
-    showToast('╨Ф╨╛╨▒╨░╨▓╨╗╨╡╨╜╨╛ ╨▓ ╨║╨╛╤А╨╖╨╕╨╜╤Г');
+    showToast('Добавлено в корзину');
   }
 
   function countBouquets(cart) {
@@ -359,15 +349,12 @@
       credentials: 'include',
       body: JSON.stringify(data)
     }).then(function (r) {
-      return r.text().then(function (t) {
-        var parsed = null;
-        try { parsed = t ? JSON.parse(t) : {}; } catch (e) { parsed = {}; }
-        if (!r.ok) {
-          var msg = (parsed && parsed.error) || ('Ошибка ' + r.status);
-          throw new Error(msg);
-        }
-        return parsed;
-      });
+      if (!r.ok) {
+        return r.text().then(function (t) {
+          try { return JSON.parse(t); } catch (e) { throw new Error('Server error: ' + r.status); }
+        });
+      }
+      return r.json();
     });
   }
 
@@ -394,11 +381,11 @@
   function mountWebTelegramLoginWidget(containerId) {
     var container = document.getElementById(containerId);
     if (!container) return;
-    container.innerHTML = '<div class="empty-state" style="padding:12px">╨Я╨╛╨┤╨║╨╗╤О╤З╨░╨╡╨╝ Telegram...</div>';
+    container.innerHTML = '<div class="empty-state" style="padding:12px">Подключаем Telegram...</div>';
     ensureWebTelegramBotUsername().then(function (botUsername) {
       if (!container || !container.parentNode) return;
       if (!botUsername) {
-        container.innerHTML = '<div class="empty-state" style="padding:12px">╨Т╤Е╨╛╨┤ ╤З╨╡╤А╨╡╨╖ Telegram ╨▓╤А╨╡╨╝╨╡╨╜╨╜╨╛ ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╡╨╜. ╨Э╨░╨┐╨╕╤И╨╕╤В╨╡, ╨╕ ╨╝╤Л ╨▒╤Л╤Б╤В╤А╨╛ ╨▓╨║╨╗╤О╤З╨╕╨╝ ╨╡╨│╨╛.</div>';
+        container.innerHTML = '<div class="empty-state" style="padding:12px">Вход через Telegram временно недоступен. Напишите, и мы быстро включим его.</div>';
         return;
       }
       container.innerHTML = '';
@@ -419,7 +406,7 @@
         directWrap.style.marginBottom = isMobileWeb ? '8px' : '10px';
         directWrap.innerHTML =
           '<a class="nav-btn nav-btn--filled" href="' + primaryAuthUrl + '">' +
-          '╨Т╨╛╨╣╤В╨╕ ╤З╨╡╤А╨╡╨╖ Telegram' +
+          'Войти через Telegram' +
           '</a>';
         container.appendChild(directWrap);
       }
@@ -430,7 +417,7 @@
           mobileHint.style.marginTop = '6px';
           mobileHint.innerHTML =
             '<a class="nav-btn" href="https://t.me/' + encodeURIComponent(webTelegramBotUsername) +
-            '" target="_blank" rel="noopener">╨Ю╤В╨║╤А╤Л╤В╤М Telegram-╨▒╨╛╤В╨░</a>';
+            '" target="_blank" rel="noopener">Открыть Telegram-бота</a>';
           container.appendChild(mobileHint);
         }
         return;
@@ -452,7 +439,7 @@
         linkWrap.style.marginTop = '10px';
         linkWrap.innerHTML =
           '<a class="nav-btn" href="https://t.me/' + encodeURIComponent(webTelegramBotUsername) +
-          '" target="_blank" rel="noopener">╨Ю╤В╨║╤А╤Л╤В╤М Telegram-╨▒╨╛╤В╨░</a>';
+          '" target="_blank" rel="noopener">Открыть Telegram-бота</a>';
         container.appendChild(linkWrap);
       }
       // Fallback OAuth link (works when embedded widget callback is blocked).
@@ -461,7 +448,7 @@
         oauthWrap.style.marginTop = '8px';
         oauthWrap.innerHTML =
           '<a class="nav-btn nav-btn--filled" href="' + oauthUrl + '">' +
-          '╨Т╨╛╨╣╤В╨╕ ╤З╨╡╤А╨╡╨╖ Telegram (╤А╨╡╨╖╨╡╤А╨▓)' +
+          'Войти через Telegram (резерв)' +
           '</a>';
         container.appendChild(oauthWrap);
       }
@@ -471,7 +458,7 @@
         warn.style.padding = '8px 0 0';
         warn.style.fontSize = '12px';
         warn.style.color = '#7a1f1f';
-        warn.textContent = '╨Ф╨╗╤П ╤Б╤В╨░╨▒╨╕╨╗╤М╨╜╨╛╨│╨╛ ╨▓╤Е╨╛╨┤╨░ ╤З╨╡╤А╨╡╨╖ Telegram ╨╜╤Г╨╢╨╡╨╜ HTTPS-╨┤╨╛╨╝╨╡╨╜.';
+        warn.textContent = 'Для стабильного входа через Telegram нужен HTTPS-домен.';
         container.appendChild(warn);
       }
     });
@@ -502,7 +489,7 @@
   }
 
   function formatPrice(p) {
-    return Number(p).toLocaleString('ru-RU') + ' ╤А.';
+    return Number(p).toLocaleString('ru-RU') + ' р.';
   }
 
   function getPrimaryPhone() {
@@ -526,7 +513,7 @@
   function isBouquetCategory(catName) {
     if (!catName) return true;
     var lower = catName.toLowerCase();
-    var skip = ['╨▓╨░╨╖', '╤Б╨▓╨╡╤З', '╨┐╨╛╨┤╨░╤А╨║', '╤И╨░╤А', '╨╛╤В╨║╤А╤Л╤В╨║'];
+    var skip = ['ваз', 'свеч', 'подарк', 'шар', 'открытк'];
     for (var i = 0; i < skip.length; i++) {
       if (lower.indexOf(skip[i]) >= 0) return false;
     }
@@ -534,10 +521,10 @@
   }
 
   function productImage(url, alt, cls) {
-    if (!url) return '<div class="' + (cls || 'no-image') + '">╨д╨╛╤В╨╛</div>';
+    if (!url) return '<div class="' + (cls || 'no-image') + '">Фото</div>';
     var loading = (cls && cls.indexOf('product-detail-img') >= 0) ? 'eager' : 'lazy';
     return '<img src="' + escapeHtml(url) + '" alt="' + escapeHtml(alt) +
-      '" class="' + (cls || '') + '" loading="' + loading + '" decoding="async" onerror="this.outerHTML=\'<div class=\\\'no-image\\\'>╨д╨╛╤В╨╛</div>\'">';
+      '" class="' + (cls || '') + '" loading="' + loading + '" decoding="async" onerror="this.outerHTML=\'<div class=\\\'no-image\\\'>Фото</div>\'">';
   }
 
   var _warmedImages = {};
@@ -624,7 +611,7 @@
     } else {
       firstDims = p.dimensions || '';
     }
-    var priceLabel = hasMultipleSizes ? '╨╛╤В ' + formatPrice(cardPrice) : formatPrice(p.price);
+    var priceLabel = hasMultipleSizes ? 'от ' + formatPrice(cardPrice) : formatPrice(p.price);
     var outOfStock = p.in_stock === 0;
     var cardClass = 'product-card' + (outOfStock ? ' product-card--soon' : '');
 
@@ -644,14 +631,14 @@
     }
 
     var delayMs = Math.min((idx || 0) * 32, 260);
-    var addBtnHtml = outOfStock ? '' : '<button class="card-add-btn" onclick="addToCartById(' + p.id + ',event)">╨Т ╨║╨╛╤А╨╖╨╕╨╜╤Г</button>';
+    var addBtnHtml = outOfStock ? '' : '<button class="card-add-btn" onclick="addToCartById(' + p.id + ',event)">В корзину</button>';
     return '<div class="' + cardClass + ' reveal-card" style="--card-reveal-delay:' + delayMs + 'ms">' +
       '<div class="product-card-img-wrap" onclick="navigateTo(\'product\',' + p.id + ')"' +
         (images.length > 1 ? ' data-slide-count="' + images.length + '"' : '') + '>' +
         imgHtml +
         dotsHtml +
-        (!outOfStock ? '<div class="stock-badge stock-badge--in">╨Т ╨╜╨░╨╗╨╕╤З╨╕╨╕</div>' : '') +
-        (outOfStock ? '<div class="stock-overlay">╨б╨║╨╛╤А╨╛ ╨▒╤Г╨┤╨╡╤В ╨▓ ╨╜╨░╨╗╨╕╤З╨╕╨╕</div>' : '') +
+        (!outOfStock ? '<div class="stock-badge stock-badge--in">В наличии</div>' : '') +
+        (outOfStock ? '<div class="stock-overlay">Скоро будет в наличии</div>' : '') +
         dimsBadge +
         '<button class="fav-btn' + favClass + '" onclick="toggleFav(' + p.id + ',event)">' + heartSvg + '</button>' +
         '' +
@@ -778,97 +765,6 @@
     if (tgUser && tgUser.id) return tgUser.id;
     try { return localStorage.getItem('arka_tg_id') || ''; } catch (e) { return ''; }
   }
-
-  function isWebPhoneUser() {
-    var id = dbUser && dbUser.telegram_id;
-    return !!id && String(id).indexOf('phone_') === 0;
-  }
-
-  function mountStoreTelegramWidget() {
-    var wrap = document.getElementById('tg-store-widget-wrap');
-    if (!wrap) return;
-    wrap.innerHTML = '<div class="profile-login-loading">Загрузка кнопки Telegram…</div>';
-    fetchJSON('/api/client-config').then(function (cfg) {
-      wrap.innerHTML = '';
-      if (!cfg || !cfg.telegram_bot_username) {
-        wrap.innerHTML = '<p class="profile-login-warn">На сервере задайте TELEGRAM_BOT_USERNAME в .env (имя бота без @), чтобы кнопка входа заработала.</p>';
-        return;
-      }
-      var s = document.createElement('script');
-      s.src = 'https://telegram.org/js/telegram-widget.js?22';
-      s.async = true;
-      s.setAttribute('data-telegram-login', cfg.telegram_bot_username);
-      s.setAttribute('data-size', 'large');
-      s.setAttribute('data-userpic', 'true');
-      s.setAttribute('data-request-access', 'write');
-      s.setAttribute('data-onauth', 'onTelegramStoreAuth(user)');
-      wrap.appendChild(s);
-    }).catch(function () {
-      wrap.innerHTML = '<p class="profile-login-warn">Не удалось загрузить настройки входа.</p>';
-    });
-  }
-
-  window.onTelegramStoreAuth = function (user) {
-    var payload = Object.assign({}, user);
-    if (dbUser && dbUser.telegram_id && String(dbUser.telegram_id).indexOf('phone_') === 0) {
-      payload.merge_from_telegram_id = dbUser.telegram_id;
-    }
-    postJSON('/api/auth/telegram-widget', payload).then(function (r) {
-      if (r && r.user) {
-        dbUser = r.user;
-        var tid = r.user.telegram_id;
-        tgUser = {
-          id: /^\d+$/.test(String(tid)) ? Number(tid) : tid,
-          first_name: user.first_name || r.user.first_name || '',
-          last_name: user.last_name || '',
-          username: user.username || '',
-          photo_url: user.photo_url || ''
-        };
-        try {
-          localStorage.setItem('arka_tg_id', String(r.user.telegram_id));
-          localStorage.setItem('arka_user', JSON.stringify(r.user));
-        } catch (e) {}
-        showAccount();
-        showToast('Вход выполнен');
-      }
-    }).catch(function (err) {
-      showToast(err.message || 'Не удалось войти через Telegram');
-    });
-  };
-
-  window.submitPhoneLogin = function () {
-    var inp = document.getElementById('profile-login-phone');
-    var raw = inp ? inp.value.trim() : '';
-    if (!validatePhone(raw)) return;
-    postJSON('/api/auth/phone', { phone: raw }).then(function (r) {
-      if (r && r.user) {
-        dbUser = r.user;
-        tgUser = null;
-        try {
-          localStorage.setItem('arka_tg_id', String(r.user.telegram_id));
-          localStorage.setItem('arka_user', JSON.stringify(r.user));
-        } catch (e) {}
-        showAccount();
-        showToast('Вы вошли по номеру');
-      }
-    }).catch(function (err) {
-      showToast(err.message || 'Ошибка входа');
-    });
-  };
-
-  /** Выход только для веб-версии (браузер). В меню Telegram не вызывается — кнопки там нет. */
-  window.logoutWebAccount = function () {
-    if (isTelegramMiniAppWithUser()) return;
-    try {
-      localStorage.removeItem('arka_tg_id');
-      localStorage.removeItem('arka_user');
-    } catch (e) {}
-    dbUser = null;
-    tgUser = null;
-    stopTrackingPoll();
-    showToast('Вы вышли из аккаунта');
-    showAccount();
-  };
 
   function stopTrackingPoll() {
     if (trackingPollInterval) {
@@ -1187,7 +1083,7 @@
         updateFavBadge();
         updateCartBadge();
         if (activeTab === 'account') showAccount();
-        if (!silent && nextUser) showToast('╨Т╤Е╨╛╨┤ ╤З╨╡╤А╨╡╨╖ Telegram ╨▓╤Л╨┐╨╛╨╗╨╜╨╡╨╜');
+        if (!silent && nextUser) showToast('Вход через Telegram выполнен');
       }
       return changed;
     }).catch(function () {
@@ -1238,37 +1134,25 @@
         try {
           window.history.replaceState({}, '', window.location.pathname + (window.location.hash || '#account'));
         } catch (e) {}
-        showToast('╨Т╤Е╨╛╨┤ ╤З╨╡╤А╨╡╨╖ Telegram ╨▓╤Л╨┐╨╛╨╗╨╜╨╡╨╜');
+        showToast('Вход через Telegram выполнен');
       }
     }
 
     if (tgUser) {
-      var mergeFromPhoneSession = '';
-      try {
-        var rawSaved = localStorage.getItem('arka_user');
-        if (rawSaved) {
-          var su = JSON.parse(rawSaved);
-          if (su && su.telegram_id && String(su.telegram_id).indexOf('phone_') === 0) {
-            mergeFromPhoneSession = String(su.telegram_id);
-          }
-        }
-      } catch (e) {}
-      var authPayload = {
+      var mergeFromId = (dbUser && dbUser.telegram_id) || '';
+      postJSON('/api/auth/telegram', {
         telegram_id: tgUser.id,
         first_name: tgUser.first_name || '',
         username: tgUser.username || '',
-        init_data: tg ? tg.initData : ''
-      };
-      if (mergeFromPhoneSession) authPayload.merge_from_telegram_id = mergeFromPhoneSession;
-      postJSON('/api/auth/telegram', authPayload).then(function (r) {
+        init_data: tg ? tg.initData : '',
+        merge_from_telegram_id: mergeFromId
+      }).then(function (r) {
         if (r && r.user) {
           dbUser = r.user;
           try { localStorage.setItem('arka_tg_id', String(tgUser.id)); } catch (e) {}
           try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
         }
-      }).catch(function (err) {
-        console.warn('[auth/telegram]', err && err.message ? err.message : err);
-      }).finally(function () {
+      }).catch(function () {}).finally(function () {
         settingsReady.finally(function () {
           finishInitUI();
         });
@@ -1317,7 +1201,7 @@
     var links = [];
     if (appSettings.social_telegram) links.push('<a href="' + escapeHtml(appSettings.social_telegram) + '" target="_blank">Telegram</a>');
     if (appSettings.social_instagram) links.push('<a href="' + escapeHtml(appSettings.social_instagram) + '" target="_blank">Instagram</a>');
-    if (appSettings.social_vk) links.push('<a href="' + escapeHtml(appSettings.social_vk) + '" target="_blank">╨Т╨Ъ╨╛╨╜╤В╨░╨║╤В╨╡</a>');
+    if (appSettings.social_vk) links.push('<a href="' + escapeHtml(appSettings.social_vk) + '" target="_blank">ВКонтакте</a>');
     if (links.length) el.innerHTML = links.join('');
   }
 
@@ -1329,6 +1213,7 @@
   var homeCategoriesById = {};
   var webHomeDataCache = null;
   var webHomeSearchQuery = '';
+  var webHomeSearchExpanded = false;
 
   function normalizeCategoryId(id) {
     if (id === null || id === undefined || id === '') return null;
@@ -1337,7 +1222,7 @@
 
   function formatCategoryTitle(title) {
     var t = String(title || '').trim();
-    if (!t) return '╨Ъ╨░╤В╨╡╨│╨╛╤А╨╕╤П';
+    if (!t) return 'Категория';
     var range = parseCategoryPriceRange(t);
     if (range) {
       var formatMoney = function (n) {
@@ -1346,27 +1231,27 @@
         return num.toLocaleString('ru-RU');
       };
       if (range.min !== null && range.max !== null) {
-        return formatMoney(range.min) + ' тАФ ' + formatMoney(range.max) + ' ╨а';
+        return formatMoney(range.min) + ' — ' + formatMoney(range.max) + ' Р';
       }
       if (range.max !== null) {
-        return '╨Ф╨╛ ' + formatMoney(range.max) + ' ╨а';
+        return 'До ' + formatMoney(range.max) + ' Р';
       }
       if (range.min !== null) {
-        return '╨Ю╤В ' + formatMoney(range.min) + ' ╨а';
+        return 'От ' + formatMoney(range.min) + ' Р';
       }
     }
     t = t
       .replace(/\u00a0/g, ' ')
       .replace(/\s+/g, ' ')
-      .replace(/╤А╤Г╨▒\.?/gi, '╨а')
-      .replace(/тВ╜/g, '╨а')
+      .replace(/руб\.?/gi, 'Р')
+      .replace(/₽/g, 'Р')
       .trim();
     return t;
   }
 
   function formatCategoryChipTitle(title) {
     var t = String(title || '').trim();
-    if (!t) return '╨Ъ╨░╤В╨╡╨│╨╛╤А╨╕╤П';
+    if (!t) return 'Категория';
     var range = parseCategoryPriceRange(t);
     if (range) {
       var formatMoney = function (n) {
@@ -1378,10 +1263,10 @@
         return formatMoney(range.min) + ' - ' + formatMoney(range.max);
       }
       if (range.max !== null) {
-        return '╨Ф╨╛ ' + formatMoney(range.max);
+        return 'До ' + formatMoney(range.max);
       }
       if (range.min !== null) {
-        return '╨Ю╤В ' + formatMoney(range.min);
+        return 'От ' + formatMoney(range.min);
       }
     }
     return t.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
@@ -1397,11 +1282,11 @@
       return { group: 0, rank: start, tail: range.max !== null ? range.max : 9999999 };
     }
     var tailMap = [
-      { key: '╨▓╨░╨╖', rank: 1 },
-      { key: '╤Б╨▓╨╡╤З', rank: 2 },
-      { key: '╤И╨░╤А', rank: 3 },
-      { key: '╨┐╨╛╨┤╨░╤А', rank: 4 },
-      { key: '╨╛╤В╨║╤А╤Л╤В╨║', rank: 5 }
+      { key: 'ваз', rank: 1 },
+      { key: 'свеч', rank: 2 },
+      { key: 'шар', rank: 3 },
+      { key: 'подар', rank: 4 },
+      { key: 'открытк', rank: 5 }
     ];
     for (var i = 0; i < tailMap.length; i++) {
       if (raw.indexOf(tailMap[i].key) >= 0) {
@@ -1451,7 +1336,7 @@
     var el = document.getElementById('web-category-sections');
     if (!el) return;
     if (!visibleCats.length) {
-      el.innerHTML = '<div class="empty-state">╨Т ╤Н╤В╨╛╨╣ ╨║╨░╤В╨╡╨│╨╛╤А╨╕╨╕ ╨┐╨╛╨║╨░ ╨╜╨╡╤В ╤В╨╛╨▓╨░╤А╨╛╨▓</div>';
+      el.innerHTML = '<div class="empty-state">В этой категории пока нет товаров</div>';
       return;
     }
     var html = visibleCats.map(function (c, catIdx) {
@@ -1477,17 +1362,13 @@
           '<div class="product-list">' + cards + '</div>' +
         '</section>';
     }).join('');
-    el.innerHTML = html || '<div class="empty-state">╨Я╨╛ ╨▓╨░╤И╨╡╨╝╤Г ╨╖╨░╨┐╤А╨╛╤Б╤Г ╨╜╨╕╤З╨╡╨│╨╛ ╨╜╨╡ ╨╜╨░╨╣╨┤╨╡╨╜╨╛</div>';
+    el.innerHTML = html || '<div class="empty-state">По вашему запросу ничего не найдено</div>';
     initCardScrollReveal(el);
   }
 
   function renderWebQuickCategories(cats) {
     var el = document.getElementById('web-quick-cats');
     if (!el) return;
-    if (!cats || !cats.length) {
-      el.innerHTML = '';
-      return;
-    }
     var sorted = (cats || []).slice();
     var indexedCats = {};
     sorted.forEach(function (c, i) { indexedCats[c.id] = i; });
@@ -1501,12 +1382,31 @@
     });
 
     var activeCatId = normalizeCategoryId(homeActiveCategory);
-    var html = '<button class="web-quick-cat-chip' + (activeCatId === null ? ' active' : '') + '" onclick="webHomePickCategory(null)">╨Т╤Б╨╡</button>';
+    var hasSearchQuery = String(webHomeSearchQuery || '').trim() !== '';
+    var html = '' +
+      '<button class="web-quick-cat-chip web-quick-cat-chip--search' + ((webHomeSearchExpanded || hasSearchQuery) ? ' active' : '') + '" type="button" onclick="toggleWebHomeSearch(event)" aria-label="Поиск по сайту">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 4a6.8 6.8 0 1 1 0 13.6A6.8 6.8 0 0 1 10.8 4zm0 2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6zM16.3 15l3.7 3.7-1.4 1.4-3.7-3.7z"/></svg>' +
+        '<span>Поиск</span>' +
+      '</button>' +
+      '<button class="web-quick-cat-chip' + (activeCatId === null ? ' active' : '') + '" type="button" onclick="webHomePickCategory(null)">Все</button>';
     html += sorted.map(function (c) {
       var cidNorm = normalizeCategoryId(c.id);
-      return '<button class="web-quick-cat-chip' + (activeCatId === cidNorm ? ' active' : '') + '" onclick="webHomePickCategory(' + c.id + ')">' + escapeHtml(formatCategoryChipTitle(c.name)) + '</button>';
+      return '<button class="web-quick-cat-chip' + (activeCatId === cidNorm ? ' active' : '') + '" type="button" onclick="webHomePickCategory(' + c.id + ')">' + escapeHtml(formatCategoryChipTitle(c.name)) + '</button>';
     }).join('');
     el.innerHTML = html;
+    applyWebHomeSearchVisibility();
+  }
+
+  function applyWebHomeSearchVisibility() {
+    var wrap = document.getElementById('web-quick-search');
+    if (!wrap) return;
+    var hasSearchQuery = String(webHomeSearchQuery || '').trim() !== '';
+    var isOpen = webHomeSearchExpanded || hasSearchQuery;
+    wrap.classList.toggle('open', isOpen);
+    wrap.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+    var input = document.getElementById('web-shop-search');
+    if (!input) return;
+    if (input.value !== String(webHomeSearchQuery || '')) input.value = String(webHomeSearchQuery || '');
   }
 
   function bindMobileQuickCatsLayerBehavior() {
@@ -1519,6 +1419,189 @@
     document.body.classList.remove('web-mobile-cats-collapsed');
     try { localStorage.removeItem(MOBILE_CATS_COLLAPSED_KEY); } catch (e) {}
   }
+
+  function bindWebCatalogSheetBehavior() {
+    if (detachWebCatalogSheetBehavior) {
+      detachWebCatalogSheetBehavior();
+      detachWebCatalogSheetBehavior = null;
+    }
+    var sheet = document.getElementById('web-catalog-sheet');
+    if (!sheet || isTelegramRuntime) return;
+
+    var handle = document.getElementById('web-catalog-sheet-handle');
+    var closeBtn = document.getElementById('web-catalog-sheet-close');
+    var overlay = document.getElementById('web-catalog-sheet-overlay');
+    var targetProgress = 0;
+    var currentProgress = 0;
+    var staticMobileLanding = !!(document && document.body && document.body.classList.contains('web-home-static-open'));
+    var rafId = 0;
+    var isMobileWeb = function () {
+      return !isTelegramRuntime && (window.innerWidth || 0) <= 900;
+    };
+    var applyProgress = function (progress) {
+      var p = Number(progress);
+      if (!isFinite(p)) p = 0;
+      if (p < 0) p = 0;
+      if (p > 1) p = 1;
+      sheet.style.setProperty('--web-sheet-progress', p.toFixed(3));
+      sheet.style.setProperty('--web-sheet-top-offset', webCatalogSheetTopOffset);
+      var isOpen = p >= 0.9;
+      var isClosed = p <= 0.1;
+      sheet.classList.toggle('web-catalog-sheet--open', isOpen);
+      sheet.classList.toggle('web-catalog-sheet--closed', isClosed);
+      if (overlay) {
+        // Keep overlay interactive for closing, but without darkening.
+        overlay.style.opacity = '0';
+        overlay.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+      }
+      if (document && document.body) {
+        document.body.classList.toggle('web-sheet-open', isOpen && isMobileWeb() && !staticMobileLanding);
+      }
+      if (handle) handle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    };
+    var tick = function () {
+      currentProgress += (targetProgress - currentProgress) * 0.14;
+      if (Math.abs(targetProgress - currentProgress) < 0.002) {
+        currentProgress = targetProgress;
+      }
+      applyProgress(currentProgress);
+      if (Math.abs(targetProgress - currentProgress) >= 0.002) {
+        rafId = requestAnimationFrame(tick);
+      } else {
+        rafId = 0;
+      }
+    };
+    var setProgress = function (progress) {
+      var p = Number(progress);
+      if (!isFinite(p)) p = 0;
+      if (p < 0) p = 0;
+      if (p > 1) p = 1;
+      targetProgress = p;
+      if (!rafId) rafId = requestAnimationFrame(tick);
+    };
+
+    // Start with collapsed mobile sheet.
+    if (isMobileWeb() && !staticMobileLanding) {
+      targetProgress = 0;
+      currentProgress = 0;
+      applyProgress(0);
+    } else {
+      targetProgress = 1;
+      currentProgress = 1;
+      applyProgress(1);
+    }
+
+    window.toggleWebCatalogSheet = function () {
+      if (!isMobileWeb()) return;
+      if (staticMobileLanding) return;
+      var y = window.scrollY || 0;
+      var hero = document.getElementById('site-hero');
+      var heroH = hero ? Math.max(hero.offsetHeight || 0, 1) : 1;
+      var start = Math.max(8, heroH * 0.06);
+      var range = Math.max(140, heroH * 0.34);
+      var isOpenNow = (parseFloat(sheet.style.getPropertyValue('--web-sheet-progress')) || 0) >= 0.9;
+      var targetY = isOpenNow ? 0 : (start + range);
+      window.scrollTo({ top: targetY, behavior: 'smooth' });
+    };
+    var closeSheet = function () {
+      if (!isMobileWeb()) return;
+      if (staticMobileLanding) return;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    var onScroll = function () {
+      if (!isMobileWeb()) {
+        targetProgress = 1;
+        currentProgress = 1;
+        applyProgress(1);
+        if (document && document.body) {
+          document.body.classList.remove('web-sheet-intro-phase');
+          document.body.classList.remove('web-sheet-natural');
+        }
+        return;
+      }
+      if (staticMobileLanding) {
+        targetProgress = 1;
+        currentProgress = 1;
+        applyProgress(1);
+        if (document && document.body) {
+          document.body.classList.remove('web-sheet-intro-phase');
+          document.body.classList.remove('web-sheet-natural');
+          document.body.classList.remove('web-sheet-open');
+        }
+        return;
+      }
+      var y = window.scrollY || 0;
+      var hero = document.getElementById('site-hero');
+      var heroH = hero ? Math.max(hero.offsetHeight || 0, 1) : 1;
+      var start = Math.max(8, heroH * 0.06);
+      var range = Math.max(140, heroH * 0.34);
+      if (document && document.body) {
+        document.body.classList.add('web-sheet-intro-phase');
+        document.body.classList.remove('web-sheet-natural');
+      }
+      var progress = (y - start) / range;
+      setProgress(progress);
+    };
+    var onResize = function () {
+      onScroll();
+    };
+
+    if (handle) handle.addEventListener('click', window.toggleWebCatalogSheet);
+    if (closeBtn) closeBtn.addEventListener('click', closeSheet);
+    if (overlay) overlay.addEventListener('click', closeSheet);
+
+    // Simple swipe-down dismiss from handle area.
+    var touchStartY = null;
+    var onHandleTouchStart = function (e) {
+      if (!isMobileWeb()) return;
+      var t = e.touches && e.touches[0];
+      touchStartY = t ? t.clientY : null;
+    };
+    var onHandleTouchEnd = function (e) {
+      if (!isMobileWeb()) return;
+      if (touchStartY === null) return;
+      var t = e.changedTouches && e.changedTouches[0];
+      var endY = t ? t.clientY : touchStartY;
+      var dy = endY - touchStartY;
+      touchStartY = null;
+      if (dy > 56) closeSheet();
+    };
+    if (handle) {
+      handle.addEventListener('touchstart', onHandleTouchStart, { passive: true });
+      handle.addEventListener('touchend', onHandleTouchEnd, { passive: true });
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onResize);
+    onScroll();
+
+    detachWebCatalogSheetBehavior = function () {
+      if (handle) handle.removeEventListener('click', window.toggleWebCatalogSheet);
+      if (closeBtn) closeBtn.removeEventListener('click', closeSheet);
+      if (overlay) overlay.removeEventListener('click', closeSheet);
+      if (handle) {
+        handle.removeEventListener('touchstart', onHandleTouchStart);
+        handle.removeEventListener('touchend', onHandleTouchEnd);
+      }
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onResize);
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = 0;
+      if (window.toggleWebCatalogSheet) delete window.toggleWebCatalogSheet;
+      if (document && document.body) {
+        document.body.classList.remove('web-sheet-intro-phase');
+        document.body.classList.remove('web-sheet-natural');
+        document.body.classList.remove('web-sheet-open');
+      }
+    };
+  }
+
+  // Allows tuning sheet top offset at runtime, e.g. setWebCatalogSheetTopOffset('32%')
+  window.setWebCatalogSheetTopOffset = function (value) {
+    var v = String(value || '').trim();
+    webCatalogSheetTopOffset = v || '36%';
+    var sheet = document.getElementById('web-catalog-sheet');
+    if (sheet) sheet.style.setProperty('--web-sheet-top-offset', webCatalogSheetTopOffset);
+  };
 
   function applyRuntimeLayoutMode() {
     if (!document || !document.body) return;
@@ -1591,6 +1674,16 @@
       };
       return;
     }
+    if (heroSection.classList.contains('site-hero--mobile-static')) {
+      heroSection.style.setProperty('--hero-intro-progress', '1');
+      heroSection.style.setProperty('--hero-title-progress', '1');
+      heroSection.style.setProperty('--hero-subtitle-progress', '1');
+      heroSection.style.setProperty('--hero-section-progress', '1');
+      heroSection.style.setProperty('--hero-image-progress', '1');
+      document.body.classList.remove('mobile-toolbar-fixed');
+      syncWebQuickNavVisibility('home');
+      return;
+    }
     var targetRawProgress = 0;
     var currentRawProgress = 0;
     var rafId = 0;
@@ -1606,10 +1699,21 @@
       return;
     }
     var updateTargetsFromScroll = function () {
-      var rect = heroSection.getBoundingClientRect();
-      var viewH = window.innerHeight || 1;
-      var travel = Math.max((heroSection.offsetHeight || 1) - viewH, 1);
-      var raw = (-rect.top) / travel;
+      var raw = 0;
+      var isMobileWeb = !isTelegramRuntime && (window.innerWidth || 0) <= 900;
+      if (isMobileWeb) {
+        // Mobile web: keep intro static and drive only text-change phase
+        // from the first part of page scroll (sheet opening zone).
+        var y = window.scrollY || 0;
+        var start = 6;
+        var travel = 300;
+        raw = (y - start) / travel;
+      } else {
+        var rect = heroSection.getBoundingClientRect();
+        var viewH = window.innerHeight || 1;
+        var travelDesktop = Math.max((heroSection.offsetHeight || 1) - viewH, 1);
+        raw = (-rect.top) / travelDesktop;
+      }
       if (raw < 0) raw = 0;
       if (raw > 1) raw = 1;
       targetRawProgress = raw;
@@ -1629,32 +1733,30 @@
     };
     var tick = function () {
       if (!running) return;
-      currentRawProgress += (targetRawProgress - currentRawProgress) * 0.085;
-      if (Math.abs(targetRawProgress - currentRawProgress) < 0.0008) {
-        currentRawProgress = targetRawProgress;
-      }
+      // Keep intro strictly scroll-driven: no inertial lag.
+      currentRawProgress = targetRawProgress;
       var rawProgress = currentRawProgress;
-      var introProgress = rawProgress / 0.52;
+      var introProgress = rawProgress / 0.42;
       if (introProgress > 1) introProgress = 1;
       if (introProgress < 0) introProgress = 0;
 
-      var titleProgress = (rawProgress - 0.44) / 0.42;
+      var titleProgress = (rawProgress - 0.2) / 0.55;
       if (titleProgress > 1) titleProgress = 1;
       if (titleProgress < 0) titleProgress = 0;
 
       var subProgress = 0;
-      if (rawProgress > 0.79) {
-        subProgress = (rawProgress - 0.79) / 0.2;
+      if (rawProgress > 0.55) {
+        subProgress = (rawProgress - 0.55) / 0.35;
         if (subProgress > 1) subProgress = 1;
       }
-      var imageProgress = (rawProgress - 0.34) / 0.5;
+      var imageProgress = (rawProgress - 0.2) / 0.7;
       if (imageProgress > 1) imageProgress = 1;
       if (imageProgress < 0) imageProgress = 0;
 
       heroSection.style.setProperty('--hero-intro-progress', introProgress.toFixed(3));
       heroSection.style.setProperty('--hero-title-progress', titleProgress.toFixed(3));
       heroSection.style.setProperty('--hero-subtitle-progress', subProgress.toFixed(3));
-      heroSection.style.setProperty('--hero-section-progress', titleProgress.toFixed(3));
+      heroSection.style.setProperty('--hero-section-progress', rawProgress.toFixed(3));
       heroSection.style.setProperty('--hero-image-progress', imageProgress.toFixed(3));
       rafId = requestAnimationFrame(tick);
     };
@@ -1681,10 +1783,24 @@
 
   function buildHomeHero(cityName) {
     var isDesktop = !isTelegramRuntime && (window.innerWidth || 0) >= 900;
-    if (isDesktop) {
-      var scriptHeadline = '╨Т╤Л╤А╨░╨╖╨╕╤В╨╡ ╤Б╨▓╨╛╨╕ ╤З╤Г╨▓╤Б╤В╨▓╨░';
-      var scriptBrand = '╨Р╨а╨Ъ╨Р ╨б╨в╨г╨Ф╨Ш╨п ╨ж╨Т╨Х╨в╨Ю╨Т';
-      var scriptDelivery = '╨Ф╨╛╤Б╤В╨░╨▓╨║╨░ ╨┐╨╛ ╨б╨░╤А╨░╤В╨╛╨▓╤Г ╨╕ ╨н╨╜╨│╨╡╨╗╤М╤Б╤Г';
+    var isMobileWeb = !isTelegramRuntime && (window.innerWidth || 0) <= 900;
+    if (isMobileWeb) {
+      return '' +
+        '<section id="site-hero" class="site-hero site-hero--mobile-static">' +
+          '<div class="site-hero-stage">' +
+            '<div class="site-hero-mobile-caption site-hero-mobile-caption--plain">' +
+              '<div class="site-hero-mobile-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
+              '<div class="site-hero-mobile-subtitle">Доставка по Саратову и Энгельсу</div>' +
+            '</div>' +
+          '</div>' +
+        '</section>';
+    }
+    // Desktop: use timed slideshow intro, then reveal catalog.
+    var useDesktopScriptIntro = true;
+    if (isDesktop && useDesktopScriptIntro) {
+      var scriptHeadline = 'Выразите свои чувства';
+      var scriptBrand = 'АРКА СТУДИЯ ЦВЕТОВ';
+      var scriptDelivery = 'Доставка по Саратову и Энгельсу';
       var wrapChars = function (text, className, baseDelay, stepDelay) {
         var safeText = String(text || '');
         var html = '';
@@ -1721,14 +1837,14 @@
       '<section id="site-hero" class="site-hero">' +
         '<div class="site-hero-stage">' +
           '<div class="site-hero-intro">' +
-            '<div class="site-hero-intro-title">╨Т╤Л╤А╨░╨╖╨╕╤В╨╡ ╤Б╨▓╨╛╨╕ ╤З╤Г╨▓╤Б╤В╨▓╨░</div>' +
+            '<div class="site-hero-intro-title">Выразите свои чувства</div>' +
             '<div class="site-hero-intro-arrow" aria-hidden="true">&#8595;</div>' +
           '</div>' +
           '<div class="site-hero-brand site-hero-brand--textonly">' +
-            '<div class="site-hero-title">╨Р╨а╨Ъ╨Р ╨б╨в╨г╨Ф╨Ш╨п ╨ж╨Т╨Х╨в╨Ю╨Т</div>' +
-            '<div class="site-hero-subtitle">╨Ф╨╛╤Б╤В╨░╨▓╨║╨░ ╨┐╨╛ ╨б╨░╤А╨░╤В╨╛╨▓╤Г ╨╕ ╨н╨╜╨│╨╡╨╗╤М╤Б╤Г</div>' +
+            '<div class="site-hero-title">АРКА СТУДИЯ ЦВЕТОВ</div>' +
+            '<div class="site-hero-subtitle">Доставка по Саратову и Энгельсу</div>' +
           '</div>' +
-          '<div class="site-hero-hint">╨б╨║╤А╨╛╨╗╨╗ ╨▓╨╜╨╕╨╖</div>' +
+          '<div class="site-hero-hint">Скролл вниз</div>' +
         '</div>' +
       '</section>';
   }
@@ -1736,8 +1852,8 @@
   function buildWebStoreInfoSection() {
     var phone = String(appSettings.phone_main || appSettings.contact_phone || '+7 917 212 08 78').trim();
     var email = String(appSettings.contact_email || appSettings.email || 'arkaflowers@inbox.ru').trim();
-    var address = String(appSettings.pickup_address || '╨│. ╨б╨░╤А╨░╤В╨╛╨▓, 3-╨╣ ╨Ф╨╡╨│╤В╤П╤А╨╜╤Л╨╣ ╨┐╤А., ╨┤. 21, ╨║╨╛╤А╨┐. 3').trim();
-    var hours = String(appSettings.work_hours || '╨╡╨╢╨╡╨┤╨╜╨╡╨▓╨╜╨╛ ╤Б 10:00 ╨┤╨╛ 21:00').trim();
+    var address = String(appSettings.pickup_address || 'г. Саратов, 3-й Дегтярный пр., д. 21, корп. 3').trim();
+    var hours = String(appSettings.work_hours || 'ежедневно с 10:00 до 21:00').trim();
     var tgLink = appSettings.social_telegram ? String(appSettings.social_telegram) : '';
     var waLink = phone ? ('https://wa.me/' + phone.replace(/\D/g, '')) : '';
     var igLink = appSettings.social_instagram ? String(appSettings.social_instagram) : '';
@@ -1749,26 +1865,26 @@
 
     return '' +
       '<section class="web-store-info">' +
-        '<h2 class="web-store-info-title">╨Т╨л ╨Ь╨Ю╨Ц╨Х╨в╨Х ╨Ч╨Р╨Ъ╨Р╨Ч╨Р╨в╨м ╨Ш ╨Ч╨Р╨С╨а╨Р╨в╨м ╨С╨г╨Ъ╨Х╨в ╨Т ╨Э╨Р╨и╨Х╨Ь ╨Ь╨Р╨У╨Р╨Ч╨Ш╨Э╨Х</h2>' +
+        '<h2 class="web-store-info-title">ВЫ МОЖЕТЕ ЗАКАЗАТЬ И ЗАБРАТЬ БУКЕТ В НАШЕМ МАГАЗИНЕ</h2>' +
         '<div class="web-store-info-grid">' +
           '<div class="web-store-info-col">' +
             '<div class="web-store-info-head">ARKA FLOWERS</div>' +
             '<div class="web-store-info-line">' + escapeHtml(address) + '</div>' +
-            '<a class="web-store-info-link" href="https://yandex.ru/maps" target="_blank" rel="noopener noreferrer">╨Ъ╨░╨║ ╨┤╨╛╨╡╤Е╨░╤В╤М?</a>' +
+            '<a class="web-store-info-link" href="https://yandex.ru/maps" target="_blank" rel="noopener noreferrer">Как доехать?</a>' +
           '</div>' +
           '<div class="web-store-info-col">' +
-            '<div class="web-store-info-head">╨б╨▓╤П╨╖╨░╤В╤М╤Б╤П ╤Б ╨╜╨░╨╝╨╕</div>' +
+            '<div class="web-store-info-head">Связаться с нами</div>' +
             '<div class="web-store-info-line">' + escapeHtml(phone) + '</div>' +
             '<div class="web-store-info-line">' + escapeHtml(email) + '</div>' +
-            '<a class="web-store-call-btn" href="tel:' + escapeHtml(phone.replace(/\s+/g, '')) + '">╨Я╨╛╨╖╨▓╨╛╨╜╨╕╤В╤М</a>' +
+            '<a class="web-store-call-btn" href="tel:' + escapeHtml(phone.replace(/\s+/g, '')) + '">Позвонить</a>' +
           '</div>' +
           '<div class="web-store-info-col">' +
-            '<div class="web-store-info-head">╨а╨╡╨╢╨╕╨╝ ╤А╨░╨▒╨╛╤В╤Л</div>' +
+            '<div class="web-store-info-head">Режим работы</div>' +
             '<div class="web-store-info-line">' + escapeHtml(hours) + '</div>' +
           '</div>' +
           '<div class="web-store-info-col">' +
-            '<div class="web-store-info-head">╨б╨╛╤Ж╨╕╨░╨╗╤М╨╜╤Л╨╡ ╤Б╨╡╤В╨╕</div>' +
-            '<div class="web-store-info-line">╨Я╨╛╨┤╨┐╨╕╤Б╤Л╨▓╨░╨╣╤В╨╡╤Б╤М ╨╕ ╤Б╨╗╨╡╨┤╨╕╤В╨╡ ╨╖╨░ ╨╜╨╛╨▓╨╕╨╜╨║╨░╨╝╨╕</div>' +
+            '<div class="web-store-info-head">Социальные сети</div>' +
+            '<div class="web-store-info-line">Подписывайтесь и следите за новинками</div>' +
             '<div class="web-store-socials">' + socials + '</div>' +
           '</div>' +
         '</div>' +
@@ -1777,7 +1893,7 @@
 
   function normalizeMarqueeItems(raw) {
     var src = String(raw || '');
-    var parts = src.split(/[\n|тАв;,]+/);
+    var parts = src.split(/[\n|•;,]+/);
     var out = [];
     for (var i = 0; i < parts.length; i++) {
       var cleaned = String(parts[i] || '').replace(/\s+/g, ' ').trim();
@@ -1785,7 +1901,7 @@
       if (cleaned.length > 84) cleaned = cleaned.slice(0, 84).trim();
       out.push(cleaned);
     }
-    if (!out.length) out = ['╨Ф╨╛╤Б╤В╨░╨▓╨║╨░ ╨║╤А╤Г╨│╨╗╨╛╤Б╤Г╤В╨╛╤З╨╜╨╛'];
+    if (!out.length) out = ['Доставка круглосуточно'];
     return out;
   }
 
@@ -1808,11 +1924,11 @@
     var group = '';
     for (var l = 0; l < loops; l++) {
       for (var i = 0; i < items.length; i++) {
-        group += '<span class="web-marquee-item">' + escapeHtml(items[i]) + '</span><span class="web-marquee-sep" aria-hidden="true">тАв</span>';
+        group += '<span class="web-marquee-item">' + escapeHtml(items[i]) + '</span><span class="web-marquee-sep" aria-hidden="true">•</span>';
       }
     }
     return '' +
-      '<section class="web-marquee' + (isTelegramRuntime ? ' web-marquee--mini' : '') + '" aria-label="╨Ш╨╜╤Д╨╛╤А╨╝╨░╤Ж╨╕╤П ╨╛ ╨┤╨╛╤Б╤В╨░╨▓╨║╨╡">' +
+      '<section class="web-marquee' + (isTelegramRuntime ? ' web-marquee--mini' : '') + '" aria-label="Информация о доставке">' +
         '<div class="web-marquee-track' + (direction === 'right' ? ' web-marquee-track--right' : '') + '" style="--marquee-duration:' + speed + 's">' +
           '<div class="web-marquee-group">' + group + '</div>' +
           '<div class="web-marquee-group" aria-hidden="true">' + group + '</div>' +
@@ -1833,27 +1949,30 @@
         marqueeInsideToolbar +
         '<div class="web-shop-topline web-shop-topline--header">' +
           '<div id="web-call-wrap" class="web-call-wrap">' +
-            '<button class="web-call-btn" type="button" aria-label="╨Я╨╛╨╖╨▓╨╛╨╜╨╕╤В╤М" onclick="toggleWebCallPanel(event)">' +
+            '<button class="web-call-btn web-home-btn" type="button" aria-label="На главную" onclick="navigateTo(\'home\')">' +
+              '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3 9 12l5.7 5.7-1.4 1.4L6.2 12l7.1-7.1z"/><path d="M7 11h11v2H7z"/></svg>' +
+            '</button>' +
+            '<button class="web-call-btn" type="button" aria-label="Позвонить" onclick="toggleWebCallPanel(event)">' +
               '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.3 15.3 0 0 0 6.6 6.6l2.2-2.2c.2-.2.5-.3.8-.2 1 .3 2 .4 3 .4.5 0 .9.4.9.9V20c0 .5-.4.9-.9.9C10.7 20.9 3.1 13.3 3.1 3.9c0-.5.4-.9.9-.9h3.7c.5 0 .9.4.9.9 0 1 .1 2 .4 3 .1.3 0 .6-.2.8l-2.2 2.2z"/></svg>' +
             '</button>' +
             '<div id="web-call-panel" class="web-call-panel" onclick="event.stopPropagation()">' +
-              '<a href="' + shopPhoneTel + '" class="web-call-panel-link">╨Я╨╛╨╖╨▓╨╛╨╜╨╕╤В╤М: ' + shopPhoneEsc + '</a>' +
+              '<a href="' + shopPhoneTel + '" class="web-call-panel-link">Позвонить: ' + shopPhoneEsc + '</a>' +
             '</div>' +
           '</div>' +
           '<button class="web-header-logo" type="button" onclick="navigateTo(\'home\')" aria-label="ARKA FLOWERS">' +
-            '<img src="/images/logo.svg" alt="╨Р╨а╨Ъ╨Р ╨б╨в╨г╨Ф╨Ш╨п ╨ж╨Т╨Х╨в╨Ю╨Т">' +
+            '<img src="/images/logo.svg" alt="АРКА СТУДИЯ ЦВЕТОВ">' +
           '</button>' +
           '<div class="web-toolbar-actions web-toolbar-actions--header">' +
-            '<button class="web-toolbar-action-btn" data-tab="account" onclick="navigateTo(\'account\')" aria-label="╨Я╤А╨╛╤Д╨╕╨╗╤М">' +
-              '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.2 4.2 0 1 1 0-8.4A4.2 4.2 0 0 1 12 12zm0 2c4.2 0 7.6 2.6 7.6 5.8 0 .6-.4 1-1 1H5.4c-.6 0-1-.4-1-1C4.4 16.6 7.8 14 12 14zm0 2c-2.8 0-5 1.4-5.5 2.8h11c-.5-1.4-2.7-2.8-5.5-2.8z"/></svg>' +
-            '</button>' +
-            '<button class="web-toolbar-action-btn" data-tab="favorites" onclick="navigateTo(\'favorites\')" aria-label="╨Ш╨╖╨▒╤А╨░╨╜╨╜╨╛╨╡">' +
+            '<button class="web-toolbar-action-btn" data-tab="favorites" onclick="navigateTo(\'favorites\')" aria-label="Избранное">' +
               '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21.4l-1.4-1.3C5.6 15.4 2 12.1 2 8.3 2 5.4 4.2 3 7.1 3c1.7 0 3.3.8 4.3 2.1A5.4 5.4 0 0 1 15.7 3C18.7 3 21 5.4 21 8.3c0 3.8-3.6 7.1-8.6 11.8L12 21.4zm-4.9-16.4C5.3 5 4 6.4 4 8.3c0 2.9 3 5.7 8 10.2 5-4.5 8-7.3 8-10.2C20 6.4 18.7 5 16.9 5c-1.4 0-2.7.8-3.4 2l-1 .7-1-.7A4 4 0 0 0 7.1 5z"/></svg>' +
               '<span id="web-toolbar-fav-badge" class="web-toolbar-badge" style="display:none"></span>' +
             '</button>' +
-            '<button class="web-toolbar-action-btn" data-tab="cart" onclick="navigateTo(\'cart\')" aria-label="╨Ъ╨╛╤А╨╖╨╕╨╜╨░">' +
+            '<button class="web-toolbar-action-btn" data-tab="cart" onclick="navigateTo(\'cart\')" aria-label="Корзина">' +
               '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18c-1.1 0-2 .9-2 2a2 2 0 1 0 4 0c0-1.1-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2a2 2 0 1 0 4 0c0-1.1-.9-2-2-2zM6.2 5l1.1 2.2h10.3a1 1 0 0 1 .9 1.5l-1.7 3.2a2 2 0 0 1-1.8 1H8.6l-.7 1.3h9.7v2H7.8a2 2 0 0 1-1.8-3l1-1.9L4.3 5H2V3h3a1 1 0 0 1 .9.6z"/></svg>' +
               '<span id="web-toolbar-cart-badge" class="web-toolbar-badge" style="display:none"></span>' +
+            '</button>' +
+            '<button class="web-toolbar-action-btn" data-tab="account" onclick="navigateTo(\'account\')" aria-label="Профиль">' +
+              '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.2 4.2 0 1 1 0-8.4A4.2 4.2 0 0 1 12 12zm0 2c4.2 0 7.6 2.6 7.6 5.8 0 .6-.4 1-1 1H5.4c-.6 0-1-.4-1-1C4.4 16.6 7.8 14 12 14zm0 2c-2.8 0-5 1.4-5.5 2.8h11c-.5-1.4-2.7-2.8-5.5-2.8z"/></svg>' +
             '</button>' +
           '</div>' +
         '</div>' +
@@ -1864,6 +1983,9 @@
     if (isTelegramRuntime) {
       render(contentHtml);
       return;
+    }
+    if (document && document.body) {
+      document.body.classList.remove('web-home-static-open');
     }
     render(buildWebTopHeaderBar() + contentHtml);
     updateFavBadge();
@@ -1894,9 +2016,9 @@
       .replace(/\s+/g, ' ')
       .trim();
 
-    var hasFromHint = /(^|\s)╨╛╤В(?=\s*\d)/.test(normalized);
-    var hasToHint = /(^|\s)╨┤╨╛(?=\s*\d)/.test(normalized);
-    var hasRangeHints = hasFromHint || hasToHint || /(╤А╤Г╨▒|тВ╜|╤В╤Л╤Б|╨║\b)/.test(normalized) || /\d\s*[-тАУтАФ]\s*\d/.test(normalized);
+    var hasFromHint = /(^|\s)от(?=\s*\d)/.test(normalized);
+    var hasToHint = /(^|\s)до(?=\s*\d)/.test(normalized);
+    var hasRangeHints = hasFromHint || hasToHint || /(руб|₽|тыс|к\b)/.test(normalized) || /\d\s*[-–—]\s*\d/.test(normalized);
     if (!hasRangeHints) return null;
 
     var nums = normalized.match(/\d[\d\s]*/g);
@@ -1944,11 +2066,11 @@
       if (range.min !== null && price < range.min) return false;
       if (range.max !== null && price > range.max) return false;
       // For price-range categories, keep bouquet products only.
-      // This prevents "╨Я╨╛╨┤╨░╤А╨║╨╕/╨Ю╤В╨║╤А╤Л╤В╨║╨╕/╨Т╨░╨╖╤Л/╨и╨░╤А╤Л" from mixing into "╨Ф╨╛ 3 000" etc.
+      // This prevents "Подарки/Открытки/Вазы/Шары" from mixing into "До 3 000" etc.
       var nameText = String((p && p.name) || '').toLowerCase();
       var categoryText = String((p && p.category_name) || '').toLowerCase();
       var text = nameText + ' ' + categoryText;
-      var nonBouquetHints = ['╨┐╨╛╨┤╨░╤А', '╨╛╤В╨║╤А╤Л╤В╨║', '╨▓╨░╨╖╨░', '╤Б╨▓╨╡╤З', '╤И╨░╤А', '╨╕╨│╤А╤Г╤И', '╨║╨╛╤А╨╛╨▒╨║'];
+      var nonBouquetHints = ['подар', 'открытк', 'ваза', 'свеч', 'шар', 'игруш', 'коробк'];
       for (var i = 0; i < nonBouquetHints.length; i++) {
         if (text.indexOf(nonBouquetHints[i]) >= 0) return false;
       }
@@ -1961,43 +2083,60 @@
     var cityName = selectedCity ? selectedCity.name : '';
     var cityLine = cityName
       ? '<span class="city-current" onclick="changeCityClick()">' + escapeHtml(cityName) + '</span>'
-      : '<span class="city-current" onclick="changeCityClick()">╨Т╤Л╨▒╤А╨░╤В╤М ╨│╨╛╤А╨╛╨┤</span>';
+      : '<span class="city-current" onclick="changeCityClick()">Выбрать город</span>';
     var showSiteHeroBlock = shouldShowSiteHero();
     var isDesktopCoverOverlay = !isTelegramRuntime && showSiteHeroBlock && (window.innerWidth || 0) >= 900;
     var siteHero = showSiteHeroBlock ? buildHomeHero(cityName) : '';
     var catalogHeader = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
-      '<div class="category-title">╨Ъ╨░╤В╨░╨╗╨╛╨│</div>' +
+      '<div class="category-title">Каталог</div>' +
       cityLine +
     '</div>';
     setActiveTab('home');
     if (!isTelegramRuntime) {
+      var isMobileWeb = (window.innerWidth || 0) <= 900;
       document.body.classList.remove('site-cover-active');
       document.body.classList.remove('mobile-toolbar-fixed');
       document.body.classList.remove('web-mobile-cats-collapsed');
+      document.body.classList.toggle('web-home-static-open', isMobileWeb);
       render(
         buildWebTopHeaderBar() +
         siteHero +
-        '<section class="web-shop-toolbar web-shop-toolbar--filters">' +
-          '<div class="web-shop-topline web-shop-topline--search">' +
-            '<div class="web-shop-search-wrap">' +
-              '<input id="web-shop-search" class="web-shop-search" type="search" placeholder="╨┐╨╛╨╕╤Б╨║ ╨┐╨╛ ╤Б╨░╨╣╤В╤Г" oninput="webHomeSearch(this.value)">' +
-              '<button class="web-shop-search-btn" type="button" aria-label="╨Я╨╛╨╕╤Б╨║" onclick="focusWebSearch()">' +
-                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 4a6.8 6.8 0 1 1 0 13.6A6.8 6.8 0 0 1 10.8 4zm0 2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6zM16.3 15l3.7 3.7-1.4 1.4-3.7-3.7z"/></svg>' +
-              '</button>' +
+        '<div id="web-catalog-sheet-overlay" class="web-catalog-sheet-overlay" aria-hidden="true"></div>' +
+        '<section id="web-catalog-sheet" class="web-catalog-sheet web-catalog-sheet--closed">' +
+          '<div class="web-catalog-sheet-head">' +
+            '<button id="web-catalog-sheet-handle" class="web-catalog-sheet-handle" type="button" aria-label="Открыть каталог" aria-expanded="false">' +
+              '<span class="web-catalog-sheet-handle-bar"></span>' +
+            '</button>' +
+            '<div class="web-catalog-sheet-title-row">' +
+              '<div class="web-catalog-sheet-title">Категории</div>' +
+              '<button id="web-catalog-sheet-close" class="web-catalog-sheet-close" type="button" aria-label="Закрыть">×</button>' +
             '</div>' +
           '</div>' +
-          '<div id="web-quick-cats" class="web-quick-cats">╨Ч╨░╨│╤А╤Г╨╖╨║╨░...</div>' +
-        '</section>' +
-        '<section id="home-catalog" class="home-catalog-block">' +
-          '<div id="web-category-sections">╨Ч╨░╨│╤А╤Г╨╖╨║╨░...</div>' +
-        '</section>' +
-        buildWebStoreInfoSection()
+          '<div class="web-catalog-sheet-scroll">' +
+            '<section class="web-shop-toolbar web-shop-toolbar--filters">' +
+              '<div id="web-quick-search" class="web-quick-search" aria-hidden="true">' +
+                '<div class="web-shop-search-wrap">' +
+                  '<input id="web-shop-search" class="web-shop-search" type="search" placeholder="поиск по сайту" oninput="webHomeSearch(this.value)">' +
+                  '<button class="web-shop-search-btn" type="button" aria-label="Поиск" onclick="focusWebSearch()">' +
+                    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 4a6.8 6.8 0 1 1 0 13.6A6.8 6.8 0 0 1 10.8 4zm0 2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6zM16.3 15l3.7 3.7-1.4 1.4-3.7-3.7z"/></svg>' +
+                  '</button>' +
+                '</div>' +
+              '</div>' +
+              '<div id="web-quick-cats" class="web-quick-cats">Загрузка...</div>' +
+            '</section>' +
+            '<section id="home-catalog" class="home-catalog-block">' +
+              '<div id="web-category-sections">Загрузка...</div>' +
+            '</section>' +
+            buildWebStoreInfoSection() +
+          '</div>' +
+        '</section>'
       );
       setActiveTab('home');
       updateFavBadge();
       updateCartBadge();
       bindHomeHeroAnimation();
       bindMobileQuickCatsLayerBehavior();
+      bindWebCatalogSheetBehavior();
       var loadWebHomeData = function () {
         Promise.all([fetchJSON('/api/categories'), fetchJSON('/api/products')]).then(function (res) {
           var cats = res[0] || [];
@@ -2005,7 +2144,7 @@
           var el = document.getElementById('web-category-sections');
           if (!el) return;
           if (!cats.length || !products.length) {
-            el.innerHTML = '<div class="empty-state">╨в╨╛╨▓╨░╤А╨╛╨▓ ╨┐╨╛╨║╨░ ╨╜╨╡╤В</div>';
+            el.innerHTML = '<div class="empty-state">Товаров пока нет</div>';
             return;
           }
           homeCategoriesById = {};
@@ -2029,9 +2168,9 @@
       siteHero +
       '<section id="home-catalog" class="home-catalog-block">' +
         catalogHeader +
-        '<div class="category-select-wrap" id="category-select-wrap">╨Ч╨░╨│╤А╤Г╨╖╨║╨░...</div>' +
+        '<div class="category-select-wrap" id="category-select-wrap">Загрузка...</div>' +
         '<div id="active-cat-title" class="category-title" style="font-size:16px;margin-bottom:14px;display:none"></div>' +
-        '<div class="product-list" id="home-product-list">╨Ч╨░╨│╤А╤Г╨╖╨║╨░...</div>' +
+        '<div class="product-list" id="home-product-list">Загрузка...</div>' +
       '</section>'
     );
     bindHomeHeroAnimation();
@@ -2043,7 +2182,7 @@
       homeCategoriesById = {};
       cats.forEach(function (c) { homeCategoriesById[c.id] = c.name; });
       var activeCatId = normalizeCategoryId(homeActiveCategory);
-      var html = '<button class="cat-chip' + (activeCatId === null ? ' active' : '') + '" data-cat-id="" onclick="filterHome(null)">╨Т╤Б╨╡</button>';
+      var html = '<button class="cat-chip' + (activeCatId === null ? ' active' : '') + '" data-cat-id="" onclick="filterHome(null)">Все</button>';
       html += cats.map(function (c) {
         var cidNorm = normalizeCategoryId(c.id);
         return '<button class="cat-chip' + (activeCatId === cidNorm ? ' active' : '') + '" data-cat-id="' + escapeHtml(cidNorm) + '" onclick="filterHome(' + c.id + ',\'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\')">' + escapeHtml(c.name) + '</button>';
@@ -2064,7 +2203,7 @@
       if (!el) return;
       var selectedName = homeActiveCategory !== null ? homeCategoriesById[homeActiveCategory] : '';
       prods = filterProductsByCategoryPriceRange(prods || [], selectedName);
-      if (!prods || !prods.length) { el.innerHTML = '<div class="empty-state">╨в╨╛╨▓╨░╤А╨╛╨▓ ╨┐╨╛╨║╨░ ╨╜╨╡╤В</div>'; return; }
+      if (!prods || !prods.length) { el.innerHTML = '<div class="empty-state">Товаров пока нет</div>'; return; }
       prods.sort(function (a, b) { return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0); });
       el.innerHTML = prods.map(function (p, idx) { return buildProductCard(p, idx); }).join('');
     });
@@ -2081,7 +2220,7 @@
 
     var titleEl = document.getElementById('active-cat-title');
     if (titleEl) {
-      if (homeActiveCategory !== null && catName && catName !== '╨Т╤Б╨╡') {
+      if (homeActiveCategory !== null && catName && catName !== 'Все') {
         titleEl.textContent = catName;
         titleEl.style.display = 'block';
       } else {
@@ -2095,7 +2234,7 @@
       if (!el) return;
       var selectedName = catName || homeCategoriesById[homeActiveCategory] || '';
       prods = filterProductsByCategoryPriceRange(prods || [], selectedName);
-      if (!prods || !prods.length) { el.innerHTML = '<div class="empty-state">╨Т ╤Н╤В╨╛╨╣ ╨║╨░╤В╨╡╨│╨╛╤А╨╕╨╕ ╨┐╨╛╨║╨░ ╨╜╨╡╤В ╤В╨╛╨▓╨░╤А╨╛╨▓</div>'; return; }
+      if (!prods || !prods.length) { el.innerHTML = '<div class="empty-state">В этой категории пока нет товаров</div>'; return; }
       prods.sort(function (a, b) { return (b.in_stock !== 0 ? 1 : 0) - (a.in_stock !== 0 ? 1 : 0); });
       el.innerHTML = prods.map(function (p, idx) { return buildProductCard(p, idx); }).join('');
     });
@@ -2109,13 +2248,34 @@
 
   window.webHomeSearch = function (query) {
     webHomeSearchQuery = String(query || '');
+    webHomeSearchExpanded = String(webHomeSearchQuery || '').trim() !== '';
+    renderWebQuickCategories((webHomeDataCache && webHomeDataCache.cats) || []);
     renderWebCategorySectionsFromCache();
   };
 
   window.focusWebSearch = function () {
+    webHomeSearchExpanded = true;
+    applyWebHomeSearchVisibility();
     var input = document.getElementById('web-shop-search');
     if (!input) return;
     input.focus();
+  };
+
+  window.toggleWebHomeSearch = function (event) {
+    if (event) event.stopPropagation();
+    var hasSearchQuery = String(webHomeSearchQuery || '').trim() !== '';
+    if (webHomeSearchExpanded || hasSearchQuery) {
+      webHomeSearchExpanded = false;
+      webHomeSearchQuery = '';
+      renderWebCategorySectionsFromCache();
+    } else {
+      webHomeSearchExpanded = true;
+    }
+    renderWebQuickCategories((webHomeDataCache && webHomeDataCache.cats) || []);
+    if (webHomeSearchExpanded) {
+      var input = document.getElementById('web-shop-search');
+      if (input) input.focus();
+    }
   };
 
   window.toggleWebCallPanel = function (event) {
@@ -2145,7 +2305,7 @@
     render(
       webHead +
       '<div class="product-detail-page">' +
-        '<div id="product-detail">╨Ч╨░╨│╤А╤Г╨╖╨║╨░...</div>' +
+        '<div id="product-detail">Загрузка...</div>' +
         (!isTelegramRuntime ? '<div id="product-related"></div>' : '') +
       '</div>'
     );
@@ -2154,7 +2314,7 @@
       updateCartBadge();
     }
     fetchJSON('/api/products/' + id).then(function (p) {
-      if (!p || p.error) { document.getElementById('product-detail').innerHTML = '<div class="empty-state">╨в╨╛╨▓╨░╤А ╨╜╨╡ ╨╜╨░╨╣╨┤╨╡╨╜</div>'; return; }
+      if (!p || p.error) { document.getElementById('product-detail').innerHTML = '<div class="empty-state">Товар не найден</div>'; return; }
       warmProductSizeImages(p);
       var favClass = isFavorited(p.id) ? ' favorited' : '';
       var fallbackSizeImage = (p.sizes && p.sizes.length && p.sizes[0].image_url) ? p.sizes[0].image_url : '';
@@ -2181,7 +2341,7 @@
       } else {
         galleryHtml =
           '<div class="product-detail-img-wrap">' +
-            (images.length ? '<img src="' + escapeHtml(images[0].image_url) + '" alt="' + escapeHtml(p.name) + '" class="product-detail-img">' : '<div class="no-image">╨д╨╛╤В╨╛</div>') +
+            (images.length ? '<img src="' + escapeHtml(images[0].image_url) + '" alt="' + escapeHtml(p.name) + '" class="product-detail-img">' : '<div class="no-image">Фото</div>') +
             '<button class="fav-btn fav-btn--detail' + favClass + '" onclick="toggleFav(' + p.id + ',event)">' + heartSvg + '</button>' +
           '</div>';
       }
@@ -2199,7 +2359,7 @@
         var firstInfo = firstSize.dimensions ? escapeHtml(firstSize.dimensions) : '';
         sizeHtml =
           '<div class="size-selector" id="size-selector">' +
-            '<div class="size-selector-label">╨а╨░╨╖╨╝╨╡╤А ╨▒╤Г╨║╨╡╤В╨░</div>' +
+            '<div class="size-selector-label">Размер букета</div>' +
             '<div class="size-btn-row">' + sizeBtns + '</div>' +
             '<div class="size-info" id="size-info">' + firstInfo + '</div>' +
           '</div>';
@@ -2209,9 +2369,13 @@
 
       var detailPrice = (p.sizes && p.sizes.length) ? p.sizes[0].price : p.price;
       var detailOutOfStock = p.in_stock === 0;
+      var isCompactMobileWeb = !isTelegramRuntime && (window.innerWidth || 0) <= 900;
       var detailActions = detailOutOfStock
-        ? '<div class="product-detail-actions"><div class="detail-soon-badge">╨б╨║╨╛╤А╨╛ ╨▒╤Г╨┤╨╡╤В ╨▓ ╨╜╨░╨╗╨╕╤З╨╕╨╕</div><button class="card-cart-btn card-cart-btn--catalog" onclick="navigateTo(\'home\')">╨Т ╨║╨░╤В╨░╨╗╨╛╨│</button></div>'
-        : '<div class="product-detail-actions"><button class="card-cart-btn card-cart-btn--large" onclick="addToCartWithSize(' + p.id + ',event)">╨Т ╨║╨╛╤А╨╖╨╕╨╜╤Г</button><button class="card-cart-btn card-cart-btn--catalog" onclick="navigateTo(\'home\')">╨Т ╨║╨░╤В╨░╨╗╨╛╨│</button></div>';
+        ? '<div class="product-detail-actions"><div class="detail-soon-badge">Скоро будет в наличии</div><button class="card-cart-btn card-cart-btn--catalog" onclick="navigateTo(\'home\')">В каталог</button></div>'
+        : '<div class="product-detail-actions"><button class="card-cart-btn card-cart-btn--large" onclick="addToCartWithSize(' + p.id + ',event)">В корзину</button><button class="card-cart-btn card-cart-btn--catalog" onclick="navigateTo(\'home\')">В каталог</button></div>';
+      var detailActionsCompact = detailOutOfStock
+        ? '<div class="product-detail-actions"><button class="card-cart-btn card-cart-btn--catalog" onclick="navigateTo(\'home\')">В каталог</button></div>'
+        : '<div class="product-detail-actions"><button class="card-cart-btn card-cart-btn--large" onclick="addToCartWithSize(' + p.id + ',event)">В корзину</button><button class="card-cart-btn card-cart-btn--catalog" onclick="navigateTo(\'home\')">В каталог</button></div>';
 
       document.getElementById('product-detail').innerHTML =
         '<div class="product-detail' + (detailOutOfStock ? ' product-detail--soon' : '') + '">' +
@@ -2221,10 +2385,10 @@
           '<div class="product-detail-content">' +
             '<div class="product-detail-name">' + escapeHtml(p.name) + '</div>' +
             '<div class="product-detail-price" id="detail-price">' + formatPrice(detailPrice) + '</div>' +
-            '<div class="product-detail-desc">' + escapeHtml(p.description) + '</div>' +
-            (isBouquetCategory(p.category_name) ? '<div class="product-detail-warning">╨Ъ╨░╨╢╨┤╤Л╨╣ ╨▒╤Г╨║╨╡╤В ╤Б╨╛╨▒╨╕╤А╨░╨╡╤В╤Б╤П ╨▓╤А╤Г╤З╨╜╤Г╤О, ╨▓╨╛╨╖╨╝╨╛╨╢╨╜╤Л ╨╛╤В╨╗╨╕╤З╨╕╤П ╨╛╤В ╤Д╨╛╤В╨╛.</div>' : '') +
-            sizeHtml +
-            detailActions +
+            (isCompactMobileWeb ? '' : '<div class="product-detail-desc">' + escapeHtml(p.description) + '</div>') +
+            (isCompactMobileWeb ? '' : (isBouquetCategory(p.category_name) ? '<div class="product-detail-warning">Каждый букет собирается вручную, возможны отличия от фото.</div>' : '')) +
+            (isCompactMobileWeb ? '' : sizeHtml) +
+            (isCompactMobileWeb ? detailActionsCompact : detailActions) +
           '</div>' +
         '</div>';
 
@@ -2270,7 +2434,7 @@
       }
       host.innerHTML =
         '<section class="product-related">' +
-          '<h3 class="product-related-title">╨б╨╝╨╛╤В╤А╨╕╤В╨╡ ╤В╨░╨║╨╢╨╡</h3>' +
+          '<h3 class="product-related-title">Смотрите также</h3>' +
           '<div class="product-list product-list--related">' +
             related.map(function (p, idx) { return buildProductCard(p, idx); }).join('') +
           '</div>' +
@@ -2350,8 +2514,13 @@
     var cart = getCart();
     syncFreeService(cart);
     saveCart(cart);
-    var h = '<div class="section-title">╨Ъ╨╛╤А╨╖╨╕╨╜╨░</div>';
-    if (!cart.length) { renderWithWebTop(h + '<div class="empty-state">╨Ъ╨╛╤А╨╖╨╕╨╜╨░ ╨┐╤Г╤Б╤В╨░</div>'); return; }
+    if (!cart.length) {
+      var emptyCartHtml = isTelegramRuntime
+        ? '<div class="section-title">Корзина</div><div class="empty-state">Корзина пуста</div>'
+        : '<div class="web-flow-shell web-flow-shell--cart"><div class="section-title">Корзина</div><div class="empty-state">Корзина пуста</div></div>';
+      renderWithWebTop(emptyCartHtml);
+      return;
+    }
 
     renderCartItems(cart, keepScroll);
 
@@ -2400,7 +2569,7 @@
   }
 
   function renderCartItems(cart, keepScroll) {
-    var content = '<div class="web-flow-shell web-flow-shell--cart"><div class="section-title">╨Ъ╨╛╤А╨╖╨╕╨╜╨░</div>';
+    var content = '<div class="web-flow-shell web-flow-shell--cart"><div class="section-title">Корзина</div>';
     content += '<div class="cart-items">';
     cart.forEach(function (item, idx) {
       if (item.is_free_service) return;
@@ -2412,8 +2581,8 @@
     });
     content += '</div>';
     content += '<div id="cart-recommend"></div>';
-    content += '<div class="cart-total">╨Ш╤В╨╛╨│╨╛: <span id="cart-total-val">' + formatPrice(getCartTotal()) + '</span></div>';
-    content += '<button class="nav-btn" onclick="navigateTo(\'checkout\')">╨Ю╤Д╨╛╤А╨╝╨╕╤В╤М ╨╖╨░╨║╨░╨╖</button>';
+    content += '<div class="cart-total">Итого: <span id="cart-total-val">' + formatPrice(getCartTotal()) + '</span></div>';
+    content += '<button class="nav-btn" onclick="navigateTo(\'checkout\')">Оформить заказ</button>';
     content += '</div>';
     var h = isTelegramRuntime ? content : (buildWebTopHeaderBar() + content);
     if (keepScroll) {
@@ -2445,16 +2614,16 @@
       if (!el) return;
 
       var h = '<div class="cart-rec-section">';
-      h += '<div class="cart-rec-title">╨Ф╨╛╨▒╨░╨▓╤М╤В╨╡ ╨║ ╨╖╨░╨║╨░╨╖╤Г</div>';
+      h += '<div class="cart-rec-title">Добавьте к заказу</div>';
       h += '<div class="cart-rec-wrap">';
       h += '<button class="cart-rec-arrow cart-rec-arrow--left" onclick="scrollRec(-1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>';
       h += '<div class="cart-rec-scroll">';
       sorted.forEach(function (p) {
         var img = p.image_url
           ? '<img src="' + escapeHtml(p.image_url) + '" alt="' + escapeHtml(p.name) + '" class="cart-rec-img">'
-          : '<div class="cart-rec-img cart-rec-noimg">╨д╨╛╤В╨╛</div>';
+          : '<div class="cart-rec-img cart-rec-noimg">Фото</div>';
         var price = (p.sizes && p.sizes.length) ? p.sizes[0].price : p.price;
-        var priceLabel = (p.sizes && p.sizes.length) ? '╨╛╤В ' + formatPrice(price) : formatPrice(price);
+        var priceLabel = (p.sizes && p.sizes.length) ? 'от ' + formatPrice(price) : formatPrice(price);
         h += '<div class="cart-rec-card" onclick="navigateTo(\'product\',' + p.id + ')">' +
           img +
           '<div class="cart-rec-name">' + escapeHtml(p.name) + '</div>' +
@@ -2477,10 +2646,10 @@
         '<div class="cart-item-info">' +
           '<div>' +
             '<div class="cart-item-name">' + escapeHtml(item.name) + '</div>' +
-            '<div class="cart-item-price">0 тВ╜</div>' +
+            '<div class="cart-item-price">0 ₽</div>' +
           '</div>' +
           '<div class="cart-item-controls">' +
-            '<span class="qty-value" id="qty-val-' + idx + '">' + item.quantity + '</span> ╤И╤В.' +
+            '<span class="qty-value" id="qty-val-' + idx + '">' + item.quantity + '</span> шт.' +
           '</div>' +
         '</div></div>';
     }
@@ -2515,7 +2684,7 @@
           '<button class="qty-btn" onclick="changeQty(' + item.product_id + ',\'' + escapedLabel + '\',-1)">-</button>' +
           '<span class="qty-value" id="qty-val-' + idx + '">' + item.quantity + '</span>' +
           '<button class="qty-btn" onclick="changeQty(' + item.product_id + ',\'' + escapedLabel + '\',1)">+</button>' +
-          '<button class="remove-btn" onclick="removeItem(' + item.product_id + ',\'' + escapedLabel + '\')">╨г╨┤╨░╨╗╨╕╤В╤М</button>' +
+          '<button class="remove-btn" onclick="removeItem(' + item.product_id + ',\'' + escapedLabel + '\')">Удалить</button>' +
         '</div>' +
       '</div></div>';
   }
@@ -2568,7 +2737,7 @@
       if (recCard) {
         var addBtn = recCard.querySelector('.cart-rec-add');
         if (addBtn) {
-          addBtn.outerHTML = '<div class="cart-rec-in-cart">╨Т ╨║╨╛╤А╨╖╨╕╨╜╨╡</div>';
+          addBtn.outerHTML = '<div class="cart-rec-in-cart">В корзине</div>';
         }
         recCard.removeAttribute('onclick');
         recCard.style.opacity = '0.6';
@@ -2602,8 +2771,8 @@
   var _abandonReason = '';
 
   function getStepName() {
-    var names = { 1: '╨Ч╨░╨║╨░╨╖╤З╨╕╨║', 2: '╨Ф╨╛╤Б╤В╨░╨▓╨║╨░', 3: '╨Я╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤М' };
-    return names[currentStep] || '╨и╨░╨│ ' + currentStep;
+    var names = { 1: 'Заказчик', 2: 'Доставка', 3: 'Получатель' };
+    return names[currentStep] || 'Шаг ' + currentStep;
   }
 
   function sendAbandonedCart(reason) {
@@ -2633,7 +2802,7 @@
       total: total,
       step: currentStep,
       step_name: getStepName(),
-      reason: reason || '╨г╤И╤С╨╗ ╤Б╨╛ ╤Б╤В╤А╨░╨╜╨╕╤Ж╤Л'
+      reason: reason || 'Ушёл со страницы'
     })], { type: 'application/json' }));
   }
 
@@ -2641,7 +2810,7 @@
     stopAbandonTimer();
     _inCheckout = true;
     _abandonedSent = false;
-    _abandonedTimer = setTimeout(function () { sendAbandonedCart('╨С╨╡╨╖╨┤╨╡╨╣╤Б╤В╨▓╨╕╨╡ 10 ╨╝╨╕╨╜'); }, ABANDON_TIMEOUT);
+    _abandonedTimer = setTimeout(function () { sendAbandonedCart('Бездействие 10 мин'); }, ABANDON_TIMEOUT);
   }
 
   function stopAbandonTimer() {
@@ -2651,12 +2820,12 @@
   function resetAbandonTimer() {
     if (!_inCheckout) return;
     stopAbandonTimer();
-    _abandonedTimer = setTimeout(function () { sendAbandonedCart('╨С╨╡╨╖╨┤╨╡╨╣╤Б╤В╨▓╨╕╨╡ 10 ╨╝╨╕╨╜'); }, ABANDON_TIMEOUT);
+    _abandonedTimer = setTimeout(function () { sendAbandonedCart('Бездействие 10 мин'); }, ABANDON_TIMEOUT);
   }
 
   document.addEventListener('visibilitychange', function () {
     if (document.hidden && _inCheckout && !_abandonedSent) {
-      sendAbandonedCart('╨б╨▓╨╡╤А╨╜╤Г╨╗/╨╖╨░╨║╤А╤Л╨╗ ╨┐╤А╨╕╨╗╨╛╨╢╨╡╨╜╨╕╨╡');
+      sendAbandonedCart('Свернул/закрыл приложение');
     }
   });
 
@@ -2737,7 +2906,7 @@
 
   function isEngelsAddress(address) {
     var lower = address.toLowerCase();
-    return lower.indexOf('╤Н╨╜╨│╨╡╨╗╤М╤Б') !== -1 || lower.indexOf('engels') !== -1;
+    return lower.indexOf('энгельс') !== -1 || lower.indexOf('engels') !== -1;
   }
 
   function isNightDeliveryInterval(iv) {
@@ -2835,7 +3004,6 @@
     var userName = df['field-customer-name'] || (dbUser && dbUser.first_name) || (tgUser && tgUser.first_name) || '';
     var userPhone = df['field-phone'] || (dbUser && dbUser.phone) || '';
     var userAddr = (dbUser && dbUser.default_address) || '';
-    var tgUsername = df['field-tg'] || ((tgUser && tgUser.username) ? '@' + tgUser.username : (isWebPhoneUser() ? 'Сайт (вход по телефону)' : ''));
     var allowGuestCheckout = !getTelegramId();
 
     var intervals = getIntervals();
@@ -2843,7 +3011,7 @@
     var currentHour = sNow.hours;
     var cutoff = getCutoffHour();
     var holiday = isHolidayToday();
-    var pickup = appSettings.pickup_address || '╨│. ╨б╨░╤А╨░╤В╨╛╨▓, 3-╨╣ ╨Ф╨╡╨│╤В╤П╤А╨╜╤Л╨╣ ╨┐╤А╨╛╨╡╨╖╨┤, 21╨║3';
+    var pickup = appSettings.pickup_address || 'г. Саратов, 3-й Дегтярный проезд, 21к3';
 
     if (!draft) {
       checkoutState.deliveryDistance = 0;
@@ -2860,9 +3028,9 @@
 
     renderWithWebTop(
       '<div class="web-flow-shell web-flow-shell--checkout">' +
-      '<span class="back-link" onclick="navigateTo(\'cart\')">╨Ъ ╨║╨╛╤А╨╖╨╕╨╜╨╡</span>' +
-      '<div class="section-title">╨Ю╤Д╨╛╤А╨╝╨╗╨╡╨╜╨╕╨╡ ╨╖╨░╨║╨░╨╖╨░</div>' +
-      (selectedCity ? '<div style="font-size:12px;margin-bottom:14px">╨У╨╛╤А╨╛╨┤: ' + escapeHtml(selectedCity.name) + '</div>' : '') +
+      '<span class="back-link" onclick="navigateTo(\'cart\')">К корзине</span>' +
+      '<div class="section-title">Оформление заказа</div>' +
+      (selectedCity ? '<div style="font-size:12px;margin-bottom:14px">Город: ' + escapeHtml(selectedCity.name) + '</div>' : '') +
 
       '<div class="checkout-steps">' +
         '<div class="step-indicators">' +
@@ -2873,52 +3041,52 @@
           '<div class="step-dot locked" data-step="3"><span class="step-num">3</span></div>' +
         '</div>' +
         '<div class="step-labels">' +
-          '<span class="step-label active">╨Ч╨░╨║╨░╨╖╤З╨╕╨║</span>' +
-          '<span class="step-label">╨Ф╨╛╤Б╤В╨░╨▓╨║╨░</span>' +
-          '<span class="step-label">╨Я╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤М</span>' +
+          '<span class="step-label active">Заказчик</span>' +
+          '<span class="step-label">Доставка</span>' +
+          '<span class="step-label">Получатель</span>' +
         '</div>' +
       '</div>' +
 
       '<div class="checkout-panels">' +
 
         '<div class="checkout-panel active" id="step-1">' +
-          '<div class="step-title">╨Ш╨╜╤Д╨╛╤А╨╝╨░╤Ж╨╕╤П ╨╛ ╨╖╨░╨║╨░╨╖╤З╨╕╨║╨╡</div>' +
-          '<div class="form-group"><label>╨Ш╨╝╤П ╨╖╨░╨║╨░╨╖╤З╨╕╨║╨░</label>' +
-          '<input type="text" id="field-customer-name" placeholder="╨Ш╨▓╨░╨╜" value="' + escapeHtml(userName) + '" oninput="updateStepButtons()"></div>' +
-          '<div class="form-group"><label>╨Ъ╨╛╨╜╤В╨░╨║╤В╨╜╤Л╨╣ ╤В╨╡╨╗╨╡╤Д╨╛╨╜</label>' +
+          '<div class="step-title">Информация о заказчике</div>' +
+          '<div class="form-group"><label>Имя заказчика</label>' +
+          '<input type="text" id="field-customer-name" placeholder="Иван" value="' + escapeHtml(userName) + '" oninput="updateStepButtons()"></div>' +
+          '<div class="form-group"><label>Контактный телефон</label>' +
           '<input type="tel" id="field-phone" placeholder="+7 (___) ___-__-__" value="' + escapeHtml(userPhone) + '" oninput="formatPhoneInput(this); updateStepButtons()" maxlength="18"></div>' +
           (!isTelegramRuntime && allowGuestCheckout
             ? '<div class="checkout-guest-hint">' +
-                '<div class="checkout-guest-hint-text">╨Ь╨╛╨╢╨╜╨╛ ╨╛╤Д╨╛╤А╨╝╨╕╤В╤М ╨╖╨░╨║╨░╨╖ ╨▒╨╡╨╖ ╤А╨╡╨│╨╕╤Б╤В╤А╨░╤Ж╨╕╨╕. ╨з╤В╨╛╨▒╤Л ╤Б╨╛╤Е╤А╨░╨╜╤П╨╗╨╕╤Б╤М ╨░╨┤╤А╨╡╤Б╨░ ╨╕ ╨╕╤Б╤В╨╛╤А╨╕╤П ╨╖╨░╨║╨░╨╖╨╛╨▓, ╨▓╨╛╨╣╨┤╨╕╤В╨╡ ╤З╨╡╤А╨╡╨╖ Telegram.</div>' +
+                '<div class="checkout-guest-hint-text">Можно оформить заказ без регистрации. Чтобы сохранялись адреса и история заказов, войдите через Telegram.</div>' +
                 '<div id="checkout-telegram-login-widget"></div>' +
               '</div>'
             : '') +
-          '<button type="button" class="step-next-btn" id="step1-next" onclick="goToStep(2)">╨Ф╨░╨╗╨╡╨╡</button>' +
+          '<button type="button" class="step-next-btn" id="step1-next" onclick="goToStep(2)">Далее</button>' +
         '</div>' +
 
         '<div class="checkout-panel" id="step-2">' +
-          '<div class="step-title">╨Ф╨╛╤Б╤В╨░╨▓╨║╨░</div>' +
+          '<div class="step-title">Доставка</div>' +
 
-          '<div class="form-group"><label>╨б╨┐╨╛╤Б╨╛╨▒ ╨┐╨╛╨╗╤Г╤З╨╡╨╜╨╕╤П</label>' +
+          '<div class="form-group"><label>Способ получения</label>' +
           '<div class="radio-group" id="delivery-type-group">' +
             '<label class="radio-option' + (checkoutState.deliveryType === 'delivery' ? ' selected' : '') + '" onclick="setDeliveryType(\'delivery\')">' +
               '<input type="radio" name="dtype" value="delivery"' + (checkoutState.deliveryType === 'delivery' ? ' checked' : '') + '>' +
-              '<span class="radio-dot"></span> ╨Ф╨╛╤Б╤В╨░╨▓╨║╨░</label>' +
+              '<span class="radio-dot"></span> Доставка</label>' +
             '<label class="radio-option' + (checkoutState.deliveryType === 'pickup' ? ' selected' : '') + '" onclick="setDeliveryType(\'pickup\')">' +
               '<input type="radio" name="dtype" value="pickup"' + (checkoutState.deliveryType === 'pickup' ? ' checked' : '') + '>' +
-              '<span class="radio-dot"></span> ╨б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖ (' + escapeHtml(pickup) + ')</label>' +
+              '<span class="radio-dot"></span> Самовывоз (' + escapeHtml(pickup) + ')</label>' +
           '</div></div>' +
 
           '<div id="delivery-fields">' +
             '<div id="saved-addr-picker"></div>' +
-            '<div class="form-group"><label>╨Р╨┤╤А╨╡╤Б ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕</label>' +
-            '<input type="text" id="field-addr-suggest" autocomplete="off" placeholder="╨Э╨░╤З╨╜╨╕╤В╨╡ ╨▓╨▓╨╛╨┤╨╕╤В╤М ╨░╨┤╤А╨╡╤БтАж" oninput="updateStepButtons()"></div>' +
+            '<div class="form-group"><label>Адрес доставки</label>' +
+            '<input type="text" id="field-addr-suggest" autocomplete="off" placeholder="Начните вводить адрес…" oninput="updateStepButtons()"></div>' +
             '<div id="ymaps-minimap" style="width:100%;height:180px;border-radius:10px;overflow:hidden;margin:8px 0;display:none"></div>' +
             '<div id="delivery-distance-info" style="font-size:13px;margin:6px 0;display:none"></div>' +
-            '<div class="form-group"><label>╨Ъ╨▓╨░╤А╤В╨╕╤А╨░ / ╨╛╤Д╨╕╤Б</label>' +
-            '<input type="text" id="field-addr-apt" placeholder="╨Ъ╨▓╨░╤А╤В╨╕╤А╨░, ╨┐╨╛╨┤╤К╨╡╨╖╨┤, ╤Н╤В╨░╨╢" oninput="saveCheckoutDraft()"></div>' +
-            '<div class="form-group"><label>╨Ф╨╛╨┐╨╛╨╗╨╜╨╡╨╜╨╕╨╡ ╨║ ╨░╨┤╤А╨╡╤Б╤Г</label>' +
-            '<input type="text" id="field-addr-note" placeholder="╨Ъ╨╛╨┤ ╨┤╨╛╨╝╨╛╤Д╨╛╨╜╨░, ╨╛╤А╨╕╨╡╨╜╤В╨╕╤А╤Л ╨╕ ╤В.╨┤." oninput="saveCheckoutDraft()"></div>' +
+            '<div class="form-group"><label>Квартира / офис</label>' +
+            '<input type="text" id="field-addr-apt" placeholder="Квартира, подъезд, этаж" oninput="saveCheckoutDraft()"></div>' +
+            '<div class="form-group"><label>Дополнение к адресу</label>' +
+            '<input type="text" id="field-addr-note" placeholder="Код домофона, ориентиры и т.д." oninput="saveCheckoutDraft()"></div>' +
             '<input type="hidden" id="field-address">' +
           '</div>' +
 
@@ -2926,10 +3094,10 @@
 
           '<div id="date-cutoff-notice" class="cutoff-notice" style="display:none"></div>' +
 
-          '<div class="form-group"><label id="date-label">╨Ф╨░╤В╨░ ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕</label>' +
+          '<div class="form-group"><label id="date-label">Дата доставки</label>' +
           '<input type="date" id="field-date" class="form-input-date" min="' + minDate + '" value="' + defaultDate + '" onchange="onDeliveryDateChange()"></div>' +
 
-          '<div class="form-group"><label id="time-label">╨Т╤А╨╡╨╝╤П ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕</label>' +
+          '<div class="form-group"><label id="time-label">Время доставки</label>' +
           '<div class="radio-group" id="interval-group">' +
           '</div></div>' +
 
@@ -2937,36 +3105,36 @@
           '<div class="exact-time-section">' +
             '<label class="checkout-self-btn" id="exact-time-opt" onclick="toggleExactTime()">' +
               '<input type="checkbox" id="exact-time-cb">' +
-              '<span class="check-box"></span> ╨Ф╨╛╤Б╤В╨░╨▓╨║╨░ ╤В╨╛╤З╨╜╨╛ ╨║╨╛ ╨▓╤А╨╡╨╝╨╡╨╜╨╕ (+' + formatPrice(parseInt(appSettings.exact_time_surcharge) || 1000) + ')' +
+              '<span class="check-box"></span> Доставка точно ко времени (+' + formatPrice(parseInt(appSettings.exact_time_surcharge) || 1000) + ')' +
             '</label>' +
             '<div id="exact-time-fields" style="display:none">' +
-              '<div style="font-size:12px;color:#888;margin:8px 0 6px">╨Ч╨░╨║╨░╨╖ ╨▒╤Г╨┤╨╡╤В ╨┤╨╛╤Б╤В╨░╨▓╨╗╨╡╨╜ ╨▓ ╨╕╨╜╤В╨╡╤А╨▓╨░╨╗╨╡ ┬▒1,5 ╤З╨░╤Б╨░ ╨╛╤В ╤Г╨║╨░╨╖╨░╨╜╨╜╨╛╨│╨╛ ╨▓╤А╨╡╨╝╨╡╨╜╨╕</div>' +
+              '<div style="font-size:12px;color:#888;margin:8px 0 6px">Заказ будет доставлен в интервале ±1,5 часа от указанного времени</div>' +
               '<input type="time" id="field-exact-time" class="form-input-date" value="12:00" onchange="validateExactTime()">' +
               '<div id="exact-time-warn" class="cutoff-notice" style="display:none"></div>' +
             '</div>' +
           '</div>' : '') +
 
-          '<div class="form-group"><label>╨Ъ╨╛╨╝╨╝╨╡╨╜╤В╨░╤А╨╕╨╣ ╨║ ╨╖╨░╨║╨░╨╖╤Г</label>' +
-          '<textarea id="field-comment" placeholder="╨Я╨╛╨╢╨╡╨╗╨░╨╜╨╕╤П, ╨╛╤Б╨╛╨▒╤Л╨╡ ╤Г╨║╨░╨╖╨░╨╜╨╕╤П" oninput="saveCheckoutDraft()"></textarea></div>' +
+          '<div class="form-group"><label>Комментарий к заказу</label>' +
+          '<textarea id="field-comment" placeholder="Пожелания, особые указания" oninput="saveCheckoutDraft()"></textarea></div>' +
 
           '<div class="step-btn-row">' +
-            '<button type="button" class="step-back-btn" onclick="goToStep(1)">╨Э╨░╨╖╨░╨┤</button>' +
-            '<button type="button" class="step-next-btn" id="step2-next" onclick="goToStep(3)">╨Ф╨░╨╗╨╡╨╡</button>' +
+            '<button type="button" class="step-back-btn" onclick="goToStep(1)">Назад</button>' +
+            '<button type="button" class="step-next-btn" id="step2-next" onclick="goToStep(3)">Далее</button>' +
           '</div>' +
         '</div>' +
 
         '<div class="checkout-panel" id="step-3">' +
-          '<div class="step-title">╨Я╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤М</div>' +
+          '<div class="step-title">Получатель</div>' +
           '<div class="form-group">' +
             '<label class="checkout-self-btn" id="self-receiver-btn" onclick="toggleSelfReceiver()">' +
               '<input type="checkbox" id="self-receiver-cb">' +
-              '<span class="check-box"></span> ╨п ╤Б╨░╨╝ ╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤М' +
+              '<span class="check-box"></span> Я сам получатель' +
             '</label>' +
           '</div>' +
           '<div id="receiver-fields">' +
-            '<div class="form-group"><label>╨Ш╨╝╤П ╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤П</label>' +
-            '<input type="text" id="field-rcv-name" placeholder="╨Ш╨╝╤П ╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤П" oninput="updateStepButtons()"></div>' +
-            '<div class="form-group"><label>╨в╨╡╨╗╨╡╤Д╨╛╨╜ ╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤П</label>' +
+            '<div class="form-group"><label>Имя получателя</label>' +
+            '<input type="text" id="field-rcv-name" placeholder="Имя получателя" oninput="updateStepButtons()"></div>' +
+            '<div class="form-group"><label>Телефон получателя</label>' +
             '<input type="tel" id="field-rcv-phone" placeholder="+7 (___) ___-__-__" oninput="formatPhoneInput(this); updateStepButtons()" maxlength="18"></div>' +
           '</div>' +
           '<div id="checkout-summary"></div>' +
@@ -2974,12 +3142,12 @@
             '<label class="checkout-self-btn" id="consent-btn" onclick="toggleConsent()">' +
               '<input type="checkbox" id="consent-cb">' +
               '<span class="check-box"></span> ' +
-              '<span>╨п ╨┤╨░╤О ╤Б╨╛╨│╨╗╨░╤Б╨╕╨╡ ╨╜╨░ <a href="#" onclick="event.stopPropagation(); navigateTo(\'page-offer\'); return false;" style="text-decoration:underline">╨╛╨▒╤А╨░╨▒╨╛╤В╨║╤Г ╨┐╨╡╤А╤Б╨╛╨╜╨░╨╗╤М╨╜╤Л╤Е ╨┤╨░╨╜╨╜╤Л╤Е</a></span>' +
+              '<span>Я даю согласие на <a href="#" onclick="event.stopPropagation(); navigateTo(\'page-offer\'); return false;" style="text-decoration:underline">обработку персональных данных</a></span>' +
             '</label>' +
           '</div>' +
           '<div class="step-btn-row">' +
-            '<button type="button" class="step-back-btn" onclick="goToStep(2)">╨Э╨░╨╖╨░╨┤</button>' +
-            '<button type="button" class="step-next-btn step-submit-btn" id="checkout-submit" onclick="submitOrder(event)">╨Ю╤Д╨╛╤А╨╝╨╕╤В╤М ╨╖╨░╨║╨░╨╖</button>' +
+            '<button type="button" class="step-back-btn" onclick="goToStep(2)">Назад</button>' +
+            '<button type="button" class="step-next-btn step-submit-btn" id="checkout-submit" onclick="submitOrder(event)">Оформить заказ</button>' +
           '</div>' +
         '</div>' +
 
@@ -3063,7 +3231,7 @@
     fetchJSON('/api/user/addresses?telegram_id=' + telegramId).then(function (addrs) {
       var el = document.getElementById('saved-addr-picker');
       if (!el || !addrs || !addrs.length) return;
-      var html = '<div class="form-group"><label>╨б╨╛╤Е╤А╨░╨╜╤С╨╜╨╜╤Л╨╡ ╨░╨┤╤А╨╡╤Б╨░</label><div class="saved-addr-chips">';
+      var html = '<div class="form-group"><label>Сохранённые адреса</label><div class="saved-addr-chips">';
       addrs.forEach(function (a) {
         html += '<button class="saved-addr-chip" onclick="fillSavedAddress(' + a.id + ')">' +
           escapeHtml(a.label || a.full_address) + '</button>';
@@ -3092,7 +3260,7 @@
     chips.forEach(function (c) { c.classList.remove('active'); });
     var clicked = document.querySelector('.saved-addr-chip[onclick*="' + addrId + '"]');
     if (clicked) clicked.classList.add('active');
-    showToast('╨Р╨┤╤А╨╡╤Б ╨╖╨░╨┐╨╛╨╗╨╜╨╡╨╜');
+    showToast('Адрес заполнен');
   };
 
   function initYmapsSuggest() {
@@ -3131,9 +3299,9 @@
             }).then(function (items) {
               return items.map(function (item) {
                 var short = item.displayName
-                  .replace(/╨а╨╛╤Б╤Б╨╕╤П,?\s*/i, '')
-                  .replace(/╨б╨░╤А╨░╤В╨╛╨▓╤Б╨║╨░╤П ╨╛╨▒╨╗╨░╤Б╤В╤М,?\s*/i, '')
-                  .replace(/╨│╨╛╤А╨╛╨┤╤Б╨║╨╛╨╣ ╨╛╨║╤А╤Г╨│[^,]*,?\s*/i, '')
+                  .replace(/Россия,?\s*/i, '')
+                  .replace(/Саратовская область,?\s*/i, '')
+                  .replace(/городской округ[^,]*,?\s*/i, '')
                   .replace(/^\s*,\s*/, '').trim();
                 return { displayName: short, value: item.value };
               });
@@ -3162,7 +3330,7 @@
     var engels = isEngelsAddress(address);
     checkoutState.isEngels = engels;
     var origin = engels ? getEngelsCoords() : getShopCoords();
-    var originLabel = engels ? '╨╛╤В ╤Ж╨╡╨╜╤В╤А╨░ ╨н╨╜╨│╨╡╨╗╤М╤Б╨░' : '╨╛╤В ╨╝╨░╨│╨░╨╖╨╕╨╜╨░';
+    var originLabel = engels ? 'от центра Энгельса' : 'от магазина';
     checkoutState.addressValidated = false;
     if (ymapsLoaded && window.ymaps) {
       window.ymaps.geocode(address, { results: 1 }).then(function (res) {
@@ -3210,13 +3378,13 @@
       var maxKm = getMaxDeliveryKm(checkoutState.isEngels);
       var label = originLabel ? ' (' + originLabel + ')' : '';
       if (km > maxKm) {
-        el.innerHTML = '╨а╨░╤Б╤Б╤В╨╛╤П╨╜╨╕╨╡: <b>' + km.toFixed(1) + ' ╨║╨╝</b>' + label +
-          ' тАФ ╨Ф╨╛╤Б╤В╨░╨▓╨║╨░ ╨┐╨╛ ╤Н╤В╨╛╨╝╤Г ╨░╨┤╤А╨╡╤Б╤Г ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╜╨░ (╨╝╨░╨║╤Б. ' + maxKm + ' ╨║╨╝)';
+        el.innerHTML = 'Расстояние: <b>' + km.toFixed(1) + ' км</b>' + label +
+          ' — Доставка по этому адресу недоступна (макс. ' + maxKm + ' км)';
         checkoutState.addressValidated = false;
       } else {
         var nightMode = isNightDeliveryInterval(checkoutState.deliveryInterval);
         var cost = getDeliveryCostByDistance(km, checkoutState.isEngels, nightMode);
-        el.innerHTML = '╨а╨░╤Б╤Б╤В╨╛╤П╨╜╨╕╨╡: <b>' + km.toFixed(1) + ' ╨║╨╝</b>' + label + ' тАФ ╨Ф╨╛╤Б╤В╨░╨▓╨║╨░: <b>' + formatPrice(cost) + '</b>';
+        el.innerHTML = 'Расстояние: <b>' + km.toFixed(1) + ' км</b>' + label + ' — Доставка: <b>' + formatPrice(cost) + '</b>';
       }
       el.style.display = '';
     } else {
@@ -3253,25 +3421,8 @@
       if (currentStep === 1) {
         var phone = document.getElementById('field-phone').value.trim();
         var customerName = document.getElementById('field-customer-name').value.trim();
-        var tgField = document.getElementById('field-tg');
-        var tgOrder = tgField ? tgField.value.trim() : '';
-        var emailEl = document.getElementById('field-email');
-        var emailOrder = emailEl ? emailEl.value.trim() : '';
-        var allowNoTg = isWebPhoneUser();
-        if (!phone) {
-          showToast('Укажите телефон');
-          return;
-        }
-        if (!customerName) {
+        if (!phone || !customerName) {
           showToast('Заполните имя и телефон');
-          return;
-        }
-        if (!allowNoTg && !tgOrder) {
-          showToast('Заполните Telegram и телефон');
-          return;
-        }
-        if (emailEl && emailOrder && !/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(emailOrder)) {
-          showToast('Укажите корректный email');
           return;
         }
         if (!validatePhone(phone)) return;
@@ -3279,38 +3430,38 @@
       if (currentStep === 2) {
         if (checkoutState.deliveryType === 'delivery') {
           var suggestVal = document.getElementById('field-addr-suggest') ? document.getElementById('field-addr-suggest').value.trim() : '';
-          if (!suggestVal) { showToast('╨г╨║╨░╨╢╨╕╤В╨╡ ╨░╨┤╤А╨╡╤Б ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕'); return; }
+          if (!suggestVal) { showToast('Укажите адрес доставки'); return; }
           if (!checkoutState.addressValidated) {
             geocodeAndCalcDistance(suggestVal);
           }
           if (isDeliveryTooFar()) {
             var maxKm = getMaxDeliveryKm(checkoutState.isEngels);
-            showToast('╨Ф╨╛╤Б╤В╨░╨▓╨║╨░ ╨┐╨╛ ╤Н╤В╨╛╨╝╤Г ╨░╨┤╤А╨╡╤Б╤Г ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╜╨░ (╨╝╨░╨║╤Б. ' + maxKm + ' ╨║╨╝)');
+            showToast('Доставка по этому адресу недоступна (макс. ' + maxKm + ' км)');
             return;
           }
           var hiddenAddr = document.getElementById('field-address');
           if (hiddenAddr) hiddenAddr.value = buildDeliveryAddress();
         }
         var dateVal = document.getElementById('field-date').value;
-        if (!dateVal) { showToast('╨г╨║╨░╨╢╨╕╤В╨╡ ╨┤╨░╤В╤Г ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕'); return; }
+        if (!dateVal) { showToast('Укажите дату доставки'); return; }
         var sNowCheck = saratovNow();
         var todayCheck = sNowCheck.dateStr;
         if (checkoutState.deliveryType === 'delivery' && dateVal === todayCheck && sNowCheck.hours >= getCutoffHour()) {
-          showToast('╨Ф╨╛╤Б╤В╨░╨▓╨║╨░ ╨╜╨░ ╤Б╨╡╨│╨╛╨┤╨╜╤П ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╜╨░. ╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡ ╨┤╤А╤Г╨│╤Г╤О ╨┤╨░╤В╤Г ╨╕╨╗╨╕ ╤Б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖.');
+          showToast('Доставка на сегодня недоступна. Выберите другую дату или самовывоз.');
           return;
         }
         if (checkoutState.deliveryType === 'pickup') {
           if (!checkoutState.pickupTime || !validatePickupTime()) {
-            showToast('╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡ ╨║╨╛╤А╤А╨╡╨║╤В╨╜╨╛╨╡ ╨▓╤А╨╡╨╝╤П ╤Б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖╨░');
+            showToast('Выберите корректное время самовывоза');
             return;
           }
         } else {
           if (!checkoutState.deliveryInterval && !checkoutState.exactTime) {
-            showToast('╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡ ╨▓╤А╨╡╨╝╤П ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕ (╨╕╨╜╤В╨╡╤А╨▓╨░╨╗ ╨╕╨╗╨╕ ╤В╨╛╤З╨╜╨╛╨╡ ╨▓╤А╨╡╨╝╤П)');
+            showToast('Выберите время доставки (интервал или точное время)');
             return;
           }
           if (checkoutState.exactTime && !validateExactTime()) {
-            showToast('╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡ ╨║╨╛╤А╤А╨╡╨║╤В╨╜╨╛╨╡ ╨▓╤А╨╡╨╝╤П ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕');
+            showToast('Выберите корректное время доставки');
             return;
           }
         }
@@ -3380,11 +3531,7 @@
     if (btn1) {
       var customerName = (document.getElementById('field-customer-name') || {}).value || '';
       var phone = (document.getElementById('field-phone') || {}).value || '';
-      var email = (document.getElementById('field-email') || {}).value || '';
-      var emailOk = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
-      var allowNoTg = isWebPhoneUser();
-      var tgOrderField = (document.getElementById('field-tg') || {}).value || '';
-      var ready1 = customerName.trim().length > 0 && phone.replace(/\D/g, '').length >= 11 && emailOk && (allowNoTg || tgOrderField.trim().length > 0);
+      var ready1 = customerName.trim().length > 0 && phone.replace(/\D/g, '').length >= 11;
       btn1.classList.toggle('btn-dimmed', !ready1);
     }
 
@@ -3426,15 +3573,15 @@
     var goodsTotal = getCartTotal();
     var deliveryCost = getDeliveryCost();
     var total = goodsTotal + deliveryCost;
-    var h = '<div class="order-summary">╨в╨╛╨▓╨░╤А╤Л: ' + formatPrice(goodsTotal) + '</div>';
+    var h = '<div class="order-summary">Товары: ' + formatPrice(goodsTotal) + '</div>';
     if (checkoutState.deliveryType === 'delivery') {
-      var deliveryLabel = checkoutState.exactTime ? '╨Ф╨╛╤Б╤В╨░╨▓╨║╨░ (╤В╨╛╤З╨╜╨╛ ╨║╨╛ ╨▓╤А╨╡╨╝╨╡╨╜╨╕)' : '╨Ф╨╛╤Б╤В╨░╨▓╨║╨░';
+      var deliveryLabel = checkoutState.exactTime ? 'Доставка (точно ко времени)' : 'Доставка';
       if (checkoutState.deliveryDistance > 0 && !checkoutState.exactTime) {
-        deliveryLabel += ' (' + checkoutState.deliveryDistance.toFixed(1) + ' ╨║╨╝)';
+        deliveryLabel += ' (' + checkoutState.deliveryDistance.toFixed(1) + ' км)';
       }
       h += '<div class="order-summary">' + deliveryLabel + ': ' + formatPrice(deliveryCost) + '</div>';
     }
-    h += '<div class="cart-total">╨Ш╤В╨╛╨│╨╛: ' + formatPrice(total) + '</div>';
+    h += '<div class="cart-total">Итого: ' + formatPrice(total) + '</div>';
     el.innerHTML = h;
   }
 
@@ -3448,8 +3595,8 @@
     var cutoffHr = isPickup ? getPickupCutoffHour() : getCutoffHour();
     var isClosed = isToday && sNow.hours >= cutoffHr;
     if (isClosed) {
-      var label = isPickup ? '╨б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖' : '╨Ф╨╛╤Б╤В╨░╨▓╨║╨░';
-      notice.textContent = label + ' ╨╜╨░ ╤Б╨╡╨│╨╛╨┤╨╜╤П ╤Г╨╢╨╡ ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╜╨░ (╨┐╨╛╤Б╨╗╨╡ ' + cutoffHr + ':00). ╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡ ╨┤╤А╤Г╨│╤Г╤О ╨┤╨░╤В╤Г.';
+      var label = isPickup ? 'Самовывоз' : 'Доставка';
+      notice.textContent = label + ' на сегодня уже недоступна (после ' + cutoffHr + ':00). Выберите другую дату.';
       notice.style.display = '';
     } else {
       notice.style.display = 'none';
@@ -3493,7 +3640,7 @@
       var pickupCutoffH = 20;
       var pickupCutoffM = 30;
       if (isToday && (currentHour > pickupCutoffH || (currentHour === pickupCutoffH && currentMin >= pickupCutoffM))) {
-        el.innerHTML = '<div class="cutoff-hint">╨Э╨░ ╤Б╨╡╨│╨╛╨┤╨╜╤П ╤Б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖ ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╡╨╜. ╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡ ╨┤╤А╤Г╨│╤Г╤О ╨┤╨░╤В╤Г.</div>';
+        el.innerHTML = '<div class="cutoff-hint">На сегодня самовывоз недоступен. Выберите другую дату.</div>';
         return;
       }
       var minTime = '10:00';
@@ -3508,11 +3655,11 @@
       if (pickupVal < minTime) pickupVal = minTime;
       if (pickupVal > '21:00') pickupVal = '21:00';
       el.innerHTML =
-        '<div style="font-size:13px;color:#666;margin-bottom:8px">╨б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖ ╤Б 10:00 ╨┤╨╛ 21:00. ╨Ь╨╕╨╜╨╕╨╝╤Г╨╝ ╨╖╨░ 1,5 ╤З╨░╤Б╨░ ╨┤╨╛ ╨▓╤Л╨▒╤А╨░╨╜╨╜╨╛╨│╨╛ ╨▓╤А╨╡╨╝╨╡╨╜╨╕.</div>' +
+        '<div style="font-size:13px;color:#666;margin-bottom:8px">Самовывоз с 10:00 до 21:00. Минимум за 1,5 часа до выбранного времени.</div>' +
         '<input type="time" id="field-pickup-time" class="form-input-date" value="' + pickupVal + '" min="' + minTime + '" max="21:00" onchange="onPickupTimeChange()">' +
         '<div id="pickup-time-warn" class="cutoff-notice" style="display:none"></div>';
       checkoutState.pickupTime = pickupVal;
-      checkoutState.deliveryInterval = '╨б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖ ╨║ ' + pickupVal;
+      checkoutState.deliveryInterval = 'Самовывоз к ' + pickupVal;
       setTimeout(function () { validatePickupTime(); }, 50);
       return;
     }
@@ -3524,7 +3671,7 @@
     var dayIntervals = split.day;
     var nightIntervals = split.night;
     if (pastCutoff) {
-      el.innerHTML = '<div class="cutoff-hint">╨Э╨░ ╤Б╨╡╨│╨╛╨┤╨╜╤П ╨┤╨╛╤Б╤В╨░╨▓╨║╨░ ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╜╨░ ╨┐╨╛╤Б╨╗╨╡ ' + cutoff + ':00. ╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡ ╨┤╤А╤Г╨│╤Г╤О ╨┤╨░╤В╤Г ╨╕╨╗╨╕ ╤Б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖.</div>';
+      el.innerHTML = '<div class="cutoff-hint">На сегодня доставка недоступна после ' + cutoff + ':00. Выберите другую дату или самовывоз.</div>';
       return;
     }
     var selectedBaseDate = null;
@@ -3563,7 +3710,7 @@
           disabled = currentHour >= startH;
         }
       }
-      var displayIv = iv.replace('-', ' тАФ ');
+      var displayIv = iv.replace('-', ' — ');
       var nightBadge = '';
       if (isNight) {
         var slotDate = getNightSlotDate(iv);
@@ -3574,13 +3721,13 @@
         ' onclick="setDeliveryInterval(\'' + escapeHtml(iv) + '\')">' +
         '<input type="radio" name="interval" value="' + escapeHtml(iv) + '"' + (disabled ? ' disabled' : '') + '>' +
         '<span class="radio-dot"></span> ' + escapeHtml(displayIv) +
-        (disabled ? ' (╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╡╨╜)' : '') + nightBadge + '</label>';
+        (disabled ? ' (недоступен)' : '') + nightBadge + '</label>';
     }
 
     var html = dayIntervals.map(function (iv) { return buildOption(iv, false); }).join('');
     if (nightIntervals.length > 0) {
       html += '<div class="night-intervals-divider" onclick="toggleNightIntervals()" style="cursor:pointer;user-select:none">' +
-        '<span class="night-icon">&#9790;</span> ╨Э╨╛╤З╨╜╨░╤П ╨┤╨╛╤Б╤В╨░╨▓╨║╨░ (' + formatDayMonth(selectedBaseDate) + ' тАФ ' + formatDayMonth(nextBaseDate) + ')' +
+        '<span class="night-icon">&#9790;</span> Ночная доставка (' + formatDayMonth(selectedBaseDate) + ' — ' + formatDayMonth(nextBaseDate) + ')' +
         ' <span id="night-toggle-arrow" style="float:right;transition:transform 0.3s">&#9660;</span></div>';
       html += '<div id="night-intervals-container" style="display:none">';
       html += nightIntervals.map(function (iv) { return buildOption(iv, true); }).join('');
@@ -3618,16 +3765,16 @@
       });
     }
 
-    var dayNames = ['╨▓╨╛╤Б╨║╤А╨╡╤Б╨╡╨╜╤М╨╡', '╨┐╨╛╨╜╨╡╨┤╨╡╨╗╤М╨╜╨╕╨║', '╨▓╤В╨╛╤А╨╜╨╕╨║', '╤Б╤А╨╡╨┤╤Г', '╤З╨╡╤В╨▓╨╡╤А╨│', '╨┐╤П╤В╨╜╨╕╤Ж╤Г', '╤Б╤Г╨▒╨▒╨╛╤В╤Г'];
+    var dayNames = ['воскресенье', 'понедельник', 'вторник', 'среду', 'четверг', 'пятницу', 'субботу'];
 
     if (todayAvailable.length > 0) {
       var nearIv = todayAvailable[0];
       var nearNightLabel = '';
       if (nightSet[nearIv]) {
         var nextD = new Date(sNow.year, sNow.month - 1, sNow.day + 1);
-        nearNightLabel = ' (╨╜╨╛╤З╤М ╨╜╨░ ' + String(nextD.getDate()).padStart(2, '0') + '.' + String(nextD.getMonth() + 1).padStart(2, '0') + ')';
+        nearNightLabel = ' (ночь на ' + String(nextD.getDate()).padStart(2, '0') + '.' + String(nextD.getMonth() + 1).padStart(2, '0') + ')';
       }
-      el.innerHTML = '╨С╨╗╨╕╨╢╨░╨╣╤И╨░╤П ╨┤╨╛╤Б╤В╨░╨▓╨║╨░: <b>╤Б╨╡╨│╨╛╨┤╨╜╤П, ' + escapeHtml(nearIv.replace('-', ' тАФ ')) + nearNightLabel + '</b>';
+      el.innerHTML = 'Ближайшая доставка: <b>сегодня, ' + escapeHtml(nearIv.replace('-', ' — ')) + nearNightLabel + '</b>';
       el.style.display = '';
     } else if (allIntervals.length > 0) {
       var tmrw = new Date(sNow.year, sNow.month - 1, sNow.day + 1);
@@ -3638,9 +3785,9 @@
       var tmrwNightLabel = '';
       if (nightSet[firstIv]) {
         var tmrwNext = new Date(sNow.year, sNow.month - 1, sNow.day + 2);
-        tmrwNightLabel = ' (╨╜╨╛╤З╤М ╨╜╨░ ' + String(tmrwNext.getDate()).padStart(2, '0') + '.' + String(tmrwNext.getMonth() + 1).padStart(2, '0') + ')';
+        tmrwNightLabel = ' (ночь на ' + String(tmrwNext.getDate()).padStart(2, '0') + '.' + String(tmrwNext.getMonth() + 1).padStart(2, '0') + ')';
       }
-      el.innerHTML = '╨С╨╗╨╕╨╢╨░╨╣╤И╨░╤П ╨┤╨╛╤Б╤В╨░╨▓╨║╨░: <b>' + dayName + ' ' + tmrwStr + ', ' + escapeHtml(firstIv.replace('-', ' тАФ ')) + tmrwNightLabel + '</b>';
+      el.innerHTML = 'Ближайшая доставка: <b>' + dayName + ' ' + tmrwStr + ', ' + escapeHtml(firstIv.replace('-', ' — ')) + tmrwNightLabel + '</b>';
       el.style.display = '';
     } else {
       el.style.display = 'none';
@@ -3659,7 +3806,7 @@
     var isToday = dateField && dateField.value === sNow.dateStr;
 
     if (val < '10:00' || val > '21:00') {
-      if (warn) { warn.textContent = '╨б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖ ╨┤╨╛╤Б╤В╤Г╨┐╨╡╨╜ ╤Б 10:00 ╨┤╨╛ 21:00'; warn.style.display = ''; }
+      if (warn) { warn.textContent = 'Самовывоз доступен с 10:00 до 21:00'; warn.style.display = ''; }
       checkoutState.deliveryInterval = '';
       updateStepButtons();
       return false;
@@ -3672,7 +3819,7 @@
       var valMin = valH * 60 + valM;
       var nowMin = sNow.hours * 60 + sNow.minutes;
       if (valMin - nowMin < 90) {
-        if (warn) { warn.textContent = '╨Ф╨╛ ╨▓╤Л╨▒╤А╨░╨╜╨╜╨╛╨│╨╛ ╨▓╤А╨╡╨╝╨╡╨╜╨╕ ╨┤╨╛╨╗╨╢╨╜╨╛ ╨▒╤Л╤В╤М ╨╜╨╡ ╨╝╨╡╨╜╨╡╨╡ 1,5 ╤З╨░╤Б╨░'; warn.style.display = ''; }
+        if (warn) { warn.textContent = 'До выбранного времени должно быть не менее 1,5 часа'; warn.style.display = ''; }
         checkoutState.deliveryInterval = '';
         updateStepButtons();
         return false;
@@ -3681,7 +3828,7 @@
 
     if (warn) warn.style.display = 'none';
     checkoutState.pickupTime = val;
-    checkoutState.deliveryInterval = '╨б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖ ╨║ ' + val;
+    checkoutState.deliveryInterval = 'Самовывоз к ' + val;
     updateStepButtons();
     return true;
   }
@@ -3696,7 +3843,7 @@
     var dateField = document.getElementById('field-date');
     if (dateField && isPastIsoDate(dateField.value)) {
       dateField.value = getTodayIsoDate();
-      showToast('╨Э╨╡╨╗╤М╨╖╤П ╨▓╤Л╨▒╤А╨░╤В╤М ╨┐╤А╨╛╤И╨╡╨┤╤И╤Г╤О ╨┤╨░╤В╤Г');
+      showToast('Нельзя выбрать прошедшую дату');
     }
     updateCutoffNotice();
     checkoutState.deliveryInterval = '';
@@ -3717,9 +3864,9 @@
     var fields = document.getElementById('delivery-fields');
     if (fields) fields.style.display = type === 'pickup' ? 'none' : 'block';
     var dateLabel = document.getElementById('date-label');
-    if (dateLabel) dateLabel.textContent = type === 'pickup' ? '╨Ф╨░╤В╨░ ╨│╨╛╤В╨╛╨▓╨╜╨╛╤Б╤В╨╕' : '╨Ф╨░╤В╨░ ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕';
+    if (dateLabel) dateLabel.textContent = type === 'pickup' ? 'Дата готовности' : 'Дата доставки';
     var timeLabel = document.getElementById('time-label');
-    if (timeLabel) timeLabel.textContent = type === 'pickup' ? '╨Т╤А╨╡╨╝╤П ╨│╨╛╤В╨╛╨▓╨╜╨╛╤Б╤В╨╕' : '╨Т╤А╨╡╨╝╤П ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕';
+    if (timeLabel) timeLabel.textContent = type === 'pickup' ? 'Время готовности' : 'Время доставки';
     var exactSection = document.querySelector('.exact-time-section');
     if (exactSection) exactSection.style.display = type === 'pickup' ? 'none' : '';
     if (type === 'pickup' && checkoutState.exactTime) {
@@ -3774,7 +3921,7 @@
       if (r.value === iv) r.closest('.radio-option').classList.add('selected');
     });
     if (checkoutState.deliveryDistance > 0) {
-      showDistanceResult(checkoutState.deliveryDistance, checkoutState.isEngels ? '╨╛╤В ╤Ж╨╡╨╜╤В╤А╨░ ╨н╨╜╨│╨╡╨╗╤М╤Б╨░' : '╨╛╤В ╨╝╨░╨│╨░╨╖╨╕╨╜╨░');
+      showDistanceResult(checkoutState.deliveryDistance, checkoutState.isEngels ? 'от центра Энгельса' : 'от магазина');
     }
     updateStepButtons();
   };
@@ -3823,7 +3970,7 @@
 
     if (diff < 90) {
       warn.style.display = 'block';
-      warn.textContent = '╨Ф╨╛╤Б╤В╨░╨▓╨║╨░ ╨╜╨╡╨▓╨╛╨╖╨╝╨╛╨╢╨╜╨░ ╨╝╨╡╨╜╨╡╨╡ ╤З╨╡╨╝ ╨╖╨░ 1,5 ╤З╨░╤Б╨░. ╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡ ╨▒╨╛╨╗╨╡╨╡ ╨┐╨╛╨╖╨┤╨╜╨╡╨╡ ╨▓╤А╨╡╨╝╤П ╨╕╨╗╨╕ ╨┤╤А╤Г╨│╤Г╤О ╨┤╨░╤В╤Г.';
+      warn.textContent = 'Доставка невозможна менее чем за 1,5 часа. Выберите более позднее время или другую дату.';
       return false;
     } else {
       warn.style.display = 'none';
@@ -3841,7 +3988,7 @@
     var note = document.getElementById('field-addr-note');
     var parts = [];
     if (suggest && suggest.value.trim()) parts.push(suggest.value.trim());
-    if (apt && apt.value.trim()) parts.push('╨║╨▓./╨╛╤Д. ' + apt.value.trim());
+    if (apt && apt.value.trim()) parts.push('кв./оф. ' + apt.value.trim());
     if (note && note.value.trim()) parts.push(note.value.trim());
     return parts.join(', ');
   }
@@ -3853,7 +4000,7 @@
 
     var consentCb = document.getElementById('consent-cb');
     if (!consentCb || !consentCb.checked) {
-      showToast('╨Я╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╨╡ ╤Б╨╛╨│╨╗╨░╤Б╨╕╨╡ ╨╜╨░ ╨╛╨▒╤А╨░╨▒╨╛╤В╨║╤Г ╨┐╨╡╤А╤Б╨╛╨╜╨░╨╗╤М╨╜╤Л╤Е ╨┤╨░╨╜╨╜╤Л╤Е');
+      showToast('Подтвердите согласие на обработку персональных данных');
       return;
     }
 
@@ -3867,12 +4014,12 @@
     var rcvPhone = isSelf ? phoneVal : (document.getElementById('field-rcv-phone') ? document.getElementById('field-rcv-phone').value.trim() : '');
     var dateVal = document.getElementById('field-date') ? document.getElementById('field-date').value : '';
     if (!dateVal || isPastIsoDate(dateVal)) {
-      showToast('╨Э╨╡╨╗╤М╨╖╤П ╨╛╤Д╨╛╤А╨╝╨╕╤В╤М ╨╖╨░╨║╨░╨╖ ╨╜╨░ ╨┐╤А╨╛╤И╨╡╨┤╤И╤Г╤О ╨┤╨░╤В╤Г');
+      showToast('Нельзя оформить заказ на прошедшую дату');
       return;
     }
 
     if (!isSelf && (!rcvName || !rcvPhone)) {
-      showToast('╨Ч╨░╨┐╨╛╨╗╨╜╨╕╤В╨╡ ╨┤╨░╨╜╨╜╤Л╨╡ ╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤П');
+      showToast('Заполните данные получателя');
       return;
     }
     if (!isSelf && rcvPhone && !validatePhone(rcvPhone)) return;
@@ -3888,16 +4035,16 @@
       receiver_name: rcvName,
       receiver_phone: rcvPhone,
       delivery_address: (checkoutState.deliveryType === 'pickup')
-        ? (appSettings.pickup_address || '╨б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖')
+        ? (appSettings.pickup_address || 'Самовывоз')
         : buildDeliveryAddress(),
       delivery_type: checkoutState.deliveryType,
       delivery_zone: '',
       delivery_cost: getDeliveryCost(),
       delivery_distance: checkoutState.deliveryDistance || 0,
       delivery_interval: checkoutState.exactTime
-        ? ('╨в╨╛╤З╨╜╨╛ ╨║╨╛ ╨▓╤А╨╡╨╝╨╡╨╜╨╕: ' + (document.getElementById('field-exact-time') ? document.getElementById('field-exact-time').value : ''))
+        ? ('Точно ко времени: ' + (document.getElementById('field-exact-time') ? document.getElementById('field-exact-time').value : ''))
         : (checkoutState.deliveryType === 'pickup'
-          ? (checkoutState.pickupTime ? '╨б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖ ╨║ ' + checkoutState.pickupTime : '')
+          ? (checkoutState.pickupTime ? 'Самовывоз к ' + checkoutState.pickupTime : '')
           : checkoutState.deliveryInterval),
       delivery_date: (function () {
         if (checkoutState.isNightInterval && dateVal) {
@@ -3917,12 +4064,12 @@
     };
 
     var btn = document.getElementById('checkout-submit');
-    if (btn) { btn.disabled = true; btn.textContent = '╨Ю╤В╨┐╤А╨░╨▓╨║╨░...'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Отправка...'; }
 
     postJSON('/api/orders', data).then(function (result) {
       if (!result.success) {
-        if (btn) { btn.disabled = false; btn.textContent = '╨Ю╤Д╨╛╤А╨╝╨╕╤В╤М ╨╖╨░╨║╨░╨╖'; }
-        showToast(result.error || '╨Ю╤И╨╕╨▒╨║╨░ ╨┐╤А╨╕ ╤Б╨╛╨╖╨┤╨░╨╜╨╕╨╕ ╨╖╨░╨║╨░╨╖╨░');
+        if (btn) { btn.disabled = false; btn.textContent = 'Оформить заказ'; }
+        showToast(result.error || 'Ошибка при создании заказа');
         return;
       }
 
@@ -3935,9 +4082,9 @@
 
       requestPaymentAndShow(result.order_id, result.total_amount);
     }).catch(function (err) {
-      if (btn) { btn.disabled = false; btn.textContent = '╨Ю╤Д╨╛╤А╨╝╨╕╤В╤М ╨╖╨░╨║╨░╨╖'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Оформить заказ'; }
       console.error('Order error:', err);
-      showToast('╨Ю╤И╨╕╨▒╨║╨░: ' + (err.message || '╨╜╨╡╤В ╨┐╨╛╨┤╨║╨╗╤О╤З╨╡╨╜╨╕╤П ╨║ ╤Б╨╡╤А╨▓╨╡╤А╤Г'));
+      showToast('Ошибка: ' + (err.message || 'нет подключения к серверу'));
     });
   };
 
@@ -3947,43 +4094,43 @@
         showPaymentPage(orderId, pay.payment_url, totalAmount);
         return;
       }
-      var msg = (pay && (pay.error || pay.message)) || '╨б╤Б╤Л╨╗╨║╨░ ╨╜╨░ ╨╛╨┐╨╗╨░╤В╤Г ╨╜╨╡ ╨┐╨╛╨╗╤Г╤З╨╡╨╜╨░';
+      var msg = (pay && (pay.error || pay.message)) || 'Ссылка на оплату не получена';
       showPaymentInitFailed(orderId, totalAmount, msg);
     }).catch(function (err) {
-      showPaymentInitFailed(orderId, totalAmount, (err && err.message) || '╨Ю╤И╨╕╨▒╨║╨░ ╨┐╨╛╨┤╨║╨╗╤О╤З╨╡╨╜╨╕╤П ╨║ ╨┐╨╗╨░╤В╨╡╨╢╨╜╨╛╨╝╤Г ╤Б╨╡╤А╨▓╨╕╤Б╤Г');
+      showPaymentInitFailed(orderId, totalAmount, (err && err.message) || 'Ошибка подключения к платежному сервису');
     });
   }
 
   function showPaymentPage(orderId, paymentUrl, totalAmount) {
     renderWithWebTop(
       '<div class="web-flow-shell web-flow-shell--payment">' +
-        '<div class="section-title">╨Ю╨┐╨╗╨░╤В╨░ ╨╖╨░╨║╨░╨╖╨░ N ' + orderId + '</div>' +
+        '<div class="section-title">Оплата заказа N ' + orderId + '</div>' +
         '<div style="margin-bottom:16px;font-size:14px;">' +
-          '<p>╨б╤Г╨╝╨╝╨░ ╨║ ╨╛╨┐╨╗╨░╤В╨╡: ' + formatPrice(totalAmount) + '</p>' +
+          '<p>Сумма к оплате: ' + formatPrice(totalAmount) + '</p>' +
         '</div>' +
-        '<button class="nav-btn nav-btn--filled" style="display:block;text-align:center;margin-bottom:16px;" onclick="openPaymentUrl(\'' + encodeURIComponent(paymentUrl) + '\')">╨Ю╨┐╨╗╨░╤В╨╕╤В╤М</button>' +
-        '<button class="nav-btn" onclick="navigateTo(\'home\')">╨Э╨░ ╨│╨╗╨░╨▓╨╜╤Г╤О</button>' +
+        '<button class="nav-btn nav-btn--filled" style="display:block;text-align:center;margin-bottom:16px;" onclick="openPaymentUrl(\'' + encodeURIComponent(paymentUrl) + '\')">Оплатить</button>' +
+        '<button class="nav-btn" onclick="navigateTo(\'home\')">На главную</button>' +
         '<div style="margin-top:16px;font-size:12px;">' +
-          '<p>╨Я╨╛╤Б╨╗╨╡ ╨╛╨┐╨╗╨░╤В╤Л ╤Б╤В╨░╤В╤Г╤Б ╨╖╨░╨║╨░╨╖╨░ ╨╛╨▒╨╜╨╛╨▓╨╕╤В╤Б╤П ╨░╨▓╤В╨╛╨╝╨░╤В╨╕╤З╨╡╤Б╨║╨╕.</p>' +
+          '<p>После оплаты статус заказа обновится автоматически.</p>' +
         '</div>' +
       '</div>'
     );
-    showToast('╨Ч╨░╨║╨░╨╖ N ' + orderId + ' ╤Б╨╛╨╖╨┤╨░╨╜');
+    showToast('Заказ N ' + orderId + ' создан');
   }
 
   function showPaymentInitFailed(orderId, totalAmount, errorText) {
     renderWithWebTop(
       '<div class="web-flow-shell web-flow-shell--payment">' +
-        '<div class="section-title">╨Ч╨░╨║╨░╨╖ N ' + orderId + ' ╤Б╨╛╨╖╨┤╨░╨╜</div>' +
+        '<div class="section-title">Заказ N ' + orderId + ' создан</div>' +
         '<div style="margin-bottom:16px;font-size:14px;">' +
-          '<p>╨б╤Г╨╝╨╝╨░ ╨║ ╨╛╨┐╨╗╨░╤В╨╡: ' + formatPrice(totalAmount) + '</p>' +
+          '<p>Сумма к оплате: ' + formatPrice(totalAmount) + '</p>' +
         '</div>' +
-        '<div class="cutoff-hint" style="margin-bottom:14px">╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╛╤В╨║╤А╤Л╤В╤М ╨╛╨┐╨╗╨░╤В╤Г: ' + escapeHtml(errorText || '╨╜╨╡╨╕╨╖╨▓╨╡╤Б╤В╨╜╨░╤П ╨╛╤И╨╕╨▒╨║╨░') + '</div>' +
-        '<button class="nav-btn nav-btn--filled" onclick="retryPayment(' + orderId + ',' + totalAmount + ')" style="display:block;width:100%;margin-bottom:12px">╨Я╨╛╨▓╤В╨╛╤А╨╕╤В╤М ╨╛╨┐╨╗╨░╤В╤Г</button>' +
-        '<button class="nav-btn" onclick="navigateTo(\'account\')">╨Ь╨╛╨╕ ╨╖╨░╨║╨░╨╖╤Л</button>' +
+        '<div class="cutoff-hint" style="margin-bottom:14px">Не удалось открыть оплату: ' + escapeHtml(errorText || 'неизвестная ошибка') + '</div>' +
+        '<button class="nav-btn nav-btn--filled" onclick="retryPayment(' + orderId + ',' + totalAmount + ')" style="display:block;width:100%;margin-bottom:12px">Повторить оплату</button>' +
+        '<button class="nav-btn" onclick="navigateTo(\'account\')">Мои заказы</button>' +
       '</div>'
     );
-    showToast('╨Ч╨░╨║╨░╨╖ ╤Б╨╛╨╖╨┤╨░╨╜, ╨╜╨╛ ╨╛╨┐╨╗╨░╤В╨░ ╨╜╨╡ ╨╛╤В╨║╤А╤Л╨╗╨░╤Б╤М');
+    showToast('Заказ создан, но оплата не открылась');
   }
 
   window.openPaymentUrl = function (encodedUrl) {
@@ -4010,18 +4157,123 @@
   function showOrderSuccess(orderId) {
     renderWithWebTop(
       '<div class="success-message">' +
-        '<p>╨Ч╨░╨║╨░╨╖ ╨╛╤Д╨╛╤А╨╝╨╗╨╡╨╜</p>' +
+        '<p>Заказ оформлен</p>' +
         '<div class="order-number">N ' + orderId + '</div>' +
-        '<p>╨Ь╤Л ╤Б╨▓╤П╨╢╨╡╨╝╤Б╤П ╤Б ╨▓╨░╨╝╨╕ ╨┤╨╗╤П ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨╕╤П.</p>' +
-        '<button class="nav-btn" onclick="navigateTo(\'home\')" style="margin-top:20px">╨Э╨░ ╨│╨╗╨░╨▓╨╜╤Г╤О</button>' +
+        '<p>Мы свяжемся с вами для подтверждения.</p>' +
+        '<button class="nav-btn" onclick="navigateTo(\'home\')" style="margin-top:20px">На главную</button>' +
       '</div>'
     );
-    showToast('╨Ч╨░╨║╨░╨╖ ╨╛╤Д╨╛╤А╨╝╨╗╨╡╨╜');
+    showToast('Заказ оформлен');
   }
 
   // ============================================================
   // Account
   // ============================================================
+
+  // Phone login via Telegram code
+  window.startPhoneVerify = function () {
+    var input = document.getElementById('web-login-phone');
+    if (!input) return;
+    var phone = (input.value || '').trim();
+    if (!phone) {
+      showToast('Введите номер телефона');
+      input.focus();
+      return;
+    }
+
+    var tgId = getTelegramId();
+    if (!tgId) {
+      showToast('Откройте мини‑приложение из Telegram, чтобы получить код');
+      return;
+    }
+
+    input.disabled = true;
+    var btn = document.getElementById('web-login-send-code');
+    if (btn) btn.disabled = true;
+
+    var firstName = (tgUser && tgUser.first_name) || (dbUser && dbUser.first_name) || 'Клиент';
+
+    postJSON('/api/phone/start-verify', {
+      telegram_id: tgId,
+      phone: phone,
+      first_name: firstName
+    }).then(function (r) {
+      if (r && r.ok) {
+        showToast('Код отправлен в Telegram');
+        var codeBlock = document.getElementById('web-login-code-block');
+        if (codeBlock) {
+          codeBlock.style.display = 'block';
+          var codeInput = document.getElementById('web-login-code');
+          if (codeInput) codeInput.focus();
+        }
+      } else {
+        showToast((r && r.error) || 'Не удалось отправить код');
+      }
+    }).catch(function (err) {
+      var msg = (err && err.message) ? err.message : 'нет соединения';
+      showToast('Ошибка отправки кода: ' + msg);
+    }).finally(function () {
+      if (input) input.disabled = false;
+      if (btn) btn.disabled = false;
+    });
+  };
+
+  window.confirmPhoneCode = function () {
+    var phoneInput = document.getElementById('web-login-phone');
+    var codeInput = document.getElementById('web-login-code');
+    if (!phoneInput || !codeInput) return;
+
+    var phone = (phoneInput.value || '').trim();
+    var code = (codeInput.value || '').trim();
+
+    if (!phone) {
+      showToast('Введите номер телефона');
+      phoneInput.focus();
+      return;
+    }
+    if (!code) {
+      showToast('Введите код из Telegram');
+      codeInput.focus();
+      return;
+    }
+
+    var tgId = getTelegramId();
+    if (!tgId) {
+      showToast('Откройте мини‑приложение из Telegram, чтобы подтвердить номер');
+      return;
+    }
+
+    phoneInput.disabled = true;
+    codeInput.disabled = true;
+    var btn = document.getElementById('web-login-confirm-btn');
+    if (btn) btn.disabled = true;
+
+    var firstName = (tgUser && tgUser.first_name) || (dbUser && dbUser.first_name) || 'Клиент';
+
+    postJSON('/api/phone/confirm', {
+      telegram_id: tgId,
+      phone: phone,
+      code: code,
+      first_name: firstName
+    }).then(function (r) {
+      if (r && r.user) {
+        dbUser = r.user;
+        try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
+        try { localStorage.setItem('arka_tg_id', String(r.user.telegram_id || '')); } catch (e) {}
+        showToast('Номер подтверждён, вход выполнен');
+        showAccount();
+      } else {
+        showToast((r && r.error) || 'Не удалось подтвердить номер');
+      }
+    }).catch(function (err) {
+      var msg = (err && err.message) ? err.message : 'нет соединения';
+      showToast('Ошибка подтверждения: ' + msg);
+    }).finally(function () {
+      phoneInput.disabled = false;
+      codeInput.disabled = false;
+      if (btn) btn.disabled = false;
+    });
+  };
 
   function showAccount() {
     setActiveTab('account');
@@ -4029,26 +4281,36 @@
       renderWithWebTop(
         '<div class="web-flow-shell web-flow-shell--profile">' +
           '<div class="web-centered-page-card">' +
-            '<div class="section-title">Профиль</div>' +
-            '<div class="account-section profile-login">' +
-              '<p class="profile-login-lead">Войдите через Telegram или по номеру телефона — заказы и адреса будут привязаны к аккаунту.</p>' +
-              '<div id="tg-store-widget-wrap" class="tg-widget-wrap"></div>' +
-              '<div class="profile-login-divider">или</div>' +
-              '<div class="form-group">' +
-                '<label>Телефон</label>' +
-                '<input type="tel" id="profile-login-phone" placeholder="+7 (___) ___-__-__" oninput="formatPhoneInput(this)" maxlength="18">' +
+          '<div class="section-title">Профиль</div>' +
+          '<div class="account-section">' +
+            '<p style="margin-bottom:12px">Вы в гостевом режиме. Можно покупать без входа.</p>' +
+            '<p style="margin-bottom:14px;color:#666">Чтобы видеть историю заказов и синхронизацию с Mini App, войдите по номеру телефона с подтверждением через Telegram или через Telegram-логин.</p>' +
+            '<div class="profile-login-block">' +
+              '<div style="margin-bottom:8px;font-weight:500;font-size:14px">Вход по номеру телефона через Telegram</div>' +
+              '<div class="input-row" style="margin-bottom:8px">' +
+                '<input id="web-login-phone" class="input" type="tel" placeholder="+7 (___) ___-__-__" ' +
+                  'style="width:100%;padding:11px 14px;border:1px solid #ddd;border-radius:999px;font-size:14px;background:#fff;color:#111;box-sizing:border-box;outline:none">' +
               '</div>' +
-              '<button type="button" class="nav-btn nav-btn--filled profile-login-btn" onclick="submitPhoneLogin()">Войти по номеру</button>' +
-              '<p class="profile-login-hint">В Telegram-боте вы по-прежнему можете открыть то же приложение — один аккаунт на сайте и в мини-приложении после входа по Telegram.</p>' +
+              '<button id="web-login-send-code" class="nav-btn nav-btn--filled" style="width:100%;margin-bottom:10px" onclick="startPhoneVerify()">Отправить код в Telegram</button>' +
+              '<div id="web-login-code-block" style="display:none;margin-top:4px">' +
+                '<div class="input-row" style="margin-bottom:8px">' +
+                  '<input id="web-login-code" class="input" type="text" inputmode="numeric" maxlength="6" placeholder="Код из Telegram" ' +
+                    'style="width:100%;padding:11px 14px;border:1px solid #ddd;border-radius:999px;font-size:14px;background:#fff;color:#111;box-sizing:border-box;outline:none">' +
+                '</div>' +
+                '<button id="web-login-confirm-btn" class="nav-btn" style="width:100%;margin-bottom:14px" onclick="confirmPhoneCode()">Подтвердить код</button>' +
+              '</div>' +
+              '<div style="margin-bottom:8px;font-weight:500;font-size:14px">Или войдите через Telegram</div>' +
+              (!isTelegramRuntime ? '<div id="web-telegram-login-widget"></div>' : '') +
             '</div>' +
+          '</div>' +
           '</div>' +
         '</div>'
       );
-      mountStoreTelegramWidget();
+      if (!isTelegramRuntime) mountWebTelegramLoginWidget('web-telegram-login-widget');
       return;
     }
 
-    var name = (dbUser && dbUser.first_name) || (tgUser && tgUser.first_name) || '╨Я╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤М';
+    var name = (dbUser && dbUser.first_name) || (tgUser && tgUser.first_name) || 'Пользователь';
     var lastName = (tgUser && tgUser.last_name) || '';
     var fullName = name + (lastName ? ' ' + lastName : '');
     var username = (tgUser && tgUser.username) || '';
@@ -4061,13 +4323,6 @@
       avatarHtml = '<div class="profile-avatar-placeholder">' + escapeHtml(name.charAt(0).toUpperCase()) + '</div>';
     }
 
-    var adminPanelHref = '/admin';
-    var tidAdmin = getTelegramId();
-    if (tidAdmin) {
-      adminPanelHref = '/admin.html?tg_auth=' + encodeURIComponent(tidAdmin);
-      if (username) adminPanelHref += '&tg_user=' + encodeURIComponent(username);
-    }
-
     renderWithWebTop(
       '<div class="web-flow-shell web-flow-shell--profile">' +
         '<div class="web-centered-page-card">' +
@@ -4075,7 +4330,7 @@
           avatarHtml +
           '<div class="profile-info">' +
             '<div class="profile-name">' + escapeHtml(fullName) + '<span id="admin-crown" class="admin-crown" style="display:none"></span><span id="admin-badge" style="display:none" class="admin-badge">ADMIN</span></div>' +
-            (username ? '<div class="profile-username">@' + escapeHtml(username) + '</div>' : (isWebPhoneUser() && dbUser && dbUser.phone ? '<div class="profile-username">' + escapeHtml(dbUser.phone) + '</div>' : '')) +
+            (username ? '<div class="profile-username">@' + escapeHtml(username) + '</div>' : '') +
           '</div>' +
         '</div>' +
 
@@ -4093,18 +4348,8 @@
         '<div class="nav-buttons">' +
           '<button class="nav-btn" onclick="toggleProfileSection(\'addresses\')">Мои адреса</button>' +
           '<button class="nav-btn" onclick="toggleProfileSection(\'orders\')">История заказов</button>' +
+          '<button class="nav-btn nav-btn--outlined" onclick="logoutUser()" style="margin-top:8px">Выйти</button>' +
         '</div>' +
-
-        '<div class="profile-admin-entry">' +
-          '<a class="profile-admin-link" href="' + escapeHtml(adminPanelHref) + '">Админ-панель</a>' +
-          '<span class="profile-admin-hint">для сотрудников</span>' +
-        '</div>' +
-
-        (!isTelegramMiniAppWithUser()
-          ? '<div class="profile-logout-wrap">' +
-            '<button type="button" class="profile-logout-btn profile-logout-btn--block" onclick="logoutWebAccount()">Выйти из аккаунта</button>' +
-            '</div>'
-          : '') +
 
         '<div id="section-addresses" class="profile-section" style="display:none">' +
           '<div class="profile-section-header">' +
@@ -4120,7 +4365,7 @@
           '</div>' +
           '<div id="profile-orders"><div class="empty-state" style="padding:12px">Загрузка...</div></div>' +
         '</div>' +
-        '</div>' +
+      '</div>' +
       '</div>'
     );
 
@@ -4157,6 +4402,14 @@
     }, 10000);
   }
 
+  window.logoutUser = function () {
+    dbUser = null;
+    try { localStorage.removeItem('arka_user'); } catch (e) {}
+    try { localStorage.removeItem('arka_tg_id'); } catch (e) {}
+    showToast('Вы вышли из профиля');
+    navigateTo('home');
+  };
+
   window.openAdminPanel = function () {
     var telegramId = getTelegramId();
     if (telegramId) {
@@ -4167,21 +4420,21 @@
     }
   };
 
-  var TRACK_STEPS_DELIVERY = ['╨Ю╨┐╨╗╨░╤З╨╡╨╜', '╨б╨╛╨▒╨╕╤А╨░╨╡╤В╤Б╤П', '╨б╨╛╨▒╤А╨░╨╜', '╨Ю╤В╨┐╤А╨░╨▓╨╗╨╡╨╜', '╨Ф╨╛╤Б╤В╨░╨▓╨╗╨╡╨╜'];
-  var TRACK_STEPS_PICKUP = ['╨Ю╨┐╨╗╨░╤З╨╡╨╜', '╨б╨╛╨▒╨╕╤А╨░╨╡╤В╤Б╤П', '╨У╨╛╤В╨╛╨▓ ╨║ ╨▓╤Л╨┤╨░╤З╨╡'];
+  var TRACK_STEPS_DELIVERY = ['Оплачен', 'Собирается', 'Собран', 'Отправлен', 'Доставлен'];
+  var TRACK_STEPS_PICKUP = ['Оплачен', 'Собирается', 'Готов к выдаче'];
 
   function getTrackSteps(order) {
     return order.delivery_type === 'pickup' ? TRACK_STEPS_PICKUP : TRACK_STEPS_DELIVERY;
   }
 
   function isFinalStatus(order) {
-    if (order.status === '╨Т╤Л╨┐╨╛╨╗╨╜╨╡╨╜') return true;
-    if (order.delivery_type === 'pickup') return order.status === '╨У╨╛╤В╨╛╨▓ ╨║ ╨▓╤Л╨┤╨░╤З╨╡';
-    return order.status === '╨Ф╨╛╤Б╤В╨░╨▓╨╗╨╡╨╜';
+    if (order.status === 'Выполнен') return true;
+    if (order.delivery_type === 'pickup') return order.status === 'Готов к выдаче';
+    return order.status === 'Доставлен';
   }
 
   function shouldShowInTracking(order) {
-    if (order.status === '╨Т╤Л╨┐╨╛╨╗╨╜╨╡╨╜') return false;
+    if (order.status === 'Выполнен') return false;
     if (!isFinalStatus(order)) return true;
     var created = new Date(order.status_updated_at || order.created_at);
     var now = new Date();
@@ -4196,12 +4449,12 @@
       var el = document.getElementById('profile-tracking');
       if (!el) return;
       if (!orders || !orders.length) {
-        el.innerHTML = '<div class="empty-state" style="padding:12px">╨Р╨║╤В╨╕╨▓╨╜╤Л╤Е ╨╖╨░╨║╨░╨╖╨╛╨▓ ╨╜╨╡╤В</div>';
+        el.innerHTML = '<div class="empty-state" style="padding:12px">Активных заказов нет</div>';
         return;
       }
       var active = orders.filter(shouldShowInTracking);
       if (!active.length) {
-        el.innerHTML = '<div class="empty-state" style="padding:12px">╨Т╤Б╨╡ ╨╖╨░╨║╨░╨╖╤Л ╨▓╤Л╨┐╨╛╨╗╨╜╨╡╨╜╤Л</div>';
+        el.innerHTML = '<div class="empty-state" style="padding:12px">Все заказы выполнены</div>';
         return;
       }
       var deliveryOrders = active.filter(function (o) { return o.delivery_type !== 'pickup'; });
@@ -4210,7 +4463,7 @@
       function renderMiniCard(o) {
         var steps = getTrackSteps(o);
         var currentIdx = steps.indexOf(o.status);
-        if (o.status === '╨Т╤Л╨┐╨╛╨╗╨╜╨╡╨╜') currentIdx = steps.length - 1;
+        if (o.status === 'Выполнен') currentIdx = steps.length - 1;
         else if (currentIdx < 0) currentIdx = -1;
         var timelineHtml = '';
         steps.forEach(function (step, idx) {
@@ -4223,45 +4476,45 @@
         var isPickup = o.delivery_type === 'pickup';
         var timeInfo = '';
         if (isPickup && o.delivery_date) {
-          timeInfo = '<div class="track-time-info">╨У╨╛╤В╨╛╨▓╨╜╨╛╤Б╤В╤М: ' + escapeHtml(o.delivery_date) +
+          timeInfo = '<div class="track-time-info">Готовность: ' + escapeHtml(o.delivery_date) +
             (o.delivery_interval ? ', ' + escapeHtml(o.delivery_interval) : '') + '</div>';
         } else if (!isPickup && o.delivery_date) {
-          timeInfo = '<div class="track-time-info">╨Ф╨╛╤Б╤В╨░╨▓╨║╨░: ' + escapeHtml(o.delivery_date) +
-            (o.exact_time ? ' ╨║ ' + escapeHtml(o.exact_time) : (o.delivery_interval ? ', ' + escapeHtml(o.delivery_interval) : '')) + '</div>';
+          timeInfo = '<div class="track-time-info">Доставка: ' + escapeHtml(o.delivery_date) +
+            (o.exact_time ? ' к ' + escapeHtml(o.exact_time) : (o.delivery_interval ? ', ' + escapeHtml(o.delivery_interval) : '')) + '</div>';
         }
         var itemsList = '';
         if (o.items && o.items.length) {
           itemsList = o.items.map(function (i) {
-            var s = escapeHtml(i.product_name || '╨в╨╛╨▓╨░╤А');
+            var s = escapeHtml(i.product_name || 'Товар');
             if (i.size_label) s += ' [' + escapeHtml(i.size_label) + ']';
-            s += ' ├Ч ' + i.quantity + ' тАФ ' + formatPrice(i.price * i.quantity);
+            s += ' × ' + i.quantity + ' — ' + formatPrice(i.price * i.quantity);
             return '<div class="track-order-item">' + s + '</div>';
           }).join('');
         }
 
         var addressInfo = '';
         if (isPickup) {
-          addressInfo = '<div class="track-detail-row"><span class="track-detail-label">╨б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖</span></div>';
+          addressInfo = '<div class="track-detail-row"><span class="track-detail-label">Самовывоз</span></div>';
         } else if (o.delivery_address) {
-          addressInfo = '<div class="track-detail-row"><span class="track-detail-label">╨Р╨┤╤А╨╡╤Б:</span> ' + escapeHtml(o.delivery_address) + '</div>';
+          addressInfo = '<div class="track-detail-row"><span class="track-detail-label">Адрес:</span> ' + escapeHtml(o.delivery_address) + '</div>';
         }
         var receiverInfo = '';
         if (o.receiver_name) {
-          receiverInfo = '<div class="track-detail-row"><span class="track-detail-label">╨Я╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤М:</span> ' + escapeHtml(o.receiver_name) + (o.receiver_phone ? ', ' + escapeHtml(o.receiver_phone) : '') + '</div>';
+          receiverInfo = '<div class="track-detail-row"><span class="track-detail-label">Получатель:</span> ' + escapeHtml(o.receiver_name) + (o.receiver_phone ? ', ' + escapeHtml(o.receiver_phone) : '') + '</div>';
         }
 
         return '<div class="track-card-mini" onclick="toggleOrderDetail(this)">' +
-          '<div class="track-header"><span class="track-id">╨Ч╨░╨║╨░╨╖ #' + o.id + '</span><span class="track-status-badge">' + escapeHtml(o.status) + '</span></div>' +
+          '<div class="track-header"><span class="track-id">Заказ #' + o.id + '</span><span class="track-status-badge">' + escapeHtml(o.status) + '</span></div>' +
           '<div class="track-status-row"><span class="track-total">' + formatPrice(o.total_amount) + '</span></div>' +
           timeInfo +
           '<div class="timeline">' + timelineHtml + '</div>' +
           '<div class="track-order-details" style="display:none">' +
             addressInfo +
             receiverInfo +
-            (o.comment ? '<div class="track-detail-row"><span class="track-detail-label">╨Ъ╨╛╨╝╨╝╨╡╨╜╤В╨░╤А╨╕╨╣:</span> ' + escapeHtml(o.comment) + '</div>' : '') +
-            '<div class="track-detail-items-title">╨б╨╛╤Б╤В╨░╨▓ ╨╖╨░╨║╨░╨╖╨░:</div>' +
+            (o.comment ? '<div class="track-detail-row"><span class="track-detail-label">Комментарий:</span> ' + escapeHtml(o.comment) + '</div>' : '') +
+            '<div class="track-detail-items-title">Состав заказа:</div>' +
             itemsList +
-            (o.delivery_cost ? '<div class="track-detail-row" style="margin-top:6px"><span class="track-detail-label">╨Ф╨╛╤Б╤В╨░╨▓╨║╨░:</span> ' + formatPrice(o.delivery_cost) + '</div>' : '') +
+            (o.delivery_cost ? '<div class="track-detail-row" style="margin-top:6px"><span class="track-detail-label">Доставка:</span> ' + formatPrice(o.delivery_cost) + '</div>' : '') +
           '</div>' +
         '</div>';
       }
@@ -4269,13 +4522,13 @@
       var html = '';
       if (deliveryOrders.length) {
         html += '<div class="orders-split-section">' +
-          '<div class="orders-split-title">╨Ф╨╛╤Б╤В╨░╨▓╨║╨░</div>' +
+          '<div class="orders-split-title">Доставка</div>' +
           deliveryOrders.map(renderMiniCard).join('') +
         '</div>';
       }
       if (pickupOrders.length) {
         html += '<div class="orders-split-section">' +
-          '<div class="orders-split-title">╨б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖</div>' +
+          '<div class="orders-split-title">Самовывоз</div>' +
           pickupOrders.map(renderMiniCard).join('') +
         '</div>';
       }
@@ -4291,7 +4544,7 @@
       if (!el) return;
       window._savedAddresses = addrs || [];
       if (!addrs || !addrs.length) {
-        el.innerHTML = '<div class="empty-state" style="padding:12px">╨Э╨╡╤В ╤Б╨╛╤Е╤А╨░╨╜╤С╨╜╨╜╤Л╤Е ╨░╨┤╤А╨╡╤Б╨╛╨▓</div>';
+        el.innerHTML = '<div class="empty-state" style="padding:12px">Нет сохранённых адресов</div>';
         return;
       }
       el.innerHTML = addrs.map(function (a) {
@@ -4313,7 +4566,7 @@
       var el = document.getElementById('profile-orders');
       if (!el) return;
       if (!orders || !orders.length) {
-        el.innerHTML = '<div class="empty-state" style="padding:12px">╨Ч╨░╨║╨░╨╖╨╛╨▓ ╨┐╨╛╨║╨░ ╨╜╨╡╤В</div>';
+        el.innerHTML = '<div class="empty-state" style="padding:12px">Заказов пока нет</div>';
         return;
       }
       var deliveryOrders = orders.filter(function (o) { return o.delivery_type !== 'pickup'; });
@@ -4322,7 +4575,7 @@
       function renderHistoryCard(o) {
         var steps = getTrackSteps(o);
         var currentIdx = steps.indexOf(o.status);
-        if (o.status === '╨Т╤Л╨┐╨╛╨╗╨╜╨╡╨╜') currentIdx = steps.length - 1;
+        if (o.status === 'Выполнен') currentIdx = steps.length - 1;
         else if (currentIdx < 0) currentIdx = -1;
 
         var timelineHtml = '';
@@ -4337,35 +4590,35 @@
         var isPickup = o.delivery_type === 'pickup';
         var timeInfo = '';
         if (isPickup && o.delivery_date) {
-          timeInfo = '<div class="track-time-info">╨У╨╛╤В╨╛╨▓╨╜╨╛╤Б╤В╤М: ' + escapeHtml(o.delivery_date) +
+          timeInfo = '<div class="track-time-info">Готовность: ' + escapeHtml(o.delivery_date) +
             (o.delivery_interval ? ', ' + escapeHtml(o.delivery_interval) : '') + '</div>';
         } else if (!isPickup && o.delivery_date) {
-          timeInfo = '<div class="track-time-info">╨Ф╨╛╤Б╤В╨░╨▓╨║╨░: ' + escapeHtml(o.delivery_date) +
-            (o.exact_time ? ' ╨║ ' + escapeHtml(o.exact_time) : (o.delivery_interval ? ', ' + escapeHtml(o.delivery_interval) : '')) + '</div>';
+          timeInfo = '<div class="track-time-info">Доставка: ' + escapeHtml(o.delivery_date) +
+            (o.exact_time ? ' к ' + escapeHtml(o.exact_time) : (o.delivery_interval ? ', ' + escapeHtml(o.delivery_interval) : '')) + '</div>';
         }
 
         var addressInfo = '';
         if (isPickup) {
-          addressInfo = '<div class="track-detail-row"><span class="track-detail-label">╨б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖</span></div>';
+          addressInfo = '<div class="track-detail-row"><span class="track-detail-label">Самовывоз</span></div>';
         } else if (o.delivery_address) {
-          addressInfo = '<div class="track-detail-row"><span class="track-detail-label">╨Р╨┤╤А╨╡╤Б:</span> ' + escapeHtml(o.delivery_address) + '</div>';
+          addressInfo = '<div class="track-detail-row"><span class="track-detail-label">Адрес:</span> ' + escapeHtml(o.delivery_address) + '</div>';
         }
         var receiverInfo = '';
         if (o.receiver_name) {
-          receiverInfo = '<div class="track-detail-row"><span class="track-detail-label">╨Я╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤М:</span> ' + escapeHtml(o.receiver_name) + (o.receiver_phone ? ', ' + escapeHtml(o.receiver_phone) : '') + '</div>';
+          receiverInfo = '<div class="track-detail-row"><span class="track-detail-label">Получатель:</span> ' + escapeHtml(o.receiver_name) + (o.receiver_phone ? ', ' + escapeHtml(o.receiver_phone) : '') + '</div>';
         }
 
         return '<div class="track-card-mini" onclick="toggleOrderDetail(this)">' +
-          '<div class="track-header"><span class="track-id">╨Ч╨░╨║╨░╨╖ #' + o.id + '</span><span class="track-status-badge">' + escapeHtml(o.status) + '</span></div>' +
+          '<div class="track-header"><span class="track-id">Заказ #' + o.id + '</span><span class="track-status-badge">' + escapeHtml(o.status) + '</span></div>' +
           '<div class="track-status-row"><span class="track-total">' + formatPrice(o.total_amount) + '</span></div>' +
-          '<div class="track-time-info">╨б╨╛╨╖╨┤╨░╨╜: ' + formatDate(o.created_at) + '</div>' +
+          '<div class="track-time-info">Создан: ' + formatDate(o.created_at) + '</div>' +
           timeInfo +
           '<div class="timeline">' + timelineHtml + '</div>' +
           '<div class="track-order-details" style="display:none">' +
             addressInfo +
             receiverInfo +
-            (o.comment ? '<div class="track-detail-row"><span class="track-detail-label">╨Ъ╨╛╨╝╨╝╨╡╨╜╤В╨░╤А╨╕╨╣:</span> ' + escapeHtml(o.comment) + '</div>' : '') +
-            (o.delivery_cost ? '<div class="track-detail-row" style="margin-top:6px"><span class="track-detail-label">╨Ф╨╛╤Б╤В╨░╨▓╨║╨░:</span> ' + formatPrice(o.delivery_cost) + '</div>' : '') +
+            (o.comment ? '<div class="track-detail-row"><span class="track-detail-label">Комментарий:</span> ' + escapeHtml(o.comment) + '</div>' : '') +
+            (o.delivery_cost ? '<div class="track-detail-row" style="margin-top:6px"><span class="track-detail-label">Доставка:</span> ' + formatPrice(o.delivery_cost) + '</div>' : '') +
           '</div>' +
         '</div>';
       }
@@ -4373,13 +4626,13 @@
       var html = '';
       if (deliveryOrders.length) {
         html += '<div class="orders-split-section">' +
-          '<div class="orders-split-title">╨Ф╨╛╤Б╤В╨░╨▓╨║╨░</div>' +
+          '<div class="orders-split-title">Доставка</div>' +
           deliveryOrders.map(renderHistoryCard).join('') +
         '</div>';
       }
       if (pickupOrders.length) {
         html += '<div class="orders-split-section">' +
-          '<div class="orders-split-title">╨б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖</div>' +
+          '<div class="orders-split-title">Самовывоз</div>' +
           pickupOrders.map(renderHistoryCard).join('') +
         '</div>';
       }
@@ -4417,19 +4670,19 @@
     var cityName = selectedCity ? selectedCity.name : '';
     el.innerHTML =
       '<div class="add-addr-form">' +
-        '<div class="form-group"><label>╨Э╨░╨╖╨▓╨░╨╜╨╕╨╡ (╨╜╨░╨┐╤А. ╨Ф╨╛╨╝, ╨а╨░╨▒╨╛╤В╨░)</label>' +
-        '<input type="text" id="addr-label" placeholder="╨Ф╨╛╨╝"></div>' +
-        '<div class="form-group"><label>╨У╨╛╤А╨╛╨┤</label>' +
-        '<input type="text" id="addr-city" value="' + escapeHtml(cityName) + '" placeholder="╨У╨╛╤А╨╛╨┤"></div>' +
-        '<div class="form-group"><label>╨г╨╗╨╕╤Ж╨░, ╨┤╨╛╨╝</label>' +
-        '<input type="text" id="addr-street" placeholder="╨г╨╗╨╕╤Ж╨░, ╨┤╨╛╨╝"></div>' +
-        '<div class="form-group"><label>╨Ъ╨▓╨░╤А╤В╨╕╤А╨░ / ╨╛╤Д╨╕╤Б</label>' +
-        '<input type="text" id="addr-apt" placeholder="╨Ъ╨▓╨░╤А╤В╨╕╤А╨░, ╨┐╨╛╨┤╤К╨╡╨╖╨┤, ╤Н╤В╨░╨╢"></div>' +
-        '<div class="form-group"><label>╨Ф╨╛╨┐╨╛╨╗╨╜╨╡╨╜╨╕╨╡</label>' +
-        '<input type="text" id="addr-note" placeholder="╨Ъ╨╛╨┤ ╨┤╨╛╨╝╨╛╤Д╨╛╨╜╨░, ╨╛╤А╨╕╨╡╨╜╤В╨╕╤А╤Л"></div>' +
+        '<div class="form-group"><label>Название (напр. Дом, Работа)</label>' +
+        '<input type="text" id="addr-label" placeholder="Дом"></div>' +
+        '<div class="form-group"><label>Город</label>' +
+        '<input type="text" id="addr-city" value="' + escapeHtml(cityName) + '" placeholder="Город"></div>' +
+        '<div class="form-group"><label>Улица, дом</label>' +
+        '<input type="text" id="addr-street" placeholder="Улица, дом"></div>' +
+        '<div class="form-group"><label>Квартира / офис</label>' +
+        '<input type="text" id="addr-apt" placeholder="Квартира, подъезд, этаж"></div>' +
+        '<div class="form-group"><label>Дополнение</label>' +
+        '<input type="text" id="addr-note" placeholder="Код домофона, ориентиры"></div>' +
         '<div style="display:flex;gap:8px">' +
-          '<button class="nav-btn" onclick="saveNewAddress()">╨б╨╛╤Е╤А╨░╨╜╨╕╤В╤М</button>' +
-          '<button class="nav-btn" style="background:#eee;color:#000" onclick="loadProfileAddresses()">╨Ю╤В╨╝╨╡╨╜╨░</button>' +
+          '<button class="nav-btn" onclick="saveNewAddress()">Сохранить</button>' +
+          '<button class="nav-btn" style="background:#eee;color:#000" onclick="loadProfileAddresses()">Отмена</button>' +
         '</div>' +
       '</div>';
   };
@@ -4441,7 +4694,7 @@
     var district = districtEl ? districtEl.value.trim() : '';
     var street = document.getElementById('addr-street').value.trim();
     var apt = document.getElementById('addr-apt').value.trim();
-    if (!street || !apt) { showToast('╨Ч╨░╨┐╨╛╨╗╨╜╨╕╤В╨╡ ╤Г╨╗╨╕╤Ж╤Г ╨╕ ╨║╨▓╨░╤А╤В╨╕╤А╤Г'); return; }
+    if (!street || !apt) { showToast('Заполните улицу и квартиру'); return; }
     postJSON('/api/user/addresses', {
       telegram_id: telegramId,
       label: document.getElementById('addr-label').value.trim(),
@@ -4451,7 +4704,7 @@
       apartment: apt,
       note: document.getElementById('addr-note').value.trim()
     }).then(function () {
-      showToast('╨Р╨┤╤А╨╡╤Б ╤Б╨╛╤Е╤А╨░╨╜╤С╨╜');
+      showToast('Адрес сохранён');
       loadProfileAddresses();
     });
   };
@@ -4460,7 +4713,7 @@
     var tgid = getTelegramId();
     var q = tgid ? ('?telegram_id=' + encodeURIComponent(tgid)) : '';
     fetch('/api/user/addresses/' + id + q, { method: 'DELETE', credentials: 'include' }).then(function (r) { return r.json(); }).then(function () {
-      showToast('╨Р╨┤╤А╨╡╤Б ╤Г╨┤╨░╨╗╤С╨╜');
+      showToast('Адрес удалён');
       loadProfileAddresses();
     });
   };
@@ -4470,15 +4723,15 @@
     if (!telegramId) return;
 
     renderWithWebTop(
-      '<span class="back-link" onclick="navigateTo(\'account\')">╨Ъ ╨║╨░╨▒╨╕╨╜╨╡╤В╤Г</span>' +
-      '<div class="section-title">╨Ш╤Б╤В╨╛╤А╨╕╤П ╨╖╨░╨║╨░╨╖╨╛╨▓</div>' +
-      '<div id="order-history">╨Ч╨░╨│╤А╤Г╨╖╨║╨░...</div>'
+      '<span class="back-link" onclick="navigateTo(\'account\')">К кабинету</span>' +
+      '<div class="section-title">История заказов</div>' +
+      '<div id="order-history">Загрузка...</div>'
     );
 
     fetchJSON('/api/user/orders?telegram_id=' + telegramId).then(function (orders) {
       var el = document.getElementById('order-history');
       if (!orders || !orders.length) {
-        el.innerHTML = '<div class="empty-state">╨Ч╨░╨║╨░╨╖╨╛╨▓ ╨┐╨╛╨║╨░ ╨╜╨╡╤В</div>';
+        el.innerHTML = '<div class="empty-state">Заказов пока нет</div>';
         return;
       }
       var deliveryHist = orders.filter(function (o) { return o.delivery_type !== 'pickup'; });
@@ -4490,7 +4743,7 @@
           itemsHtml = '<div class="order-card-items">' +
             o.items.map(function (i) {
               var sizeTag = i.size_label ? ' [' + i.size_label + ']' : '';
-              return '<div>' + escapeHtml(i.product_name || '╨в╨╛╨▓╨░╤А') + sizeTag + ' x' + i.quantity + ' тАФ ' + formatPrice(i.price * i.quantity) + '</div>';
+              return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
             }).join('') + '</div>';
         }
         return '<div class="order-card">' +
@@ -4507,17 +4760,17 @@
       var html = '';
       if (deliveryHist.length) {
         html += '<div class="orders-split-section">' +
-          '<div class="orders-split-title">╨Ф╨╛╤Б╤В╨░╨▓╨║╨░ <span class="orders-split-count">' + deliveryHist.length + '</span></div>' +
+          '<div class="orders-split-title">Доставка <span class="orders-split-count">' + deliveryHist.length + '</span></div>' +
           '<div class="order-history">' + deliveryHist.map(renderHistCard).join('') + '</div>' +
         '</div>';
       }
       if (pickupHist.length) {
         html += '<div class="orders-split-section">' +
-          '<div class="orders-split-title">╨б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖ <span class="orders-split-count">' + pickupHist.length + '</span></div>' +
+          '<div class="orders-split-title">Самовывоз <span class="orders-split-count">' + pickupHist.length + '</span></div>' +
           '<div class="order-history">' + pickupHist.map(renderHistCard).join('') + '</div>' +
         '</div>';
       }
-      if (!html) html = '<div class="empty-state">╨Ч╨░╨║╨░╨╖╨╛╨▓ ╨┐╨╛╨║╨░ ╨╜╨╡╤В</div>';
+      if (!html) html = '<div class="empty-state">Заказов пока нет</div>';
       el.innerHTML = html;
     });
   };
@@ -4527,14 +4780,14 @@
     var addr = (dbUser && dbUser.default_address) || '';
 
     renderWithWebTop(
-      '<span class="back-link" onclick="navigateTo(\'account\')">╨Ъ ╨║╨░╨▒╨╕╨╜╨╡╤В╤Г</span>' +
-      '<div class="section-title">╨Ь╨╛╨╕ ╨┤╨░╨╜╨╜╤Л╨╡</div>' +
+      '<span class="back-link" onclick="navigateTo(\'account\')">К кабинету</span>' +
+      '<div class="section-title">Мои данные</div>' +
       '<form class="order-form" onsubmit="saveProfile(event)">' +
-        '<div class="form-group"><label>╨в╨╡╨╗╨╡╤Д╨╛╨╜</label>' +
+        '<div class="form-group"><label>Телефон</label>' +
         '<input type="tel" id="profile-phone" value="' + escapeHtml(phone) + '" placeholder="+7 (___) ___-__-__" oninput="formatPhoneInput(this)" maxlength="18"></div>' +
-        '<div class="form-group"><label>╨Р╨┤╤А╨╡╤Б ╨┐╨╛ ╤Г╨╝╨╛╨╗╤З╨░╨╜╨╕╤О</label>' +
-        '<input type="text" id="profile-address" value="' + escapeHtml(addr) + '" placeholder="╨У╨╛╤А╨╛╨┤, ╤Г╨╗╨╕╤Ж╨░, ╨┤╨╛╨╝, ╨║╨▓╨░╤А╤В╨╕╤А╨░"></div>' +
-        '<button type="submit" class="nav-btn">╨б╨╛╤Е╤А╨░╨╜╨╕╤В╤М</button>' +
+        '<div class="form-group"><label>Адрес по умолчанию</label>' +
+        '<input type="text" id="profile-address" value="' + escapeHtml(addr) + '" placeholder="Город, улица, дом, квартира"></div>' +
+        '<button type="submit" class="nav-btn">Сохранить</button>' +
       '</form>'
     );
   };
@@ -4551,11 +4804,9 @@
       if (r && r.user) {
         dbUser = r.user;
         try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
-        showToast('╨Ф╨░╨╜╨╜╤Л╨╡ ╤Б╨╛╤Е╤А╨░╨╜╨╡╨╜╤Л');
+        showToast('Данные сохранены');
         navigateTo('account');
       }
-    }).catch(function (err) {
-      showToast(err.message || 'Не удалось сохранить');
     });
   };
 
@@ -4570,22 +4821,22 @@
       renderWithWebTop(
         '<span class="back-link" onclick="navigateTo(\'account\')">К профилю</span>' +
         '<div class="section-title">Заказы</div>' +
-        '<div class="empty-state">Войдите в профиль (Telegram или номер телефона), чтобы видеть заказы.</div>'
+        '<div class="empty-state">Откройте приложение через Telegram для отслеживания заказов.</div>'
       );
       return;
     }
 
     renderWithWebTop(
-      '<span class="back-link" onclick="navigateTo(\'account\')">╨Ъ ╨┐╤А╨╛╤Д╨╕╨╗╤О</span>' +
-      '<div class="section-title">╨Ч╨░╨║╨░╨╖╤Л</div>' +
-      '<div id="delivery-list"><div class="empty-state">╨Ч╨░╨│╤А╤Г╨╖╨║╨░...</div></div>'
+      '<span class="back-link" onclick="navigateTo(\'account\')">К профилю</span>' +
+      '<div class="section-title">Заказы</div>' +
+      '<div id="delivery-list"><div class="empty-state">Загрузка...</div></div>'
     );
 
     fetchJSON('/api/user/orders?telegram_id=' + telegramId).then(function (orders) {
       var el = document.getElementById('delivery-list');
       if (!el) return;
       if (!orders || !orders.length) {
-        el.innerHTML = '<div class="empty-state">╨г ╨▓╨░╤Б ╨┐╨╛╨║╨░ ╨╜╨╡╤В ╨╖╨░╨║╨░╨╖╨╛╨▓</div>';
+        el.innerHTML = '<div class="empty-state">У вас пока нет заказов</div>';
         return;
       }
 
@@ -4595,7 +4846,7 @@
       function renderFullCard(o) {
         var steps = getTrackSteps(o);
         var currentIdx = steps.indexOf(o.status);
-        if (o.status === '╨Т╤Л╨┐╨╛╨╗╨╜╨╡╨╜') currentIdx = steps.length - 1;
+        if (o.status === 'Выполнен') currentIdx = steps.length - 1;
         else if (currentIdx < 0) currentIdx = -1;
 
         var timelineHtml = '';
@@ -4617,26 +4868,26 @@
           itemsHtml = '<div class="track-items">' +
             o.items.map(function (i) {
               var sizeTag = i.size_label ? ' [' + i.size_label + ']' : '';
-              return '<div>' + escapeHtml(i.product_name || '╨в╨╛╨▓╨░╤А') + sizeTag + ' x' + i.quantity + ' тАФ ' + formatPrice(i.price * i.quantity) + '</div>';
+              return '<div>' + escapeHtml(i.product_name || 'Товар') + sizeTag + ' x' + i.quantity + ' — ' + formatPrice(i.price * i.quantity) + '</div>';
             }).join('') + '</div>';
         }
 
         var isPickup = o.delivery_type === 'pickup';
         var timeInfo = '';
         if (isPickup && o.delivery_date) {
-          timeInfo = '<div class="track-time-info">╨У╨╛╤В╨╛╨▓╨╜╨╛╤Б╤В╤М: ' + escapeHtml(o.delivery_date) +
+          timeInfo = '<div class="track-time-info">Готовность: ' + escapeHtml(o.delivery_date) +
             (o.delivery_interval ? ', ' + escapeHtml(o.delivery_interval) : '') + '</div>';
         } else if (!isPickup) {
           var parts = [];
           if (o.delivery_date) parts.push(escapeHtml(o.delivery_date));
-          if (o.exact_time) parts.push('╨║ ' + escapeHtml(o.exact_time));
+          if (o.exact_time) parts.push('к ' + escapeHtml(o.exact_time));
           else if (o.delivery_interval) parts.push(escapeHtml(o.delivery_interval));
           if (parts.length) timeInfo = '<div class="track-time-info">' + parts.join(', ') + '</div>';
         }
 
         return '<div class="track-card">' +
           '<div class="track-header">' +
-            '<span class="track-id">╨Ч╨░╨║╨░╨╖ #' + o.id + '</span>' +
+            '<span class="track-id">Заказ #' + o.id + '</span>' +
             '<span class="track-status-badge">' + escapeHtml(o.status) + '</span>' +
           '</div>' +
           '<div class="track-amount">' + formatPrice(o.total_amount) + '</div>' +
@@ -4649,17 +4900,17 @@
       var html = '';
       if (deliveryOrders.length) {
         html += '<div class="orders-split-section">' +
-          '<div class="orders-split-title">╨Ф╨╛╤Б╤В╨░╨▓╨║╨░ <span class="orders-split-count">' + deliveryOrders.length + '</span></div>' +
+          '<div class="orders-split-title">Доставка <span class="orders-split-count">' + deliveryOrders.length + '</span></div>' +
           deliveryOrders.map(renderFullCard).join('') +
         '</div>';
       }
       if (pickupOrders.length) {
         html += '<div class="orders-split-section">' +
-          '<div class="orders-split-title">╨б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖ <span class="orders-split-count">' + pickupOrders.length + '</span></div>' +
+          '<div class="orders-split-title">Самовывоз <span class="orders-split-count">' + pickupOrders.length + '</span></div>' +
           pickupOrders.map(renderFullCard).join('') +
         '</div>';
       }
-      if (!html) html = '<div class="empty-state">╨г ╨▓╨░╤Б ╨┐╨╛╨║╨░ ╨╜╨╡╤В ╨╖╨░╨║╨░╨╖╨╛╨▓</div>';
+      if (!html) html = '<div class="empty-state">У вас пока нет заказов</div>';
       el.innerHTML = html;
     });
   };
@@ -4676,8 +4927,8 @@
       renderWithWebTop(
         '<div class="web-flow-shell web-flow-shell--favorites">' +
           '<div class="web-centered-page-card">' +
-          '<div class="category-title">╨Ш╨╖╨▒╤А╨░╨╜╨╜╨╛╨╡</div>' +
-          '<div class="empty-state">╨Т╤Л ╨┐╨╛╨║╨░ ╨╜╨╕╤З╨╡╨│╨╛ ╨╜╨╡ ╨┤╨╛╨▒╨░╨▓╨╕╨╗╨╕ ╨▓ ╨╕╨╖╨▒╤А╨░╨╜╨╜╨╛╨╡</div>' +
+          '<div class="category-title">Избранное</div>' +
+          '<div class="empty-state">Вы пока ничего не добавили в избранное</div>' +
           '</div>' +
         '</div>'
       );
@@ -4687,8 +4938,8 @@
     renderWithWebTop(
       '<div class="web-flow-shell web-flow-shell--favorites">' +
         '<div class="web-centered-page-card">' +
-        '<div class="category-title">╨Ш╨╖╨▒╤А╨░╨╜╨╜╨╛╨╡</div>' +
-        '<div class="product-list" id="fav-product-list"><div class="empty-state">╨Ч╨░╨│╤А╤Г╨╖╨║╨░...</div></div>' +
+        '<div class="category-title">Избранное</div>' +
+        '<div class="product-list" id="fav-product-list"><div class="empty-state">Загрузка...</div></div>' +
         '</div>' +
       '</div>'
     );
@@ -4698,7 +4949,7 @@
       if (!el) return;
       var favProds = (prods || []).filter(function (p) { return favIds.indexOf(p.id) >= 0; });
       if (!favProds.length) {
-        el.innerHTML = '<div class="empty-state">╨в╨╛╨▓╨░╤А╤Л ╨╜╨╡ ╨╜╨░╨╣╨┤╨╡╨╜╤Л</div>';
+        el.innerHTML = '<div class="empty-state">Товары не найдены</div>';
         return;
       }
       el.innerHTML = favProds.map(function (p, idx) { return buildProductCard(p, idx); }).join('');
@@ -4712,98 +4963,98 @@
 
   function showPageOrder() {
     renderWithWebTop(
-      '<span class="back-link" onclick="navigateTo(\'home\')">╨Э╨░ ╨│╨╗╨░╨▓╨╜╤Г╤О</span>' +
+      '<span class="back-link" onclick="navigateTo(\'home\')">На главную</span>' +
       '<div class="static-page">' +
-        '<h2>╨Ю ╨╖╨░╨║╨░╨╖╨╡</h2>' +
-        '<p>╨Ь╤Л ╨╛╤Б╤Г╤Й╨╡╤Б╤В╨▓╨╗╤П╨╡╨╝ ╨┤╨╛╤Б╤В╨░╨▓╨║╤Г ╨┐╨╛ ╨│. ╨б╨░╤А╨░╤В╨╛╨▓╤Г, ╨н╨╜╨│╨╡╨╗╤М╤Б╤Г ╨╕ ╨╡╨│╨╛ ╨╛╨║╤А╨╡╤Б╤В╨╜╨╛╤Б╤В╤П╨╝.</p>' +
-        '<p>╨Ч╨░╨║╨░╨╖╤Л ╨┐╤А╨╕╨╜╨╕╨╝╨░╤О╤В╤Б╤П c 10:00 ╨┤╨╛ 21:00, ╨╜╨╛ ╨┤╨╛╤Б╤В╨░╨▓╨║╤Г ╨╝╤Л ╨╝╨╛╨╢╨╡╨╝ ╨╛╤Б╤Г╤Й╨╡╤Б╤В╨▓╨╗╤П╤В╤М ╨║╤А╤Г╨│╨╗╨╛╤Б╤Г╤В╨╛╤З╨╜╨╛ ╨┐╤А╨╕ ╨╛╤Д╨╛╤А╨╝╨╗╨╡╨╜╨╕╨╕ ╨╖╨░╨║╨░╨╖╨░ ╨▓ ╤А╨░╨▒╨╛╤З╨╡╨╡ ╨▓╤А╨╡╨╝╤П. ╨Ю╤Д╨╛╤А╨╝╨╕╤В╤М ╨╖╨░╨║╨░╨╖ ╨╝╨╛╨╢╨╜╨╛ ╨╖╨░╤А╨░╨╜╨╡╨╡ (╨╜╨░ ╨║╨╛╨╜╨║╤А╨╡╤В╨╜╤Г╤О ╨┤╨░╤В╤Г).</p>' +
-        '<h3>╨б╤В╨╛╨╕╨╝╨╛╤Б╤В╤М ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕ ╨┐╨╛ ╤А╨░╨╣╨╛╨╜╨░╨╝</h3>' +
+        '<h2>О заказе</h2>' +
+        '<p>Мы осуществляем доставку по г. Саратову, Энгельсу и его окрестностям.</p>' +
+        '<p>Заказы принимаются c 10:00 до 21:00, но доставку мы можем осуществлять круглосуточно при оформлении заказа в рабочее время. Оформить заказ можно заранее (на конкретную дату).</p>' +
+        '<h3>Стоимость доставки по районам</h3>' +
         '<ul>' +
-          '<li>╨│. ╨б╨░╤А╨░╤В╨╛╨▓ (╨Ы╨╡╨╜╨╕╨╜╤Б╨║╨╕╨╣, ╨Ъ╨╕╤А╨╛╨▓╤Б╨║╨╕╨╣, ╨д╤А╤Г╨╜╨╖╨╡╨╜╤Б╨║╨╕╨╣, ╨Ч╨░╨▓╨╛╨┤╤Б╨║╨╛╨╣, ╨Т╨╛╨╗╨╢╤Б╨║╨╕╨╣, ╨Ю╨║╤В╤П╨▒╤А╤М╤Б╨║╨╕╨╣ ╤А-╨╜╤Л) тАФ 350 ╤А.</li>' +
-          '<li>╨│. ╨н╨╜╨│╨╡╨╗╤М╤Б тАФ 450 ╤А.</li>' +
-          '<li>╨Ю╨║╤А╨╡╤Б╤В╨╜╨╛╤Б╤В╨╕ ╨│. ╨б╨░╤А╨░╤В╨╛╨▓╨░ ╨╕ ╨н╨╜╨│╨╡╨╗╤М╤Б╨░ (╨▓ ╤В.╤З. ╨У╨░╨│╨░╤А╨╕╨╜╤Б╨║╨╕╨╣ ╤А-╨╜ ╨│. ╨б╨░╤А╨░╤В╨╛╨▓╨░) тАФ 1000 ╤А.</li>' +
+          '<li>г. Саратов (Ленинский, Кировский, Фрунзенский, Заводской, Волжский, Октябрьский р-ны) — 350 р.</li>' +
+          '<li>г. Энгельс — 450 р.</li>' +
+          '<li>Окрестности г. Саратова и Энгельса (в т.ч. Гагаринский р-н г. Саратова) — 1000 р.</li>' +
         '</ul>' +
-        '<p>╨Я╨╡╤А╨╡╨┤ ╨┤╨╛╤Б╤В╨░╨▓╨║╨╛╨╣ ╨╖╨░╨║╨░╨╖╨░ ╨▓ ╤А╨░╨▒╨╛╤З╨╡╨╡ ╨▓╤А╨╡╨╝╤П ╨╜╨░╤И╨╕ ╨╝╨╡╨╜╨╡╨┤╨╢╨╡╤А╤Л ╨║╨╛╨╜╤В╨░╨║╤В-╤Ж╨╡╨╜╤В╤А╨░ ╤Б╨╛╨╖╨▓╨░╨╜╨╕╨▓╨░╤О╤В╤Б╤П ╤Б ╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╨╡╨╝ ╨╖╨░╨║╨░╨╖╨░ ╨╕ ╤Г╤В╨╛╤З╨╜╤П╤О╤В ╨░╨┤╤А╨╡╤Б ╨╕ ╨┐╨╛╨┤╤Е╨╛╨┤╤П╤Й╨╡╨╡ ╨▓╤А╨╡╨╝╤П ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕.</p>' +
-        '<h3>╨б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖</h3>' +
-        '<p>╨Т ╨╜╨░╤И╨╡╨╝ ╨╝╨░╨│╨░╨╖╨╕╨╜╨╡ ┬лArka Flowers┬╗ ╨┐╨╛ ╨░╨┤╤А╨╡╤Б╤Г ╨│. ╨б╨░╤А╨░╤В╨╛╨▓, 3-╨╣ ╨Ф╨╡╨│╤В╤П╤А╨╜╤Л╨╣ ╨┐╤А╨╛╨╡╨╖╨┤, 21╨║3.</p>' +
-        '<h3>╨Ф╨╛╤Б╤В╨░╨▓╨║╨░ ╨▓ ╨┐╤А╨░╨╖╨┤╨╜╨╕╤З╨╜╤Л╨╡ ╨┤╨╜╨╕</h3>' +
-        '<p>╨Ш╨╜╤В╨╡╤А╨▓╨░╨╗ ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕ 3 ╤З╨░╤Б╨░. ╨Я╤А╨╕ ╤Г╨║╨░╨╖╨░╨╜╨╕╨╕ ╤В╨╛╤З╨╜╨╛╨│╨╛ ╨▓╤А╨╡╨╝╨╡╨╜╨╕ ╨╖╨░╨║╨░╨╖ ╨▒╤Г╨┤╨╡╤В ╨┤╨╛╤Б╤В╨░╨▓╨╗╨╡╨╜ ╨▓ ╨╕╨╜╤В╨╡╤А╨▓╨░╨╗╨╡ ┬▒1,5 ╤З╨░╤Б╨░. ╨б╤В╨╛╨╕╨╝╨╛╤Б╤В╤М ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕ ╤В╨╛╤З╨╜╨╛ ╨║╨╛ ╨▓╤А╨╡╨╝╨╡╨╜╨╕ 1000 ╤А╤Г╨▒. (╤Г╨║╨░╨╢╨╕╤В╨╡ ╨▓ ╨╖╨░╨║╨░╨╖╨╡).</p>' +
-        '<p>╨Х╤Б╨╗╨╕ ╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤П ╨╜╨╡ ╨╛╨║╨░╨╢╨╡╤В╤Б╤П ╨┐╨╛ ╤Г╨║╨░╨╖╨░╨╜╨╜╨╛╨╝╤Г ╨░╨┤╤А╨╡╤Б╤Г, ╨║╤Г╤А╤М╨╡╤А ╨▓╨╛╨╖╨▓╤А╨░╤Й╨░╨╡╤В ╨▒╤Г╨║╨╡╤В ╨▓ ╤Б╨░╨╗╨╛╨╜. ╨Я╨╛╨▓╤В╨╛╤А╨╜╨░╤П ╨┤╨╛╤Б╤В╨░╨▓╨║╨░ ╨╛╤Б╤Г╤Й╨╡╤Б╤В╨▓╨╗╤П╨╡╤В╤Б╤П ╨▓ ╤Б╨╗╤Г╤З╨░╨╡ ╨┤╨╛╨┐╨╗╨░╤В╤Л ╨╖╨░ ╨▓╤Л╨╡╨╖╨┤ ╨║╤Г╤А╤М╨╡╤А╨░. ╨Я╨╛ ╨╕╤Б╤В╨╡╤З╨╡╨╜╨╕╨╕ 24 ╤З╨░╤Б╨╛╨▓ ╤Б ╨╝╨╛╨╝╨╡╨╜╤В╨░ ╨╜╨╡╤Б╨╛╤Б╤В╨╛╤П╨▓╤И╨╡╨╣╤Б╤П ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕ ╨╖╨░╨║╨░╨╖ ╨╛╨┐╨╗╨░╤З╨╕╨▓╨░╨╡╤В╤Б╤П ╨┐╨╛╨▓╤В╨╛╤А╨╜╨╛, ╨┐╨╛╤Б╨║╨╛╨╗╤М╨║╤Г ╤Ж╨▓╨╡╤В╤Л ╤П╨▓╨╗╤П╤О╤В╤Б╤П ╤Б╨║╨╛╤А╨╛╨┐╨╛╤А╤В╤П╤Й╨╕╨╝╤Б╤П ╤В╨╛╨▓╨░╤А╨╛╨╝. ╨Х╤Б╨╗╨╕ ╨▓╤Л ╨╛╤В╨║╨░╨╖╤Л╨▓╨░╨╡╤В╨╡╤Б╤М ╨╛╤В ╨┐╨╛╨▓╤В╨╛╤А╨╜╨╛╨╣ ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕, ╤Б╤В╨╛╨╕╨╝╨╛╤Б╤В╤М ╨╖╨░╨║╨░╨╖╨░ ╨╜╨╡ ╨▓╨╛╨╖╨▓╤А╨░╤Й╨░╨╡╤В╤Б╤П.</p>' +
-        '<p>╨Я╨╛╨╗╤М╨╖╤Г╤П╤Б╤М ╤Б╨░╨╣╤В╨╛╨╝, ╨▓╤Л ╤Б╨╛╨│╨╗╨░╤И╨░╨╡╤В╨╡╤Б╤М ╤Б ╤В╨╡╨╝, ╤З╤В╨╛ ╨┐╤А╨╕ ╨╖╨░╨║╨░╨╖╨╡ ╤Ж╨▓╨╡╤В╨╛╨║ ╨▓ ╨▒╤Г╨║╨╡╤В╨╡ ╨╝╨╛╨╢╨╡╤В ╨▒╤Л╤В╤М ╨╖╨░╨╝╨╡╨╜╤С╨╜ ╨╜╨░ ╨┐╨╛╨┤╨╛╨▒╨╜╤Л╨╣ ╨┐╨╛ ╤В╨░╨║╨╕╨╝ ╨┐╨░╤А╨░╨╝╨╡╤В╤А╨░╨╝, ╨║╨░╨║ ╤Ж╨▓╨╡╤В╨╛╨▓╨░╤П ╨│╨░╨╝╨╝╨░ ╨╕╨╗╨╕ ╤А╨╕╤Б╤Г╨╜╨╛╨║ ╤Ж╨▓╨╡╤В╨║╨░. ╨Р ╤В╨░╨║╨╢╨╡ ╨╝╤Л ╨╛╨▒╤П╨╖╤Г╨╡╨╝╤Б╤П ╨▓╨╛╤Б╨┐╨╛╨╗╨╜╨╕╤В╤М ╨╜╨╡╨┤╨╛╤Б╤В╨░╤О╤Й╨╕╨╣ ╤Ж╨▓╨╡╤В╨╛╨║ ╨┤╤А╤Г╨│╨╕╨╝ ╨┐╨╛ ╤Б╤В╨╛╨╕╨╝╨╛╤Б╤В╨╕ ╨▓╤Л╨▒╤А╨░╨╜╨╜╨╛╨│╨╛ ╨▒╤Г╨║╨╡╤В╨░.</p>' +
-        '<p>╨Т ╤Б╨╗╤Г╤З╨░╨╡ ╨╡╤Б╨╗╨╕ ╨▓╤Л ╨╜╨╡ ╨╖╨╜╨░╨╡╤В╨╡ ╨░╨┤╤А╨╡╤Б ╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤П, ╨░ ╨╖╨╜╨░╨╡╤В╨╡ ╤В╨╛╨╗╤М╨║╨╛ ╤В╨╡╨╗╨╡╤Д╨╛╨╜ тАФ ╨┐╨╡╤А╨╡╨┤ ╨┤╨╛╤Б╤В╨░╨▓╨║╨╛╨╣ ╨╖╨░╨║╨░╨╖╨░ ╨╜╨░╤И╨╕ ╨╝╨╡╨╜╨╡╨┤╨╢╨╡╤А╤Л ╨║╨╛╨╜╤В╨░╨║╤В-╤Ж╨╡╨╜╤В╤А╨░ ╤Б╨╛╨╖╨▓╨░╨╜╨╕╨▓╨░╤О╤В╤Б╤П ╤Б ╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╨╡╨╝ ╨╕ ╤Г╤В╨╛╤З╨╜╤П╤О╤В ╨░╨┤╤А╨╡╤Б ╨╕ ╨┐╨╛╨┤╤Е╨╛╨┤╤П╤Й╨╡╨╡ ╨▓╤А╨╡╨╝╤П ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕.</p>' +
+        '<p>Перед доставкой заказа в рабочее время наши менеджеры контакт-центра созваниваются с получателем заказа и уточняют адрес и подходящее время доставки.</p>' +
+        '<h3>Самовывоз</h3>' +
+        '<p>В нашем магазине «Arka Flowers» по адресу г. Саратов, 3-й Дегтярный проезд, 21к3.</p>' +
+        '<h3>Доставка в праздничные дни</h3>' +
+        '<p>Интервал доставки 3 часа. При указании точного времени заказ будет доставлен в интервале ±1,5 часа. Стоимость доставки точно ко времени 1000 руб. (укажите в заказе).</p>' +
+        '<p>Если получателя не окажется по указанному адресу, курьер возвращает букет в салон. Повторная доставка осуществляется в случае доплаты за выезд курьера. По истечении 24 часов с момента несостоявшейся доставки заказ оплачивается повторно, поскольку цветы являются скоропортящимся товаром. Если вы отказываетесь от повторной доставки, стоимость заказа не возвращается.</p>' +
+        '<p>Пользуясь сайтом, вы соглашаетесь с тем, что при заказе цветок в букете может быть заменён на подобный по таким параметрам, как цветовая гамма или рисунок цветка. А также мы обязуемся восполнить недостающий цветок другим по стоимости выбранного букета.</p>' +
+        '<p>В случае если вы не знаете адрес получателя, а знаете только телефон — перед доставкой заказа наши менеджеры контакт-центра созваниваются с получателем и уточняют адрес и подходящее время доставки.</p>' +
       '</div>'
     );
   }
 
   function showPagePayment() {
     renderWithWebTop(
-      '<span class="back-link" onclick="navigateTo(\'home\')">╨Э╨░ ╨│╨╗╨░╨▓╨╜╤Г╤О</span>' +
+      '<span class="back-link" onclick="navigateTo(\'home\')">На главную</span>' +
       '<div class="static-page">' +
-        '<h2>╨Ю╨▒ ╨╛╨┐╨╗╨░╤В╨╡</h2>' +
-        '<h3>╨Ю╨╜╨╗╨░╨╣╨╜</h3>' +
+        '<h2>Об оплате</h2>' +
+        '<h3>Онлайн</h3>' +
         '<ul>' +
-          '<li>╨С╨░╨╜╨║╨╛╨▓╤Б╨║╨╕╨╡ ╨║╨░╤А╤В╤Л: Visa, MasterCard, Maestro, ╨Ь╨╕╤А</li>' +
-          '<li>╨н╨╗╨╡╨║╤В╤А╨╛╨╜╨╜╤Л╨╡ ╨┤╨╡╨╜╤М╨│╨╕: ╨п╨╜╨┤╨╡╨║╤Б.╨Ф╨╡╨╜╤М╨│╨╕, WebMoney, QIWI ╨Ъ╨╛╤И╨╡╨╗╤С╨║</li>' +
-          '<li>╨Ш╨╜╤В╨╡╤А╨╜╨╡╤В-╨▒╨░╨╜╨║╨╕╨╜╨│: ╨б╨▒╨╡╤А╨▒╨░╨╜╨║ ╨Ю╨╜╨╗╨░╨╣╨╜, ╨Р╨╗╤М╤Д╨░-╨Ъ╨╗╨╕╨║, ╨Ш╨╜╤В╨╡╤А╨╜╨╡╤В-╨▒╨░╨╜╨║ ╨Я╤А╨╛╨╝╤Б╨▓╤П╨╖╤М╨▒╨░╨╜╨║╨░, MasterPass</li>' +
-          '<li>QR-╨║╨╛╨┤</li>' +
+          '<li>Банковские карты: Visa, MasterCard, Maestro, Мир</li>' +
+          '<li>Электронные деньги: Яндекс.Деньги, WebMoney, QIWI Кошелёк</li>' +
+          '<li>Интернет-банкинг: Сбербанк Онлайн, Альфа-Клик, Интернет-банк Промсвязьбанка, MasterPass</li>' +
+          '<li>QR-код</li>' +
         '</ul>' +
-        '<h3>╨Ф╨╛╨┐╨╛╨╗╨╜╨╕╤В╨╡╨╗╤М╨╜╨╛</h3>' +
-        '<p>╨С╨╡╨╖╨╜╨░╨╗╨╕╤З╨╜╤Л╨╝ ╤А╨░╤Б╤З╤С╤В╨╛╨╝ (╨▓╤Л╤Б╤В╨░╨▓╨╗╨╡╨╜╨╕╨╡ ╤Б╤З╤С╤В╨░ ╨┐╨╛ ╨▓╨░╤И╨╕╨╝ ╤А╨╡╨║╨▓╨╕╨╖╨╕╤В╨░╨╝).</p>' +
-        '<p>╨Т╨╛╨╖╨▓╤А╨░╤В ╨┤╨╡╨╜╨╡╨╢╨╜╤Л╤Е ╤Б╤А╨╡╨┤╤Б╤В╨▓ ╨▓ ╤Б╨╗╤Г╤З╨░╨╡ ╨▒╨╡╨╖╨╜╨░╨╗╨╕╤З╨╜╨╛╨╣ ╨╛╨┐╨╗╨░╤В╤Л ╨┐╤А╨╛╨╕╨╖╨▓╨╛╨┤╨╕╤В╤Б╤П ╨▓ ╤В╨╡╤З╨╡╨╜╨╕╨╡ 3тАУ4 ╤А╨░╨▒╨╛╤З╨╕╤Е ╨┤╨╜╨╡╨╣.</p>' +
+        '<h3>Дополнительно</h3>' +
+        '<p>Безналичным расчётом (выставление счёта по вашим реквизитам).</p>' +
+        '<p>Возврат денежных средств в случае безналичной оплаты производится в течение 3–4 рабочих дней.</p>' +
       '</div>'
     );
   }
 
   function showReturns() {
     renderWithWebTop(
-      '<span class="back-link" onclick="navigateTo(\'home\')">╨Э╨░ ╨│╨╗╨░╨▓╨╜╤Г╤О</span>' +
+      '<span class="back-link" onclick="navigateTo(\'home\')">На главную</span>' +
       '<div class="static-page">' +
-        '<h2>╨г╤Б╨╗╨╛╨▓╨╕╤П ╨▓╨╛╨╖╨▓╤А╨░╤В╨░</h2>' +
-        '<h3>1. ╨Ю╤В╨║╨░╨╖ ╨╛╤В ╨╖╨░╨║╨░╨╖╨░ ╨╕ ╨▓╨╛╨╖╨▓╤А╨░╤В ╤В╨╛╨▓╨░╤А╨░</h3>' +
-        '<p>1.1. ╨Ъ╨╗╨╕╨╡╨╜╤В ╨▓╨┐╤А╨░╨▓╨╡ ╨╛╤В╨║╨░╨╖╨░╤В╤М╤Б╤П ╨╛╤В ╨╖╨░╨║╨░╨╖╨░ ╨┤╨╛ ╨╝╨╛╨╝╨╡╨╜╤В╨░ ╨┐╨╡╤А╨╡╨┤╨░╤З╨╕ ╤В╨╛╨▓╨░╤А╨░ ╨║╤Г╤А╤М╨╡╤А╤Г. ╨Я╨╛╤Б╨╗╨╡ ╨┐╨╡╤А╨╡╨┤╨░╤З╨╕ ╤В╨╛╨▓╨░╤А╨░ ╨║╤Г╤А╤М╨╡╤А╤Г ╨╖╨░╨║╨░╨╖ ╤Б╤З╨╕╤В╨░╨╡╤В╤Б╤П ╨┐╤А╨╕╨╜╤П╤В╤Л╨╝ ╨║ ╨╕╤Б╨┐╨╛╨╗╨╜╨╡╨╜╨╕╤О, ╨╕ ╨╛╤В╨╝╨╡╨╜╨░ ╨╜╨╡╨▓╨╛╨╖╨╝╨╛╨╢╨╜╨░.</p>' +
-        '<p>1.2. ╨ж╨▓╨╡╤В╨╛╤З╨╜╨░╤П ╨┐╤А╨╛╨┤╤Г╨║╤Ж╨╕╤П ╨╛╤В╨╜╨╛╤Б╨╕╤В╤Б╤П ╨║ ╨║╨░╤В╨╡╨│╨╛╤А╨╕╨╕ ╤Б╨║╨╛╤А╨╛╨┐╨╛╤А╤В╤П╤Й╨╕╤Е╤Б╤П ╤В╨╛╨▓╨░╤А╨╛╨▓ (╨┐. 27 ╨Я╨╡╤А╨╡╤З╨╜╤П, ╤Г╤В╨▓. ╨Я╨╛╤Б╤В╨░╨╜╨╛╨▓╨╗╨╡╨╜╨╕╨╡╨╝ ╨Я╤А╨░╨▓╨╕╤В╨╡╨╗╤М╤Б╤В╨▓╨░ ╨а╨д тДЦ 2463), ╨▓ ╤Б╨▓╤П╨╖╨╕ ╤Б ╤З╨╡╨╝ ╨▓╨╛╨╖╨▓╤А╨░╤В ╤В╨╛╨▓╨░╤А╨░ ╨╜╨░╨┤╨╗╨╡╨╢╨░╤Й╨╡╨│╨╛ ╨║╨░╤З╨╡╤Б╤В╨▓╨░ ╨┐╨╛╤Б╨╗╨╡ ╨╡╨│╨╛ ╨┐╨╡╤А╨╡╨┤╨░╤З╨╕ ╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤О ╨╜╨╡╨▓╨╛╨╖╨╝╨╛╨╢╨╡╨╜.</p>' +
-        '<h3>2. ╨Ю╤В╤Б╤Г╤В╤Б╤В╨▓╨╕╨╡ ╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤П ╨┐╨╛ ╨░╨┤╤А╨╡╤Б╤Г</h3>' +
-        '<p>2.1. ╨Т ╤Б╨╗╤Г╤З╨░╨╡ ╨╛╤В╤Б╤Г╤В╤Б╤В╨▓╨╕╤П ╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤П ╨┐╨╛ ╤Г╨║╨░╨╖╨░╨╜╨╜╨╛╨╝╤Г ╨░╨┤╤А╨╡╤Б╤Г ╨║╤Г╤А╤М╨╡╤А ╤Д╨╕╨║╤Б╨╕╤А╤Г╨╡╤В ╨╜╨╡╨▓╨╛╨╖╨╝╨╛╨╢╨╜╨╛╤Б╤В╤М ╨▓╤А╤Г╤З╨╡╨╜╨╕╤П.</p>' +
-        '<p>2.2. ╨Ъ╨╗╨╕╨╡╨╜╤В/╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤М ╨╝╨╛╨╢╨╡╤В ╨╖╨░╨┐╤А╨╛╤Б╨╕╤В╤М ╨┐╨╛╨▓╤В╨╛╤А╨╜╤Г╤О ╨┤╨╛╤Б╤В╨░╨▓╨║╤Г. ╨Я╨╛╨▓╤В╨╛╤А╨╜╨░╤П ╨┤╨╛╤Б╤В╨░╨▓╨║╨░ ╨╛╨┐╨╗╨░╤З╨╕╨▓╨░╨╡╤В╤Б╤П ╨┤╨╛╨┐╨╛╨╗╨╜╨╕╤В╨╡╨╗╤М╨╜╨╛ ╤Б╨╛╨│╨╗╨░╤Б╨╜╨╛ ╨┤╨╡╨╣╤Б╤В╨▓╤Г╤О╤Й╨╕╨╝ ╤В╨░╤А╨╕╤Д╨░╨╝.</p>' +
-        '<p>2.3. ╨Х╤Б╨╗╨╕ ╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤М ╨╝╨╛╨╢╨╡╤В ╨┐╤А╨╕╨╜╤П╤В╤М ╨╖╨░╨║╨░╨╖ ╤В╨╛╨╗╤М╨║╨╛ ╨▓ ╨┤╤А╤Г╨│╨╛╨╣ ╨┤╨╡╨╜╤М, ╨║╨╛╨╝╨┐╨░╨╜╨╕╤П ╨▓╨┐╤А╨░╨▓╨╡ ╨┐╤А╨╡╨┤╨╗╨╛╨╢╨╕╤В╤М ╨╕╨╖╨│╨╛╤В╨╛╨▓╨╗╨╡╨╜╨╕╨╡ ╨╜╨╛╨▓╨╛╨│╨╛ ╤Б╨▓╨╡╨╢╨╡╨│╨╛ ╨▒╤Г╨║╨╡╤В╨░ ╨║ ╤Б╨╛╨│╨╗╨░╤Б╨╛╨▓╨░╨╜╨╜╨╛╨╣ ╨┤╨░╤В╨╡. ╨Т╨╛╨╖╨▓╤А╨░╤В ╨┤╨╡╨╜╨╡╨╢╨╜╤Л╤Е ╤Б╤А╨╡╨┤╤Б╤В╨▓ ╨╖╨░ ╨┐╨╡╤А╨▓╨╛╨╜╨░╤З╨░╨╗╤М╨╜╨╛ ╨╕╨╖╨│╨╛╤В╨╛╨▓╨╗╨╡╨╜╨╜╤Л╨╣ ╨▒╤Г╨║╨╡╤В ╨╜╨╡ ╨┐╤А╨╛╨╕╨╖╨▓╨╛╨┤╨╕╤В╤Б╤П.</p>' +
-        '<h3>3. ╨Ш╨╖╨╝╨╡╨╜╨╡╨╜╨╕╤П ╨▓ ╨╖╨░╨║╨░╨╖╨╡</h3>' +
-        '<p>3.1. ╨Я╨╛╤Б╨╗╨╡ ╨╜╨░╤З╨░╨╗╨░ ╨▓╤Л╨┐╨╛╨╗╨╜╨╡╨╜╨╕╤П ╨╖╨░╨║╨░╨╖╨░ (╤Б╨▒╨╛╤А╨║╨╕ ╨▒╤Г╨║╨╡╤В╨░) ╨╛╤В╨╝╨╡╨╜╨░ ╨╕ ╨▓╨╛╨╖╨▓╤А╨░╤В ╤Б╤А╨╡╨┤╤Б╤В╨▓ ╨╜╨╡╨▓╨╛╨╖╨╝╨╛╨╢╨╜╤Л.</p>' +
-        '<p>3.2. ╨Ш╨╖╨╝╨╡╨╜╨╡╨╜╨╕╨╡ ╨┤╨░╤В╤Л/╨▓╤А╨╡╨╝╨╡╨╜╨╕ ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕ ╨┐╨╛╤Б╨╗╨╡ ╨╜╨░╤З╨░╨╗╨░ ╤Б╨▒╨╛╤А╨║╨╕ ╤В╨░╨║╨╢╨╡ ╨╜╨╡ ╤П╨▓╨╗╤П╨╡╤В╤Б╤П ╨╛╤Б╨╜╨╛╨▓╨░╨╜╨╕╨╡╨╝ ╨┤╨╗╤П ╨▓╨╛╨╖╨▓╤А╨░╤В╨░ ╤Б╤А╨╡╨┤╤Б╤В╨▓.</p>' +
-        '<h3>4. ╨Я╤А╨╕╤С╨╝ ╤В╨╛╨▓╨░╤А╨░ ╨╕ ╤А╨╡╨║╨╗╨░╨╝╨░╤Ж╨╕╨╕ ╨┐╨╛ ╨║╨░╤З╨╡╤Б╤В╨▓╤Г</h3>' +
-        '<p>4.1. ╨Ъ╨╗╨╕╨╡╨╜╤В ╨╛╨▒╤П╨╖╨░╨╜ ╨╛╤Б╨╝╨╛╤В╤А╨╡╤В╤М ╤В╨╛╨▓╨░╤А ╨▓ ╨╝╨╛╨╝╨╡╨╜╤В ╨┐╨╛╨╗╤Г╤З╨╡╨╜╨╕╤П. ╨а╨╡╨║╨╗╨░╨╝╨░╤Ж╨╕╨╕ ╨┐╨╛ ╨║╨░╤З╨╡╤Б╤В╨▓╤Г ╨┐╤А╨╕╨╜╨╕╨╝╨░╤О╤В╤Б╤П ╨▓ ╤В╨╡╤З╨╡╨╜╨╕╨╡ 30 ╨╝╨╕╨╜╤Г╤В ╤Б ╨╝╨╛╨╝╨╡╨╜╤В╨░ ╨▓╤А╤Г╤З╨╡╨╜╨╕╤П.</p>' +
-        '<p>4.2. ╨Ф╨╗╤П ╨┐╨╛╨┤╨░╤З╨╕ ╤А╨╡╨║╨╗╨░╨╝╨░╤Ж╨╕╨╕ ╨╜╨╡╨╛╨▒╤Е╨╛╨┤╨╕╨╝╨╛ ╨┐╤А╨╡╨┤╨╛╤Б╤В╨░╨▓╨╕╤В╤М: ╨┐╨╛╨┤╤А╨╛╨▒╨╜╨╛╨╡ ╨╛╨┐╨╕╤Б╨░╨╜╨╕╨╡ ╨┐╤А╨╛╨▒╨╗╨╡╨╝╤Л, ╤Д╨╛╤В╨╛╨│╤А╨░╤Д╨╕╨╕ ╨▒╤Г╨║╨╡╤В╨░ ╤Б ╤А╨░╨╖╨╜╤Л╤Е ╤А╨░╨║╤Г╤А╤Б╨╛╨▓, ╤Д╨╛╤В╨╛ ╤Г╨┐╨░╨║╨╛╨▓╨║╨╕.</p>' +
-        '<p>4.3. Arka Flowers ╤А╨░╤Б╤Б╨╝╨░╤В╤А╨╕╨▓╨░╨╡╤В ╤А╨╡╨║╨╗╨░╨╝╨░╤Ж╨╕╤О ╨▓ ╤В╨╡╤З╨╡╨╜╨╕╨╡ 6 ╤З╨░╤Б╨╛╨▓ ╨╕ ╨┐╤А╨╡╨┤╨╛╤Б╤В╨░╨▓╨╗╤П╨╡╤В ╨╛╤В╨▓╨╡╤В.</p>' +
-        '<p>4.4. ╨Х╤Б╨╗╨╕ ╨▒╤Г╨┤╨╡╤В ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╤С╨╜ ╤Д╨░╨║╤В ╨┐╨╡╤А╨╡╨┤╨░╤З╨╕ ╤В╨╛╨▓╨░╤А╨░ ╨╜╨╡╨╜╨░╨┤╨╗╨╡╨╢╨░╤Й╨╡╨│╨╛ ╨║╨░╤З╨╡╤Б╤В╨▓╨░, ╨║╨╛╨╝╨┐╨░╨╜╨╕╤П ╨┐╤А╨╡╨┤╨╛╤Б╤В╨░╨▓╨╗╤П╨╡╤В: ╨╖╨░╨╝╨╡╨╜╤Г ╨▒╤Г╨║╨╡╤В╨░ ╨╕╨╗╨╕ ╨▓╨╛╨╖╨▓╤А╨░╤В ╨┤╨╡╨╜╨╡╨╢╨╜╤Л╤Е ╤Б╤А╨╡╨┤╤Б╤В╨▓ ╨▓ ╨┐╤А╨╡╨┤╨╡╨╗╨░╤Е ╤Б╤В╨╛╨╕╨╝╨╛╤Б╤В╨╕ ╨╖╨░╨║╨░╨╖╨░.</p>' +
-        '<p>4.5. ╨Х╤Б╨╗╨╕ ╨║╨╗╨╕╨╡╨╜╤В ╨╛╤Б╤В╨░╨▓╨╕╨╗ ╨▒╤Г╨║╨╡╤В ╤Г ╤Б╨╡╨▒╤П, ╨┐╨╛╨╝╨╡╤Б╤В╨╕╨╗ ╨▓ ╨▓╨░╨╖╤Г, ╨╕╨╖╨╝╨╡╨╜╨╕╨╗ ╤Г╤Б╨╗╨╛╨▓╨╕╤П ╤Е╤А╨░╨╜╨╡╨╜╨╕╤П ╨╕╨╗╨╕ ╤Б╨╛╤Б╤В╨╛╤П╨╜╨╕╨╡ ╤В╨╛╨▓╨░╤А╨░, ╤З╤В╨╛ ╨╝╨╛╨│╨╗╨╛ ╨┐╤А╨╕╨▓╨╡╤Б╤В╨╕ ╨║ ╨╡╨│╨╛ ╤Г╨▓╤П╨┤╨░╨╜╨╕╤О, ╤В╨░╨║╨╕╨╡ ╨┐╤А╨╡╤В╨╡╨╜╨╖╨╕╨╕ ╨╜╨╡ ╤А╨░╤Б╤Б╨╝╨░╤В╤А╨╕╨▓╨░╤О╤В╤Б╤П, ╨╖╨░ ╨╕╤Б╨║╨╗╤О╤З╨╡╨╜╨╕╨╡╨╝ ╤Б╨╗╤Г╤З╨░╨╡╨▓ ╤П╨▓╨╜╨╛╨╣ ╨┐╨╛╤А╤З╨╕ ╤Ж╨▓╨╡╤В╨║╨░.</p>' +
-        '<h3>5. ╨Ф╨╛╤Б╤В╨░╨▓╨║╨░ ╤Б╤В╨╛╤А╨╛╨╜╨╜╨╡╨╣ ╨║╤Г╤А╤М╨╡╤А╤Б╨║╨╛╨╣ ╤Б╨╗╤Г╨╢╨▒╨╛╨╣</h3>' +
-        '<p>5.1. ╨Ю╤В╨▓╨╡╤В╤Б╤В╨▓╨╡╨╜╨╜╨╛╤Б╤В╤М ╨╖╨░ ╤Д╨░╨║╤В ╨║╨░╤З╨╡╤Б╤В╨▓╨╡╨╜╨╜╨╛╨│╨╛ ╨╕╨╖╨│╨╛╤В╨╛╨▓╨╗╨╡╨╜╨╕╤П ╨▒╤Г╨║╨╡╤В╨░ ╨╜╨╡╤Б╤С╤В Arka Flowers.</p>' +
-        '<p>5.2. ╨Т╤А╨╡╨╝╤П ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕ ╨╝╨╛╨╢╨╡╤В ╨╛╤В╨╗╨╕╤З╨░╤В╤М╤Б╤П ╨╛╤В ╨┐╤А╨╡╨┤╨▓╨░╤А╨╕╤В╨╡╨╗╤М╨╜╨╛╨│╨╛ ╨┐╨╛ ╨┐╤А╨╕╤З╨╕╨╜╨░╨╝ ╨╗╨╛╨│╨╕╤Б╤В╨╕╨║╨╕. ╨н╤В╨╛ ╨╜╨╡ ╤П╨▓╨╗╤П╨╡╤В╤Б╤П ╨╛╤Б╨╜╨╛╨▓╨░╨╜╨╕╨╡╨╝ ╨┤╨╗╤П ╨▓╨╛╨╖╨▓╤А╨░╤В╨░ ╤Б╤А╨╡╨┤╤Б╤В╨▓.</p>' +
-        '<h3>6. ╨Ю╨┐╨╗╨░╤В╨░ ╨╕ ╨▓╨╛╨╖╨▓╤А╨░╤В ╨┤╨╡╨╜╨╡╨╢╨╜╤Л╤Е ╤Б╤А╨╡╨┤╤Б╤В╨▓</h3>' +
-        '<p>6.1. ╨Я╤А╨╕ ╨╛╨┐╨╗╨░╤В╨╡ ╨▒╨░╨╜╨║╨╛╨▓╤Б╨║╨╕╨╝╨╕ ╨║╨░╤А╤В╨░╨╝╨╕ ╨▓╨╛╨╖╨▓╤А╨░╤В ╤Б╤А╨╡╨┤╤Б╤В╨▓ ╨╛╤Б╤Г╤Й╨╡╤Б╤В╨▓╨╗╤П╨╡╤В╤Б╤П ╤В╨╛╨╗╤М╨║╨╛ ╨╜╨░ ╤В╤Г ╨╢╨╡ ╨║╨░╤А╤В╤Г, ╤Б ╨║╨╛╤В╨╛╤А╨╛╨╣ ╨▒╤Л╨╗╨░ ╨┐╤А╨╛╨╕╨╖╨▓╨╡╨┤╨╡╨╜╨░ ╨╛╨┐╨╗╨░╤В╨░. ╨Т╨╛╨╖╨▓╤А╨░╤В ╨╜╨░╨╗╨╕╤З╨╜╤Л╨╝╨╕ ╨┐╤А╨╕ ╨▒╨╡╨╖╨╜╨░╨╗╨╕╤З╨╜╨╛╨╣ ╨╛╨┐╨╗╨░╤В╨╡ ╨╜╨╡ ╨┤╨╛╨┐╤Г╤Б╨║╨░╨╡╤В╤Б╤П.</p>' +
-        '<p>6.2. ╨Т ╤Б╨╗╤Г╤З╨░╨╡ ╨╛╤И╨╕╨▒╨╛╤З╨╜╨╛╨│╨╛ ╤Б╨┐╨╕╤Б╨░╨╜╨╕╤П ╤Б╤А╨╡╨┤╤Б╤В╨▓ ╨╜╨╡╨╛╨▒╤Е╨╛╨┤╨╕╨╝╨╛ ╨╜╨░╨┐╤А╨░╨▓╨╕╤В╤М ╨┐╨╕╤Б╤М╨╝╨╡╨╜╨╜╨╛╨╡ ╨╖╨░╤П╨▓╨╗╨╡╨╜╨╕╨╡ ╨╕ ╨┐╤А╨╕╨╗╨╛╨╢╨╕╤В╤М ╨║╨╛╨┐╨╕╨╕ ╨┐╨░╤Б╨┐╨╛╤А╤В╨░ ╨╕ ╤З╨╡╨║╨╛╨▓. ╨б╤А╨╛╨║ ╤А╨░╤Б╤Б╨╝╨╛╤В╤А╨╡╨╜╨╕╤П ╨╖╨░╤П╨▓╨╗╨╡╨╜╨╕╤П ╨╕ ╨▓╨╛╨╖╨▓╤А╨░╤В╨░ ╤Б╤А╨╡╨┤╤Б╤В╨▓ тАФ ╨┤╨╛ 2 ╤А╨░╨▒╨╛╤З╨╕╤Е ╨┤╨╜╨╡╨╣.</p>' +
+        '<h2>Условия возврата</h2>' +
+        '<h3>1. Отказ от заказа и возврат товара</h3>' +
+        '<p>1.1. Клиент вправе отказаться от заказа до момента передачи товара курьеру. После передачи товара курьеру заказ считается принятым к исполнению, и отмена невозможна.</p>' +
+        '<p>1.2. Цветочная продукция относится к категории скоропортящихся товаров (п. 27 Перечня, утв. Постановлением Правительства РФ № 2463), в связи с чем возврат товара надлежащего качества после его передачи получателю невозможен.</p>' +
+        '<h3>2. Отсутствие получателя по адресу</h3>' +
+        '<p>2.1. В случае отсутствия получателя по указанному адресу курьер фиксирует невозможность вручения.</p>' +
+        '<p>2.2. Клиент/получатель может запросить повторную доставку. Повторная доставка оплачивается дополнительно согласно действующим тарифам.</p>' +
+        '<p>2.3. Если получатель может принять заказ только в другой день, компания вправе предложить изготовление нового свежего букета к согласованной дате. Возврат денежных средств за первоначально изготовленный букет не производится.</p>' +
+        '<h3>3. Изменения в заказе</h3>' +
+        '<p>3.1. После начала выполнения заказа (сборки букета) отмена и возврат средств невозможны.</p>' +
+        '<p>3.2. Изменение даты/времени доставки после начала сборки также не является основанием для возврата средств.</p>' +
+        '<h3>4. Приём товара и рекламации по качеству</h3>' +
+        '<p>4.1. Клиент обязан осмотреть товар в момент получения. Рекламации по качеству принимаются в течение 30 минут с момента вручения.</p>' +
+        '<p>4.2. Для подачи рекламации необходимо предоставить: подробное описание проблемы, фотографии букета с разных ракурсов, фото упаковки.</p>' +
+        '<p>4.3. Arka Flowers рассматривает рекламацию в течение 6 часов и предоставляет ответ.</p>' +
+        '<p>4.4. Если будет подтверждён факт передачи товара ненадлежащего качества, компания предоставляет: замену букета или возврат денежных средств в пределах стоимости заказа.</p>' +
+        '<p>4.5. Если клиент оставил букет у себя, поместил в вазу, изменил условия хранения или состояние товара, что могло привести к его увяданию, такие претензии не рассматриваются, за исключением случаев явной порчи цветка.</p>' +
+        '<h3>5. Доставка сторонней курьерской службой</h3>' +
+        '<p>5.1. Ответственность за факт качественного изготовления букета несёт Arka Flowers.</p>' +
+        '<p>5.2. Время доставки может отличаться от предварительного по причинам логистики. Это не является основанием для возврата средств.</p>' +
+        '<h3>6. Оплата и возврат денежных средств</h3>' +
+        '<p>6.1. При оплате банковскими картами возврат средств осуществляется только на ту же карту, с которой была произведена оплата. Возврат наличными при безналичной оплате не допускается.</p>' +
+        '<p>6.2. В случае ошибочного списания средств необходимо направить письменное заявление и приложить копии паспорта и чеков. Срок рассмотрения заявления и возврата средств — до 2 рабочих дней.</p>' +
       '</div>'
     );
   }
 
   function showPageCare() {
     renderWithWebTop(
-      '<span class="back-link" onclick="navigateTo(\'home\')">╨Э╨░ ╨│╨╗╨░╨▓╨╜╤Г╤О</span>' +
+      '<span class="back-link" onclick="navigateTo(\'home\')">На главную</span>' +
       '<div class="static-page">' +
-        '<h2>╨а╨╡╨║╨╛╨╝╨╡╨╜╨┤╨░╤Ж╨╕╨╕ ╨┐╨╛ ╤Г╤Е╨╛╨┤╤Г</h2>' +
-        '<p>╨Э╨░╨╝ ╨▓╨░╨╢╨╜╨╛, ╤З╤В╨╛╨▒╤Л ╨▒╤Г╨║╨╡╤В ╤А╨░╨┤╨╛╨▓╨░╨╗ ╨▓╨░╤Б ╨║╨░╨║ ╨╝╨╛╨╢╨╜╨╛ ╨┤╨╛╨╗╤М╤И╨╡. ╨ж╨▓╨╡╤В╤Л тАФ ╨╢╨╕╨▓╨╛╨╣ ╨╕ ╨╛╤З╨╡╨╜╤М ╤Е╤А╤Г╨┐╨║╨╕╨╣ ╨╝╨░╤В╨╡╤А╨╕╨░╨╗, ╨┐╨╛╤Н╤В╨╛╨╝╤Г ╤В╨░╨║ ╨▓╨░╨╢╨╜╨╛ ╤Г╤Е╨░╨╢╨╕╨▓╨░╤В╤М ╨╖╨░ ╨▒╤Г╨║╨╡╤В╨╛╨╝, ╤З╤В╨╛╨▒╤Л ╨┐╤А╨╛╨┤╨╗╨╕╤В╤М ╤Ж╨▓╨╡╤В╨░╨╝ ╤Б╤А╨╛╨║ ╨╢╨╕╨╖╨╜╨╕.</p>' +
-        '<h3>╨г╤Е╨╛╨┤ ╨╖╨░ ╨▒╤Г╨║╨╡╤В╨╛╨╝</h3>' +
+        '<h2>Рекомендации по уходу</h2>' +
+        '<p>Нам важно, чтобы букет радовал вас как можно дольше. Цветы — живой и очень хрупкий материал, поэтому так важно ухаживать за букетом, чтобы продлить цветам срок жизни.</p>' +
+        '<h3>Уход за букетом</h3>' +
         '<ol>' +
-          '<li>╨б╨╜╨╕╨╝╨╕╤В╨╡ ╨║╤А╨░╤Б╨╕╨▓╤Г╤О ╤Г╨┐╨░╨║╨╛╨▓╨║╤Г ╤Б ╨▒╤Г╨║╨╡╤В╨░.</li>' +
-          '<li>╨Я╨╡╤А╨╡╤Б╤В╨░╨▓╤М╤В╨╡ ╨╡╨│╨╛ ╨╕╨╖ ╨░╨║╨▓╨░╨▒╨╛╨║╤Б╨░ ╨▓ ╨▓╨░╨╖╤Г ╤Б ╨┐╤А╨╛╤В╨╛╤З╨╜╨╛╨╣ ╨┐╤А╨╛╤Е╨╗╨░╨┤╨╜╨╛╨╣ ╨▓╨╛╨┤╨╛╨╣, ╨┤╨╛╨▒╨░╨▓╤М╤В╨╡ ╤Г╨┤╨╛╨▒╤А╨╡╨╜╨╕╨╡ ╨╕╨╖ ╨┐╨░╨║╨╡╤В╨╕╨║╨░.</li>' +
-          '<li>╨а╨╡╨│╤Г╨╗╤П╤А╨╜╨╛ ╨╝╨╡╨╜╤П╨╣╤В╨╡ ╤Ж╨▓╨╡╤В╨░╨╝ ╨▓╨╛╨┤╤Г ╨╕ ╨╛╤Б╨▓╨╡╨╢╨░╨╣╤В╨╡ ╤Б╤А╨╡╨╖ ╨╛╤Б╤В╤А╤Л╨╝ ╨╜╨╛╨╢╨╛╨╝ ╨╕╨╗╨╕ ╤Б╨╡╨║╨░╤В╨╛╤А╨╛╨╝.</li>' +
-          '<li>╨Ф╨╡╤А╨╢╨╕╤В╨╡ ╤Ж╨▓╨╡╤В╤Л ╨▓╨┤╨░╨╗╨╕ ╨╛╤В ╤Б╨║╨▓╨╛╨╖╨╜╤П╨║╨░, ╨┐╤А╤П╨╝╤Л╤Е ╤Б╨╛╨╗╨╜╨╡╤З╨╜╤Л╤Е ╨╗╤Г╤З╨╡╨╣, ╨╛╤В╨╛╨┐╨╕╤В╨╡╨╗╤М╨╜╤Л╤Е ╨┐╤А╨╕╨▒╨╛╤А╨╛╨▓.</li>' +
-          '<li>╨Э╨╡ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╣╤В╨╡ ╨┤╨╗╤П ╨┐╨╛╨┤╤А╨╡╨╖╨░╨╜╨╕╤П ╤Ж╨▓╨╡╤В╨╛╨▓ ╨╜╨╛╨╢╨╜╨╕╤Ж╤Л.</li>' +
+          '<li>Снимите красивую упаковку с букета.</li>' +
+          '<li>Переставьте его из аквабокса в вазу с проточной прохладной водой, добавьте удобрение из пакетика.</li>' +
+          '<li>Регулярно меняйте цветам воду и освежайте срез острым ножом или секатором.</li>' +
+          '<li>Держите цветы вдали от сквозняка, прямых солнечных лучей, отопительных приборов.</li>' +
+          '<li>Не используйте для подрезания цветов ножницы.</li>' +
         '</ol>' +
-        '<h3>╨г╤Е╨╛╨┤ ╨╖╨░ ╨║╨╛╨╝╨┐╨╛╨╖╨╕╤Ж╨╕╨╡╨╣ ╨╜╨░ ╨│╤Г╨▒╨║╨╡</h3>' +
+        '<h3>Уход за композицией на губке</h3>' +
         '<ol>' +
-          '<li>╨Э╨╡ ╨┤╨╛╨┐╤Г╤Б╨║╨░╨╣╤В╨╡ ╨┐╨╡╤А╨╡╤Б╤Л╤Е╨░╨╜╨╕╤П ╨│╤Г╨▒╨║╨╕: ╨┐╨╛╨┤╨╗╨╕╨▓╨░╨╣╤В╨╡ ╤А╨░╨╖ ╨▓ ╨┤╨╡╨╜╤М ╨┐╨╛╨╗╨╛╨▓╨╕╨╜╤Г ╨╕╨╗╨╕ ╨┐╨╛╨╗╨╜╤Л╨╣ ╤Б╤В╨░╨║╨░╨╜ ╨┐╤А╨╛╤В╨╛╤З╨╜╨╛╨╣ ╨▓╨╛╨┤╤Л ╨▓ ╤Ж╨╡╨╜╤В╤А ╨║╨╛╨╝╨┐╨╛╨╖╨╕╤Ж╨╕╨╕ ╨▓ ╨╖╨░╨▓╨╕╤Б╨╕╨╝╨╛╤Б╤В╨╕ ╨╛╤В ╨╡╤С ╤А╨░╨╖╨╝╨╡╤А╨░.</li>' +
-          '<li>╨Ф╨╡╤А╨╢╨╕╤В╨╡ ╤Ж╨▓╨╡╤В╤Л ╨▓╨┤╨░╨╗╨╕ ╨╛╤В ╤Б╨║╨▓╨╛╨╖╨╜╤П╨║╨░, ╨┐╤А╤П╨╝╤Л╤Е ╤Б╨╛╨╗╨╜╨╡╤З╨╜╤Л╤Е ╨╗╤Г╤З╨╡╨╣, ╨╛╤В╨╛╨┐╨╕╤В╨╡╨╗╤М╨╜╤Л╤Е ╨┐╤А╨╕╨▒╨╛╤А╨╛╨▓.</li>' +
-          '<li>╨Я╨╛ ╨╝╨╡╤А╨╡ ╤Г╨▓╤П╨┤╨░╨╜╨╕╤П ╤Ж╨▓╨╡╤В╨╛╨▓ ╤Г╨┤╨░╨╗╤П╨╣╤В╨╡ ╨╕╤Е ╨╕╨╖ ╨║╨╛╨╝╨┐╨╛╨╖╨╕╤Ж╨╕╨╕ тАФ ╤Н╤В╨╛ ╨┐╤А╨╛╨┤╨╗╨╕╤В ╨╢╨╕╨╖╨╜╤М ╨┤╤А╤Г╨│╨╕╨╝ ╤А╨░╤Б╤В╨╡╨╜╨╕╤П╨╝.</li>' +
+          '<li>Не допускайте пересыхания губки: подливайте раз в день половину или полный стакан проточной воды в центр композиции в зависимости от её размера.</li>' +
+          '<li>Держите цветы вдали от сквозняка, прямых солнечных лучей, отопительных приборов.</li>' +
+          '<li>По мере увядания цветов удаляйте их из композиции — это продлит жизнь другим растениям.</li>' +
         '</ol>' +
       '</div>'
     );
@@ -4811,53 +5062,53 @@
 
   function showPageOffer() {
     renderWithWebTop(
-      '<span class="back-link" onclick="navigateTo(\'home\')">╨Э╨░ ╨│╨╗╨░╨▓╨╜╤Г╤О</span>' +
+      '<span class="back-link" onclick="navigateTo(\'home\')">На главную</span>' +
       '<div class="static-page">' +
-        '<h2>╨Я╤Г╨▒╨╗╨╕╤З╨╜╨░╤П ╨╛╤Д╨╡╤А╤В╨░</h2>' +
-        '<h3>1. ╨Ю╨▒╤Й╨╕╨╡ ╨┐╨╛╨╗╨╛╨╢╨╡╨╜╨╕╤П</h3>' +
-        '<p>1.1. ╨Э╨░╤Б╤В╨╛╤П╤Й╨╕╨╣ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В ╤П╨▓╨╗╤П╨╡╤В╤Б╤П ╨╛╤Д╨╕╤Ж╨╕╨░╨╗╤М╨╜╤Л╨╝ ╨┐╤А╨╡╨┤╨╗╨╛╨╢╨╡╨╜╨╕╨╡╨╝ (╨┐╤Г╨▒╨╗╨╕╤З╨╜╨╛╨╣ ╨╛╤Д╨╡╤А╤В╨╛╨╣) ╨Ш╨╜╨┤╨╕╨▓╨╕╨┤╤Г╨░╨╗╤М╨╜╨╛╨│╨╛ ╨┐╤А╨╡╨┤╨┐╤А╨╕╨╜╨╕╨╝╨░╤В╨╡╨╗╤П ╨Ц╨░╤А╨│╨░╨╗╨╛╨▓╨╛╨╣ ╨Ь╨╕╨╗╨╡╨╜╤Л ╨Р╨╗╨╡╨║╤Б╨░╨╜╨┤╤А╨╛╨▓╨╜╤Л (╨┤╨░╨╗╨╡╨╡ тАФ ┬л╨Я╤А╨╛╨┤╨░╨▓╨╡╤Ж┬╗) ╨╖╨░╨║╨╗╤О╤З╨╕╤В╤М ╨┤╨╛╨│╨╛╨▓╨╛╤А ╤А╨╛╨╖╨╜╨╕╤З╨╜╨╛╨╣ ╨║╤Г╨┐╨╗╨╕-╨┐╤А╨╛╨┤╨░╨╢╨╕ ╤В╨╛╨▓╨░╤А╨╛╨▓ ╨┤╨╕╤Б╤В╨░╨╜╤Ж╨╕╨╛╨╜╨╜╤Л╨╝ ╤Б╨┐╨╛╤Б╨╛╨▒╨╛╨╝ ╤З╨╡╤А╨╡╨╖ ╤Б╨░╨╣╤В arkaflowers.shop.</p>' +
-        '<p>1.2. ╨Т ╤Б╨╛╨╛╤В╨▓╨╡╤В╤Б╤В╨▓╨╕╨╕ ╤Б╨╛ ╤Б╤В╨░╤В╤М╤П╨╝╨╕ 435тАУ437 ╨У╤А╨░╨╢╨┤╨░╨╜╤Б╨║╨╛╨│╨╛ ╨║╨╛╨┤╨╡╨║╤Б╨░ ╨а╨д ╨╛╤Д╨╛╤А╨╝╨╗╨╡╨╜╨╕╨╡ ╨Ч╨░╨║╨░╨╖╨░ ╨╕ ╨╡╨│╨╛ ╨╛╨┐╨╗╨░╤В╨░ ╨Я╨╛╨║╤Г╨┐╨░╤В╨╡╨╗╨╡╨╝ ╨╛╨╖╨╜╨░╤З╨░╨╡╤В ╨┐╨╛╨╗╨╜╨╛╨╡ ╨╕ ╨▒╨╡╨╖╨╛╨│╨╛╨▓╨╛╤А╨╛╤З╨╜╨╛╨╡ ╨┐╤А╨╕╨╜╤П╤В╨╕╨╡ (╨░╨║╤Ж╨╡╨┐╤В) ╤Г╤Б╨╗╨╛╨▓╨╕╨╣ ╨╜╨░╤Б╤В╨╛╤П╤Й╨╡╨╣ ╨Ю╤Д╨╡╤А╤В╤Л.</p>' +
-        '<p>1.3. ╨Ю╤Д╨╡╤А╤В╨░ ╨┤╨╡╨╣╤Б╤В╨▓╤Г╨╡╤В ╨▓ ╨╛╤В╨╜╨╛╤И╨╡╨╜╨╕╨╕ ╨╗╤О╨▒╨╛╨│╨╛ ╨╗╨╕╤Ж╨░, ╨╛╤Д╨╛╤А╨╝╨╕╨▓╤И╨╡╨│╨╛ ╨╖╨░╨║╨░╨╖ ╨╜╨░ ╤Б╨░╨╣╤В╨╡.</p>' +
-        '<h3>2. ╨б╨▓╨╡╨┤╨╡╨╜╨╕╤П ╨╛ ╨Я╤А╨╛╨┤╨░╨▓╤Ж╨╡</h3>' +
-        '<p>╨Ш╨╜╨┤╨╕╨▓╨╕╨┤╤Г╨░╨╗╤М╨╜╤Л╨╣ ╨┐╤А╨╡╨┤╨┐╤А╨╕╨╜╨╕╨╝╨░╤В╨╡╨╗╤М ╨Ц╨░╤А╨│╨░╨╗╨╛╨▓╨░ ╨Ь╨╕╨╗╨╡╨╜╨░ ╨Р╨╗╨╡╨║╤Б╨░╨╜╨┤╤А╨╛╨▓╨╜╨░<br>' +
-        '╨Ш╨Э╨Э: 380455657342<br>' +
-        '╨Ю╨У╨а╨Э╨Ш╨Я: 322645700026683<br>' +
-        '╨Р╨┤╤А╨╡╤Б: ╨г╨╗. ╨╕╨╝. ╨Я╤Г╨│╨░╤З╤С╨▓╨░, ╨┤. 49╨░, ╨║╨▓. 147<br>' +
-        '╨в╨╡╨╗╨╡╤Д╨╛╨╜: +7 (996) 122-05-70<br>' +
+        '<h2>Публичная оферта</h2>' +
+        '<h3>1. Общие положения</h3>' +
+        '<p>1.1. Настоящий документ является официальным предложением (публичной офертой) Индивидуального предпринимателя Жаргаловой Милены Александровны (далее — «Продавец») заключить договор розничной купли-продажи товаров дистанционным способом через сайт arkaflowers.shop.</p>' +
+        '<p>1.2. В соответствии со статьями 435–437 Гражданского кодекса РФ оформление Заказа и его оплата Покупателем означает полное и безоговорочное принятие (акцепт) условий настоящей Оферты.</p>' +
+        '<p>1.3. Оферта действует в отношении любого лица, оформившего заказ на сайте.</p>' +
+        '<h3>2. Сведения о Продавце</h3>' +
+        '<p>Индивидуальный предприниматель Жаргалова Милена Александровна<br>' +
+        'ИНН: 380455657342<br>' +
+        'ОГРНИП: 322645700026683<br>' +
+        'Адрес: Ул. им. Пугачёва, д. 49а, кв. 147<br>' +
+        'Телефон: +7 (996) 122-05-70<br>' +
         'Email: arkaflowers@bk.ru</p>' +
-        '<h3>3. ╨Я╤А╨╡╨┤╨╝╨╡╤В ╨┤╨╛╨│╨╛╨▓╨╛╤А╨░</h3>' +
-        '<p>3.1. ╨Я╤А╨╛╨┤╨░╨▓╨╡╤Ж ╨╛╨▒╤П╨╖╤Г╨╡╤В╤Б╤П ╨┐╨╡╤А╨╡╨┤╨░╤В╤М ╨▓ ╤Б╨╛╨▒╤Б╤В╨▓╨╡╨╜╨╜╨╛╤Б╤В╤М ╨Я╨╛╨║╤Г╨┐╨░╤В╨╡╨╗╤П ╤Ж╨▓╨╡╤В╨╛╤З╨╜╤Г╤О ╨┐╤А╨╛╨┤╤Г╨║╤Ж╨╕╤О (╨▒╤Г╨║╨╡╤В╤Л, ╨║╨╛╨╝╨┐╨╛╨╖╨╕╤Ж╨╕╨╕, ╨┐╨╛╨┤╨░╤А╨║╨╕), ╨┐╤А╨╡╨┤╤Б╤В╨░╨▓╨╗╨╡╨╜╨╜╤Г╤О ╨╜╨░ ╤Б╨░╨╣╤В╨╡, ╨░ ╨Я╨╛╨║╤Г╨┐╨░╤В╨╡╨╗╤М ╨╛╨▒╤П╨╖╤Г╨╡╤В╤Б╤П ╨╛╨┐╨╗╨░╤В╨╕╤В╤М ╨╕ ╨┐╤А╨╕╨╜╤П╤В╤М ╤В╨╛╨▓╨░╤А.</p>' +
-        '<p>3.2. ╨Т╨╜╨╡╤И╨╜╨╕╨╣ ╨▓╨╕╨┤ ╨▒╤Г╨║╨╡╤В╨░ ╨╝╨╛╨╢╨╡╤В ╨╜╨╡╨╖╨╜╨░╤З╨╕╤В╨╡╨╗╤М╨╜╨╛ ╨╛╤В╨╗╨╕╤З╨░╤В╤М╤Б╤П ╨╛╤В ╨╕╨╖╨╛╨▒╤А╨░╨╢╨╡╨╜╨╕╤П ╨╜╨░ ╤Б╨░╨╣╤В╨╡ ╨▓ ╨╖╨░╨▓╨╕╤Б╨╕╨╝╨╛╤Б╤В╨╕ ╨╛╤В ╤Б╨╡╨╖╨╛╨╜╨╜╨╛╤Б╤В╨╕ ╨╕ ╨╜╨░╨╗╨╕╤З╨╕╤П ╤Ж╨▓╨╡╤В╨╛╨▓, ╨┐╤А╨╕ ╤Б╨╛╤Е╤А╨░╨╜╨╡╨╜╨╕╨╕ ╨╛╨▒╤Й╨╡╨╣ ╤Б╤В╨╕╨╗╨╕╤Б╤В╨╕╨║╨╕ ╨╕ ╤Ж╨╡╨╜╨╛╨▓╨╛╨╣ ╨║╨░╤В╨╡╨│╨╛╤А╨╕╨╕.</p>' +
-        '<h3>4. ╨Ю╤Д╨╛╤А╨╝╨╗╨╡╨╜╨╕╨╡ ╨╖╨░╨║╨░╨╖╨░</h3>' +
-        '<p>4.1. ╨Ч╨░╨║╨░╨╖ ╨╛╤Д╨╛╤А╨╝╨╗╤П╨╡╤В╤Б╤П ╨Я╨╛╨║╤Г╨┐╨░╤В╨╡╨╗╨╡╨╝ ╤Б╨░╨╝╨╛╤Б╤В╨╛╤П╤В╨╡╨╗╤М╨╜╨╛ ╤З╨╡╤А╨╡╨╖ ╤Б╨░╨╣╤В.</p>' +
-        '<p>4.2. ╨Я╨╛╨║╤Г╨┐╨░╤В╨╡╨╗╤М ╨╛╨▒╤П╨╖╨░╨╜ ╨┐╤А╨╡╨┤╨╛╤Б╤В╨░╨▓╨╕╤В╤М ╨┤╨╛╤Б╤В╨╛╨▓╨╡╤А╨╜╤Г╤О ╨╕╨╜╤Д╨╛╤А╨╝╨░╤Ж╨╕╤О (╨╕╨╝╤П, ╤В╨╡╨╗╨╡╤Д╨╛╨╜, ╨░╨┤╤А╨╡╤Б ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕).</p>' +
-        '<p>4.3. ╨Я╨╛╤Б╨╗╨╡ ╨╛╤Д╨╛╤А╨╝╨╗╨╡╨╜╨╕╤П ╨╖╨░╨║╨░╨╖╨░ ╨Я╤А╨╛╨┤╨░╨▓╨╡╤Ж ╤Б╨▓╤П╨╖╤Л╨▓╨░╨╡╤В╤Б╤П ╤Б ╨Я╨╛╨║╤Г╨┐╨░╤В╨╡╨╗╨╡╨╝ ╨┤╨╗╤П ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨╕╤П ╨┤╨╡╤В╨░╨╗╨╡╨╣ ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕ ╨╕ ╤Б╨╛╤Б╤В╨░╨▓╨░ ╨▒╤Г╨║╨╡╤В╨░.</p>' +
-        '<p>4.4. ╨Я╤А╨╛╨┤╨░╨▓╨╡╤Ж ╨▓╨┐╤А╨░╨▓╨╡ ╨╖╨░╨╝╨╡╨╜╨╕╤В╤М ╨╛╤В╨┤╨╡╨╗╤М╨╜╤Л╨╡ ╤Ж╨▓╨╡╤В╤Л ╨▓ ╨▒╤Г╨║╨╡╤В╨╡ ╨┐╤А╨╕ ╨╛╤В╤Б╤Г╤В╤Б╤В╨▓╨╕╨╕ ╨╜╨╡╨╛╨▒╤Е╨╛╨┤╨╕╨╝╤Л╤Е ╨┐╨╛╨╖╨╕╤Ж╨╕╨╣, ╨┐╤А╨╡╨┤╨▓╨░╤А╨╕╤В╨╡╨╗╤М╨╜╨╛ ╤Б╨╛╨│╨╗╨░╤Б╨╛╨▓╨░╨▓ ╨╖╨░╨╝╨╡╨╜╤Г ╤Б ╨Я╨╛╨║╤Г╨┐╨░╤В╨╡╨╗╨╡╨╝.</p>' +
-        '<h3>5. ╨ж╨╡╨╜╨░ ╨╕ ╨╛╨┐╨╗╨░╤В╨░</h3>' +
-        '<p>5.1. ╨ж╨╡╨╜╤Л ╨╜╨░ ╤В╨╛╨▓╨░╤А╤Л ╤Г╨║╨░╨╖╨░╨╜╤Л ╨▓ ╤А╤Г╨▒╨╗╤П╤Е ╨а╨╛╤Б╤Б╨╕╨╣╤Б╨║╨╛╨╣ ╨д╨╡╨┤╨╡╤А╨░╤Ж╨╕╨╕.</p>' +
-        '<p>5.2. ╨Ю╨┐╨╗╨░╤В╨░ ╨╖╨░╨║╨░╨╖╨░ ╨╛╤Б╤Г╤Й╨╡╤Б╤В╨▓╨╗╤П╨╡╤В╤Б╤П ╨╛╨╜╨╗╨░╨╣╨╜ ╨╜╨░ ╤Б╨░╨╣╤В╨╡ ╨╗╨╕╨▒╨╛ ╨╕╨╜╤Л╨╝ ╤Б╨┐╨╛╤Б╨╛╨▒╨╛╨╝, ╨┤╨╛╤Б╤В╤Г╨┐╨╜╤Л╨╝ ╨╜╨░ ╤Б╨░╨╣╤В╨╡.</p>' +
-        '<p>5.3. ╨Ч╨░╨║╨░╨╖ ╤Б╤З╨╕╤В╨░╨╡╤В╤Б╤П ╨╛╨┐╨╗╨░╤З╨╡╨╜╨╜╤Л╨╝ ╤Б ╨╝╨╛╨╝╨╡╨╜╤В╨░ ╨┐╨╛╤Б╤В╤Г╨┐╨╗╨╡╨╜╨╕╤П ╨┤╨╡╨╜╨╡╨╢╨╜╤Л╤Е ╤Б╤А╨╡╨┤╤Б╤В╨▓ ╨Я╤А╨╛╨┤╨░╨▓╤Ж╤Г.</p>' +
-        '<h3>6. ╨Ф╨╛╤Б╤В╨░╨▓╨║╨░ ╨╕ ╤Б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖</h3>' +
-        '<p>6.1. ╨Ф╨╛╤Б╤В╨░╨▓╨║╨░ ╨╛╤Б╤Г╤Й╨╡╤Б╤В╨▓╨╗╤П╨╡╤В╤Б╤П ╨┐╨╛ ╨│. ╨б╨░╤А╨░╤В╨╛╨▓╤Г ╨╕ ╨│. ╨н╨╜╨│╨╡╨╗╤М╤Б╤Г.</p>' +
-        '<p>6.2. ╨б╤В╨╛╨╕╨╝╨╛╤Б╤В╤М ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕ ╨┐╨╛ ╨│╨╛╤А╨╛╨┤╤Г ╤Б╨╛╤Б╤В╨░╨▓╨╗╤П╨╡╤В ╨╛╤В 350 ╤А╤Г╨▒╨╗╨╡╨╣ ╨╕ ╤Г╨║╨░╨╖╤Л╨▓╨░╨╡╤В╤Б╤П ╨┐╤А╨╕ ╨╛╤Д╨╛╤А╨╝╨╗╨╡╨╜╨╕╨╕ ╨╖╨░╨║╨░╨╖╨░.</p>' +
-        '<p>6.3. ╨б╤А╨╛╨║╨╕ ╨╕ ╨▓╤А╨╡╨╝╨╡╨╜╨╜╤Л╨╡ ╨╕╨╜╤В╨╡╤А╨▓╨░╨╗╤Л ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕ ╤Б╨╛╨│╨╗╨░╤Б╨╛╨▓╤Л╨▓╨░╤О╤В╤Б╤П ╨┐╤А╨╕ ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨╕╨╕ ╨╖╨░╨║╨░╨╖╨░.</p>' +
-        '<p>6.4. ╨Т╨╛╨╖╨╝╨╛╨╢╨╡╨╜ ╤Б╨░╨╝╨╛╨▓╤Л╨▓╨╛╨╖ ╨╕╨╖ ╨╛╤Д╨╗╨░╨╣╨╜-╨╝╨░╨│╨░╨╖╨╕╨╜╨░ ╨Я╤А╨╛╨┤╨░╨▓╤Ж╨░ ╨▓ ╤З╨░╤Б╤Л ╨╡╨│╨╛ ╤А╨░╨▒╨╛╤В╤Л.</p>' +
-        '<p>6.5. ╨а╨╕╤Б╨║ ╤Б╨╗╤Г╤З╨░╨╣╨╜╨╛╨╣ ╨│╨╕╨▒╨╡╨╗╨╕ ╨╕╨╗╨╕ ╨┐╨╛╨▓╤А╨╡╨╢╨┤╨╡╨╜╨╕╤П ╤В╨╛╨▓╨░╤А╨░ ╨┐╨╡╤А╨╡╤Е╨╛╨┤╨╕╤В ╨║ ╨Я╨╛╨║╤Г╨┐╨░╤В╨╡╨╗╤О ╤Б ╨╝╨╛╨╝╨╡╨╜╤В╨░ ╨┐╨╡╤А╨╡╨┤╨░╤З╨╕ ╤В╨╛╨▓╨░╤А╨░ ╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤О.</p>' +
-        '<h3>7. ╨Т╨╛╨╖╨▓╤А╨░╤В ╨╕ ╨┐╤А╨╡╤В╨╡╨╜╨╖╨╕╨╕</h3>' +
-        '<p>7.1. ╨Т ╤Б╨╛╨╛╤В╨▓╨╡╤В╤Б╤В╨▓╨╕╨╕ ╤Б ╨Я╨╛╤Б╤В╨░╨╜╨╛╨▓╨╗╨╡╨╜╨╕╨╡╨╝ ╨Я╤А╨░╨▓╨╕╤В╨╡╨╗╤М╤Б╤В╨▓╨░ ╨а╨д тДЦ2463, ╤Б╤А╨╡╨╖╨░╨╜╨╜╤Л╨╡ ╤Ж╨▓╨╡╤В╤Л ╨╕ ╨▒╤Г╨║╨╡╤В╤Л ╨╜╨░╨┤╨╗╨╡╨╢╨░╤Й╨╡╨│╨╛ ╨║╨░╤З╨╡╤Б╤В╨▓╨░ ╨╛╨▒╨╝╨╡╨╜╤Г ╨╕ ╨▓╨╛╨╖╨▓╤А╨░╤В╤Г ╨╜╨╡ ╨┐╨╛╨┤╨╗╨╡╨╢╨░╤В.</p>' +
-        '<p>7.2. ╨Я╤А╨╡╤В╨╡╨╜╨╖╨╕╨╕ ╨┐╨╛ ╨║╨░╤З╨╡╤Б╤В╨▓╤Г ╤В╨╛╨▓╨░╤А╨░ ╨┐╤А╨╕╨╜╨╕╨╝╨░╤О╤В╤Б╤П ╨▓ ╨╝╨╛╨╝╨╡╨╜╤В ╨┐╨╛╨╗╤Г╤З╨╡╨╜╨╕╤П ╨╗╨╕╨▒╨╛ ╨▓ ╤В╨╡╤З╨╡╨╜╨╕╨╡ 30 ╨╝╨╕╨╜╤Г╤В ╨┐╨╛╤Б╨╗╨╡ ╨┐╨╡╤А╨╡╨┤╨░╤З╨╕ ╤В╨╛╨▓╨░╤А╨░ ╨┐╤А╨╕ ╨╜╨░╨╗╨╕╤З╨╕╨╕ ╤Д╨╛╤В╨╛╤Д╨╕╨║╤Б╨░╤Ж╨╕╨╕.</p>' +
-        '<p>7.3. ╨Т╨╛╨╖╨▓╤А╨░╤В ╨┤╨╡╨╜╨╡╨╢╨╜╤Л╤Е ╤Б╤А╨╡╨┤╤Б╤В╨▓ ╨▓╨╛╨╖╨╝╨╛╨╢╨╡╨╜ ╤В╨╛╨╗╤М╨║╨╛ ╨▓ ╤Б╨╗╤Г╤З╨░╨╡ ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╤С╨╜╨╜╨╛╨│╨╛ ╨╜╨╡╨╜╨░╨┤╨╗╨╡╨╢╨░╤Й╨╡╨│╨╛ ╨║╨░╤З╨╡╤Б╤В╨▓╨░ ╤В╨╛╨▓╨░╤А╨░.</p>' +
-        '<p>7.4. ╨Т ╤Б╨╗╤Г╤З╨░╨╡ ╨╛╤В╤Б╤Г╤В╤Б╤В╨▓╨╕╤П ╨┐╨╛╨╗╤Г╤З╨░╤В╨╡╨╗╤П ╨┐╨╛ ╨░╨┤╤А╨╡╤Б╤Г ╨┤╨╛╤Б╤В╨░╨▓╨║╨╕ ╨┐╨╛╨▓╤В╨╛╤А╨╜╨░╤П ╨┤╨╛╤Б╤В╨░╨▓╨║╨░ ╨╛╤Б╤Г╤Й╨╡╤Б╤В╨▓╨╗╤П╨╡╤В╤Б╤П ╨╖╨░ ╨┤╨╛╨┐╨╛╨╗╨╜╨╕╤В╨╡╨╗╤М╨╜╤Г╤О ╨┐╨╗╨░╤В╤Г.</p>' +
-        '<h3>8. ╨Ю╤В╨▓╨╡╤В╤Б╤В╨▓╨╡╨╜╨╜╨╛╤Б╤В╤М ╤Б╤В╨╛╤А╨╛╨╜</h3>' +
-        '<p>8.1. ╨Я╤А╨╛╨┤╨░╨▓╨╡╤Ж ╨╜╨╡ ╨╜╨╡╤Б╤С╤В ╨╛╤В╨▓╨╡╤В╤Б╤В╨▓╨╡╨╜╨╜╨╛╤Б╤В╨╕ ╨╖╨░ ╤Б╤Г╨▒╤К╨╡╨║╤В╨╕╨▓╨╜╨╛╨╡ ╨╜╨╡╤Б╨╛╨╛╤В╨▓╨╡╤В╤Б╤В╨▓╨╕╨╡ ╨╛╨╢╨╕╨┤╨░╨╜╨╕╨╣ ╨Я╨╛╨║╤Г╨┐╨░╤В╨╡╨╗╤П ╨╕ ╤Д╨░╨║╤В╨╕╤З╨╡╤Б╨║╨╛╨│╨╛ ╨▓╨╜╨╡╤И╨╜╨╡╨│╨╛ ╨▓╨╕╨┤╨░ ╨▒╤Г╨║╨╡╤В╨░.</p>' +
-        '<p>8.2. ╨Я╤А╨╛╨┤╨░╨▓╨╡╤Ж ╨╛╤Б╨▓╨╛╨▒╨╛╨╢╨┤╨░╨╡╤В╤Б╤П ╨╛╤В ╨╛╤В╨▓╨╡╤В╤Б╤В╨▓╨╡╨╜╨╜╨╛╤Б╤В╨╕ ╨╖╨░ ╨╜╨╡╨╕╤Б╨┐╨╛╨╗╨╜╨╡╨╜╨╕╨╡ ╨╛╨▒╤П╨╖╨░╤В╨╡╨╗╤М╤Б╤В╨▓ ╨▓╤Б╨╗╨╡╨┤╤Б╤В╨▓╨╕╨╡ ╤Д╨╛╤А╤Б-╨╝╨░╨╢╨╛╤А╨╜╤Л╤Е ╨╛╨▒╤Б╤В╨╛╤П╤В╨╡╨╗╤М╤Б╤В╨▓.</p>' +
-        '<h3>9. ╨Я╨╡╤А╤Б╨╛╨╜╨░╨╗╤М╨╜╤Л╨╡ ╨┤╨░╨╜╨╜╤Л╨╡</h3>' +
-        '<p>9.1. ╨Ю╤Д╨╛╤А╨╝╨╗╤П╤П ╨╖╨░╨║╨░╨╖, ╨Я╨╛╨║╤Г╨┐╨░╤В╨╡╨╗╤М ╨┤╨░╤С╤В ╤Б╨╛╨│╨╗╨░╤Б╨╕╨╡ ╨╜╨░ ╨╛╨▒╤А╨░╨▒╨╛╤В╨║╤Г ╨┐╨╡╤А╤Б╨╛╨╜╨░╨╗╤М╨╜╤Л╤Е ╨┤╨░╨╜╨╜╤Л╤Е ╨▓ ╤Б╨╛╨╛╤В╨▓╨╡╤В╤Б╤В╨▓╨╕╨╕ ╤Б ╨Я╨╛╨╗╨╕╤В╨╕╨║╨╛╨╣ ╨║╨╛╨╜╤Д╨╕╨┤╨╡╨╜╤Ж╨╕╨░╨╗╤М╨╜╨╛╤Б╤В╨╕ ╨╕ ╨╛╨▒╤А╨░╨▒╨╛╤В╨║╨╕ ╨┐╨╡╤А╤Б╨╛╨╜╨░╨╗╤М╨╜╤Л╤Е ╨┤╨░╨╜╨╜╤Л╤Е, ╤А╨░╨╖╨╝╨╡╤Й╤С╨╜╨╜╨╛╨╣ ╨╜╨░ ╤Б╨░╨╣╤В╨╡.</p>' +
-        '<p>9.2. ╨Ю╨▒╤А╨░╨▒╨╛╤В╨║╨░ ╨┐╨╡╤А╤Б╨╛╨╜╨░╨╗╤М╨╜╤Л╤Е ╨┤╨░╨╜╨╜╤Л╤Е ╨╛╤Б╤Г╤Й╨╡╤Б╤В╨▓╨╗╤П╨╡╤В╤Б╤П ╨▓ ╤Б╨╛╨╛╤В╨▓╨╡╤В╤Б╤В╨▓╨╕╨╕ ╤Б ╨д╨Ч тДЦ152-╨д╨Ч.</p>' +
-        '<h3>10. ╨Ч╨░╨║╨╗╤О╤З╨╕╤В╨╡╨╗╤М╨╜╤Л╨╡ ╨┐╨╛╨╗╨╛╨╢╨╡╨╜╨╕╤П</h3>' +
-        '<p>10.1. ╨Я╤А╨╛╨┤╨░╨▓╨╡╤Ж ╨▓╨┐╤А╨░╨▓╨╡ ╨▓╨╜╨╛╤Б╨╕╤В╤М ╨╕╨╖╨╝╨╡╨╜╨╡╨╜╨╕╤П ╨▓ ╨╜╨░╤Б╤В╨╛╤П╤Й╤Г╤О ╨Ю╤Д╨╡╤А╤В╤Г ╨▓ ╨╛╨┤╨╜╨╛╤Б╤В╨╛╤А╨╛╨╜╨╜╨╡╨╝ ╨┐╨╛╤А╤П╨┤╨║╨╡.</p>' +
-        '<p>10.2. ╨Р╨║╤В╤Г╨░╨╗╤М╨╜╨░╤П ╨▓╨╡╤А╤Б╨╕╤П ╨Ю╤Д╨╡╤А╤В╤Л ╤А╨░╨╖╨╝╨╡╤Й╨░╨╡╤В╤Б╤П ╨╜╨░ ╤Б╨░╨╣╤В╨╡ arkaflowers.shop.</p>' +
-        '<p>10.3. ╨Э╨░╤Б╤В╨╛╤П╤Й╨░╤П ╨Ю╤Д╨╡╤А╤В╨░ ╨┤╨╡╨╣╤Б╤В╨▓╤Г╨╡╤В ╨▒╨╡╤Б╤Б╤А╨╛╤З╨╜╨╛.</p>' +
+        '<h3>3. Предмет договора</h3>' +
+        '<p>3.1. Продавец обязуется передать в собственность Покупателя цветочную продукцию (букеты, композиции, подарки), представленную на сайте, а Покупатель обязуется оплатить и принять товар.</p>' +
+        '<p>3.2. Внешний вид букета может незначительно отличаться от изображения на сайте в зависимости от сезонности и наличия цветов, при сохранении общей стилистики и ценовой категории.</p>' +
+        '<h3>4. Оформление заказа</h3>' +
+        '<p>4.1. Заказ оформляется Покупателем самостоятельно через сайт.</p>' +
+        '<p>4.2. Покупатель обязан предоставить достоверную информацию (имя, телефон, адрес доставки).</p>' +
+        '<p>4.3. После оформления заказа Продавец связывается с Покупателем для подтверждения деталей доставки и состава букета.</p>' +
+        '<p>4.4. Продавец вправе заменить отдельные цветы в букете при отсутствии необходимых позиций, предварительно согласовав замену с Покупателем.</p>' +
+        '<h3>5. Цена и оплата</h3>' +
+        '<p>5.1. Цены на товары указаны в рублях Российской Федерации.</p>' +
+        '<p>5.2. Оплата заказа осуществляется онлайн на сайте либо иным способом, доступным на сайте.</p>' +
+        '<p>5.3. Заказ считается оплаченным с момента поступления денежных средств Продавцу.</p>' +
+        '<h3>6. Доставка и самовывоз</h3>' +
+        '<p>6.1. Доставка осуществляется по г. Саратову и г. Энгельсу.</p>' +
+        '<p>6.2. Стоимость доставки по городу составляет от 350 рублей и указывается при оформлении заказа.</p>' +
+        '<p>6.3. Сроки и временные интервалы доставки согласовываются при подтверждении заказа.</p>' +
+        '<p>6.4. Возможен самовывоз из офлайн-магазина Продавца в часы его работы.</p>' +
+        '<p>6.5. Риск случайной гибели или повреждения товара переходит к Покупателю с момента передачи товара получателю.</p>' +
+        '<h3>7. Возврат и претензии</h3>' +
+        '<p>7.1. В соответствии с Постановлением Правительства РФ №2463, срезанные цветы и букеты надлежащего качества обмену и возврату не подлежат.</p>' +
+        '<p>7.2. Претензии по качеству товара принимаются в момент получения либо в течение 30 минут после передачи товара при наличии фотофиксации.</p>' +
+        '<p>7.3. Возврат денежных средств возможен только в случае подтверждённого ненадлежащего качества товара.</p>' +
+        '<p>7.4. В случае отсутствия получателя по адресу доставки повторная доставка осуществляется за дополнительную плату.</p>' +
+        '<h3>8. Ответственность сторон</h3>' +
+        '<p>8.1. Продавец не несёт ответственности за субъективное несоответствие ожиданий Покупателя и фактического внешнего вида букета.</p>' +
+        '<p>8.2. Продавец освобождается от ответственности за неисполнение обязательств вследствие форс-мажорных обстоятельств.</p>' +
+        '<h3>9. Персональные данные</h3>' +
+        '<p>9.1. Оформляя заказ, Покупатель даёт согласие на обработку персональных данных в соответствии с Политикой конфиденциальности и обработки персональных данных, размещённой на сайте.</p>' +
+        '<p>9.2. Обработка персональных данных осуществляется в соответствии с ФЗ №152-ФЗ.</p>' +
+        '<h3>10. Заключительные положения</h3>' +
+        '<p>10.1. Продавец вправе вносить изменения в настоящую Оферту в одностороннем порядке.</p>' +
+        '<p>10.2. Актуальная версия Оферты размещается на сайте arkaflowers.shop.</p>' +
+        '<p>10.3. Настоящая Оферта действует бессрочно.</p>' +
       '</div>'
     );
   }
@@ -4878,22 +5129,22 @@
 
   window.onTelegramAuth = function (user) {
     if (!user || !user.id || !user.hash) {
-      showToast('╨Ю╤И╨╕╨▒╨║╨░ ╨▓╤Е╨╛╨┤╨░ ╤З╨╡╤А╨╡╨╖ Telegram');
+      showToast('Ошибка входа через Telegram');
       return;
     }
     postJSON('/api/auth/telegram-web', user).then(function (r) {
       if (!r || !r.user) {
-        var msg = (r && (r.error || r.message)) ? String(r.error || r.message) : '╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨▓╤Л╨┐╨╛╨╗╨╜╨╕╤В╤М ╨▓╤Е╨╛╨┤';
+        var msg = (r && (r.error || r.message)) ? String(r.error || r.message) : 'Не удалось выполнить вход';
         showToast(msg);
         return;
       }
       dbUser = r.user;
       try { localStorage.setItem('arka_tg_id', String(r.user.telegram_id || user.id)); } catch (e) {}
       try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
-      showToast('╨Т╤Е╨╛╨┤ ╨▓╤Л╨┐╨╛╨╗╨╜╨╡╨╜');
+      showToast('Вход выполнен');
       navigateTo('account');
     }).catch(function (err) {
-      showToast('╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨▓╤Л╨┐╨╛╨╗╨╜╨╕╤В╤М ╨▓╤Е╨╛╨┤: ' + ((err && err.message) ? err.message : '╨╜╨╡╤В ╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╤П'));
+      showToast('Не удалось выполнить вход: ' + ((err && err.message) ? err.message : 'нет соединения'));
     });
   };
 
@@ -4907,10 +5158,14 @@
       detachMobileQuickCatsScroll();
       detachMobileQuickCatsScroll = null;
     }
+    if (page !== 'home' && detachWebCatalogSheetBehavior) {
+      detachWebCatalogSheetBehavior();
+      detachWebCatalogSheetBehavior = null;
+    }
     if (page !== 'home' && document && document.body) document.body.classList.remove('mobile-toolbar-fixed');
     if (page !== 'account') stopTrackingPoll();
     if (page !== 'checkout' && _inCheckout) {
-      sendAbandonedCart('╨г╤И╤С╨╗ ╨╜╨░: ' + page);
+      sendAbandonedCart('Ушёл на: ' + page);
       _inCheckout = false;
       stopAbandonTimer();
     }
@@ -5078,11 +5333,11 @@
   function validatePhone(phone) {
     var digits = phone.replace(/\D/g, '');
     if (digits.length !== 11) {
-      showToast('╨Э╨╛╨╝╨╡╤А ╤В╨╡╨╗╨╡╤Д╨╛╨╜╨░ ╨┤╨╛╨╗╨╢╨╡╨╜ ╤Б╨╛╨┤╨╡╤А╨╢╨░╤В╤М 11 ╤Ж╨╕╤Д╤А');
+      showToast('Номер телефона должен содержать 11 цифр');
       return false;
     }
     if (!/^[78]/.test(digits)) {
-      showToast('╨Э╨╛╨╝╨╡╤А ╨┤╨╛╨╗╨╢╨╡╨╜ ╨╜╨░╤З╨╕╨╜╨░╤В╤М╤Б╤П ╤Б +7 ╨╕╨╗╨╕ 8');
+      showToast('Номер должен начинаться с +7 или 8');
       return false;
     }
     return true;
@@ -5090,7 +5345,7 @@
 
   function validateEmail(email) {
     if (!/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
-      showToast('╨Я╨╛╤З╤В╨░ ╨┤╨╛╨╗╨╢╨╜╨░ ╤Б╨╛╨┤╨╡╤А╨╢╨░╤В╤М ╤В╨╛╨╗╤М╨║╨╛ ╨╗╨░╤В╨╕╨╜╨╕╤Ж╤Г, @ ╨╕ ╨┤╨╛╨╝╨╡╨╜');
+      showToast('Почта должна содержать только латиницу, @ и домен');
       return false;
     }
     var allowedDomains = [
@@ -5102,7 +5357,7 @@
     var domain = email.split('@')[1].toLowerCase();
     var isAllowed = allowedDomains.some(function (d) { return domain === d; });
     if (!isAllowed) {
-      showToast('╨г╨║╨░╨╢╨╕╤В╨╡ ╨┐╨╛╤З╤В╤Г ╨╜╨░ ╨╕╨╖╨▓╨╡╤Б╤В╨╜╨╛╨╝ ╤Б╨╡╤А╨▓╨╕╤Б╨╡ (gmail.com, mail.ru, yandex.ru ╨╕ ╤В.╨┤.)');
+      showToast('Укажите почту на известном сервисе (gmail.com, mail.ru, yandex.ru и т.д.)');
       return false;
     }
     return true;
