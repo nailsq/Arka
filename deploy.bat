@@ -51,6 +51,11 @@ if exist "%SystemRoot%\System32\OpenSSH\ssh.exe" (
   set "GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=accept-new"
 )
 
+REM Не пишем core.sshCommand в .git/config: Git for Windows передаёт значение в sh и путь
+REM к C:\Windows\System32\OpenSSH\ssh.exe ломается (command not found).
+REM Достаточно GIT_SSH_COMMAND на время сессии CMD.
+git config --unset core.sshCommand 2>nul
+
 echo.
 echo === Deploy: %CD% ===
 echo.
@@ -61,10 +66,6 @@ if errorlevel 1 (
   echo Install Git for Windows: https://git-scm.com/download/win
   pause
   exit /b 1
-)
-
-if exist "%SystemRoot%\System32\OpenSSH\ssh.exe" (
-  git config core.sshCommand "%SystemRoot:\=/%/System32/OpenSSH/ssh.exe -o StrictHostKeyChecking=accept-new"
 )
 
 git remote get-url production >nul 2>&1
