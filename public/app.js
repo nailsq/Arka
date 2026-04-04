@@ -11,7 +11,6 @@
   var webTelegramBotUsername = '';
   var webTelegramBotId = '';
   var webTelegramAuthUrl = '';
-  var webTelegramBotChecked = false;
   var desktopHeroShownThisLoad = false;
 
   // ============================================================
@@ -359,20 +358,17 @@
   }
 
   function ensureWebTelegramBotUsername() {
-    if (webTelegramBotChecked) {
-      return Promise.resolve(webTelegramBotUsername || '');
+    if (webTelegramBotUsername) {
+      return Promise.resolve(webTelegramBotUsername);
     }
-    // For web login we only need bot username from /api/client-config
-    return fetchJSON('/api/client-config')
+    return fetchJSON('/api/client-config?_=' + Date.now())
       .then(function (cfg) {
-        webTelegramBotChecked = true;
         if (cfg && cfg.telegram_bot_username) {
           webTelegramBotUsername = String(cfg.telegram_bot_username).replace(/^@/, '').trim();
         }
         return webTelegramBotUsername || '';
       })
       .catch(function () {
-        webTelegramBotChecked = true;
         return '';
       });
   }
@@ -384,7 +380,12 @@
     ensureWebTelegramBotUsername().then(function (botUsername) {
       if (!container || !container.parentNode) return;
       if (!botUsername) {
-        container.innerHTML = '<div class="empty-state" style="padding:12px">Вход через Telegram временно недоступен. Напишите, и мы быстро включим его.</div>';
+        container.innerHTML =
+          '<div class="empty-state" style="padding:12px">' +
+          'Вход через Telegram не настроен: на сервере нужен рабочий <strong>BOT_TOKEN</strong> (или <strong>CLIENT_BOT_TOKEN</strong>) ' +
+          'и при необходимости <strong>TELEGRAM_BOT_USERNAME</strong> в файле <code>.env</code>. ' +
+          'Либо обновите страницу после деплоя — имя бота может подтянуться автоматически.' +
+          '</div>';
         return;
       }
       container.innerHTML = '';
