@@ -2482,6 +2482,128 @@ body.web-mode .product-list {
   }
 }
 
+/* Веб: плашка входа по телефону (под шапкой) */
+.web-login-plate {
+  display: none;
+  position: relative;
+  z-index: 85;
+  padding: 0 14px 12px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+body.web-mode .web-login-plate:not([hidden]) {
+  display: block;
+}
+
+.web-login-plate-inner {
+  position: relative;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.97), rgba(248, 246, 242, 0.98));
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  padding: 16px 40px 16px 16px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.06);
+}
+
+.web-login-plate-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 6px;
+}
+
+.web-login-plate-desc {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #555;
+  margin: 0 0 12px;
+}
+
+.web-login-plate-step-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #666;
+  margin: 14px 0 8px;
+}
+
+.web-login-plate-step2 .web-login-plate-step-label:first-child {
+  margin-top: 4px;
+}
+
+.web-login-plate-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.web-login-plate-row--code {
+  margin-top: 4px;
+}
+
+.web-login-plate-input {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: 'Montserrat', sans-serif;
+  background: #fff;
+}
+
+.web-login-plate-code {
+  flex: 0 0 88px;
+  text-align: center;
+  letter-spacing: 0.2em;
+  font-weight: 600;
+}
+
+.web-login-plate-bot-link {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  text-decoration: none;
+  width: 100%;
+  max-width: 320px;
+  box-sizing: border-box;
+}
+
+.web-login-plate-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #888;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.web-login-plate-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #111;
+}
+
+@media (max-width: 560px) {
+  .web-login-plate {
+    padding: 0 10px 10px;
+  }
+  .web-login-plate-inner {
+    padding: 14px 36px 14px 12px;
+  }
+  .web-login-plate-row .nav-btn {
+    width: 100%;
+  }
+}
+
 /* Footer */
 #footer {
   border-top: 1px solid #eee;

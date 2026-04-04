@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Cinzel+Decorative:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=20260329-3">
+  <link rel="stylesheet" href="/style.css?v=20260404-2">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -28,6 +28,27 @@
       </div>
     </a>
   </header>
+
+  <div id="web-login-plate" class="web-login-plate" hidden>
+    <div class="web-login-plate-inner">
+      <button type="button" id="web-login-plate-close" class="web-login-plate-close" aria-label="Скрыть панель">×</button>
+      <div class="web-login-plate-title">Вход в профиль</div>
+      <p class="web-login-plate-desc">Укажите телефон — после открытия бота придёт <strong>4 цифры</strong> в Telegram.</p>
+      <div class="web-login-plate-row">
+        <input type="tel" id="plate-phone-input" class="web-login-plate-input" placeholder="+7 (___) ___-__-__" maxlength="18" autocomplete="tel">
+        <button type="button" id="plate-phone-submit" class="nav-btn nav-btn--filled">Получить код</button>
+      </div>
+      <div id="web-login-plate-step2" class="web-login-plate-step2" style="display:none">
+        <p class="web-login-plate-step-label">Шаг 1 — откройте бота и нажмите «Start»</p>
+        <a id="plate-bot-link" href="#" target="_blank" rel="noopener" class="nav-btn nav-btn--filled web-login-plate-bot-link">Открыть Telegram-бота</a>
+        <p class="web-login-plate-step-label">Шаг 2 — введите код из чата</p>
+        <div class="web-login-plate-row web-login-plate-row--code">
+          <input type="text" id="plate-code-input" class="web-login-plate-input web-login-plate-code" inputmode="numeric" autocomplete="one-time-code" maxlength="4" placeholder="0000" aria-label="Код из Telegram">
+          <button type="button" id="plate-code-submit" class="nav-btn">Войти</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <nav id="tab-bar">
     <button class="tab-btn active" data-tab="home" onclick="navigateTo('home')">Каталог</button>
@@ -100,6 +121,6 @@
     <button id="cookie-consent-ok" class="cookie-consent-btn" type="button">OK</button>
   </div>
 
-  <script src="/app.js?v=20260329-2"></script>
+  <script src="/app.js?v=20260404-2"></script>
 </body>
 </html>

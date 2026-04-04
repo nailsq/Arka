@@ -362,13 +362,12 @@
     if (webTelegramBotChecked) {
       return Promise.resolve(webTelegramBotUsername || '');
     }
-    return fetchJSON('/api/auth/telegram-web-config')
+    // For web login we only need bot username from /api/client-config
+    return fetchJSON('/api/client-config')
       .then(function (cfg) {
         webTelegramBotChecked = true;
-        if (cfg && cfg.enabled && cfg.bot_username) {
-          webTelegramBotUsername = String(cfg.bot_username).replace(/^@/, '').trim();
-          webTelegramBotId = String(cfg.bot_id || '').trim();
-          webTelegramAuthUrl = String(cfg.auth_url || '').trim();
+        if (cfg && cfg.telegram_bot_username) {
+          webTelegramBotUsername = String(cfg.telegram_bot_username).replace(/^@/, '').trim();
         }
         return webTelegramBotUsername || '';
       })
@@ -1071,24 +1070,152 @@
     if (isTelegramRuntime) return Promise.resolve(false);
     return fetchJSON('/api/auth/session').then(function (r) {
       var nextUser = (r && r.user) ? r.user : null;
+      if (!nextUser) {
+        updateWebLoginPlateVisibility();
+        return false;
+      }
       var prevId = dbUser && dbUser.telegram_id ? String(dbUser.telegram_id) : '';
-      var nextId = nextUser && nextUser.telegram_id ? String(nextUser.telegram_id) : '';
+      var nextId = nextUser.telegram_id ? String(nextUser.telegram_id) : '';
       var changed = prevId !== nextId;
       dbUser = nextUser;
-      if (nextUser) {
-        try { localStorage.setItem('arka_tg_id', String(nextUser.telegram_id || '')); } catch (e) {}
-        try { localStorage.setItem('arka_user', JSON.stringify(nextUser)); } catch (e) {}
-      }
+      try { localStorage.setItem('arka_tg_id', String(nextUser.telegram_id || '')); } catch (e) {}
+      try { localStorage.setItem('arka_user', JSON.stringify(nextUser)); } catch (e) {}
       if (changed) {
         updateFavBadge();
         updateCartBadge();
         if (activeTab === 'account') showAccount();
-        if (!silent && nextUser) showToast('Вход через Telegram выполнен');
+        if (!silent) showToast('Вход через Telegram выполнен');
       }
+      updateWebLoginPlateVisibility();
       return changed;
     }).catch(function () {
       return false;
     });
+  }
+
+  function isPhoneOnlyWebUser(u) {
+    return !!(u && u.telegram_id && String(u.telegram_id).indexOf('phone_') === 0);
+  }
+
+  function shouldShowWebLoginPlate() {
+    if (isTelegramRuntime) return false;
+    if (!dbUser) return true;
+    return isPhoneOnlyWebUser(dbUser);
+  }
+
+  function updateWebLoginPlateVisibility() {
+    var plate = document.getElementById('web-login-plate');
+    if (!plate) return;
+    try {
+      if (sessionStorage.getItem('arka_hide_phone_plate') === '1') {
+        plate.setAttribute('hidden', '');
+        return;
+      }
+    } catch (e) {}
+    if (shouldShowWebLoginPlate()) {
+      plate.removeAttribute('hidden');
+    } else {
+      plate.setAttribute('hidden', '');
+    }
+  }
+
+  function resetWebLoginPlateSteps() {
+    var s2 = document.getElementById('web-login-plate-step2');
+    if (s2) s2.style.display = 'none';
+    var c = document.getElementById('plate-code-input');
+    if (c) c.value = '';
+  }
+
+  function initWebLoginPlate() {
+    if (isTelegramRuntime) return;
+    var phoneIn = document.getElementById('plate-phone-input');
+    var btnStart = document.getElementById('plate-phone-submit');
+    var btnGo = document.getElementById('plate-code-submit');
+    var btnClose = document.getElementById('web-login-plate-close');
+    if (phoneIn && !phoneIn._arkaBound) {
+      phoneIn._arkaBound = true;
+      phoneIn.addEventListener('input', function () { formatPhoneInput(phoneIn); });
+    }
+    if (btnStart && !btnStart._arkaBound) {
+      btnStart._arkaBound = true;
+      btnStart.onclick = function () {
+        var phone = (phoneIn && phoneIn.value) ? phoneIn.value.trim() : '';
+        if (!phone) {
+          showToast('Введите номер телефона');
+          if (phoneIn) phoneIn.focus();
+          return;
+        }
+        if (!validatePhone(phone)) {
+          showToast('Проверьте формат номера');
+          return;
+        }
+        btnStart.disabled = true;
+        postJSON('/api/web-login/start', { phone: phone }).then(function (r) {
+          if (r && r.ok && r.bot_url) {
+            var link = document.getElementById('plate-bot-link');
+            if (link) link.href = r.bot_url;
+            var s2 = document.getElementById('web-login-plate-step2');
+            if (s2) s2.style.display = 'block';
+            showToast('Откройте бота — код придёт в Telegram');
+          } else {
+            showToast((r && r.error) ? String(r.error) : 'Не удалось начать вход');
+          }
+        }).catch(function (err) {
+          showToast('Ошибка: ' + ((err && err.message) ? err.message : 'нет соединения'));
+        }).finally(function () {
+          btnStart.disabled = false;
+        });
+      };
+    }
+    if (btnGo && !btnGo._arkaBound) {
+      btnGo._arkaBound = true;
+      btnGo.onclick = function () {
+        var phone = (phoneIn && phoneIn.value) ? phoneIn.value.trim() : '';
+        var codeEl = document.getElementById('plate-code-input');
+        var code = codeEl ? String(codeEl.value || '').replace(/\D/g, '') : '';
+        if (!validatePhone(phone)) {
+          showToast('Проверьте номер телефона');
+          return;
+        }
+        if (code.length !== 4) {
+          showToast('Введите 4 цифры кода');
+          return;
+        }
+        var mergeFrom = '';
+        try {
+          if (dbUser && dbUser.telegram_id && String(dbUser.telegram_id).indexOf('phone_') === 0) {
+            mergeFrom = dbUser.telegram_id;
+          }
+        } catch (e) {}
+        btnGo.disabled = true;
+        postJSON('/api/web-login/confirm', { phone: phone, code: code, merge_from_telegram_id: mergeFrom }).then(function (r) {
+          if (r && r.user) {
+            dbUser = r.user;
+            try { localStorage.setItem('arka_tg_id', String(r.user.telegram_id || '')); } catch (e) {}
+            try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
+            try { sessionStorage.removeItem('arka_hide_phone_plate'); } catch (e) {}
+            resetWebLoginPlateSteps();
+            updateWebLoginPlateVisibility();
+            showToast('Добро пожаловать!');
+            navigateTo('account');
+          } else {
+            showToast((r && r.error) ? String(r.error) : 'Не удалось войти');
+          }
+        }).catch(function (err) {
+          showToast('Ошибка: ' + ((err && err.message) ? err.message : 'нет соединения'));
+        }).finally(function () {
+          btnGo.disabled = false;
+        });
+      };
+    }
+    if (btnClose && !btnClose._arkaBound) {
+      btnClose._arkaBound = true;
+      btnClose.onclick = function () {
+        try { sessionStorage.setItem('arka_hide_phone_plate', '1'); } catch (e) {}
+        updateWebLoginPlateVisibility();
+      };
+    }
+    updateWebLoginPlateVisibility();
   }
 
   function init() {
@@ -1096,6 +1223,7 @@
     initSitePreloader();
     initWebQuickNav();
     initCookieConsent();
+    initWebLoginPlate();
 
     var settingsReady = fetchAppSettings().catch(function () {
       appSettings = appSettings || {};
@@ -1136,6 +1264,7 @@
         } catch (e) {}
         showToast('Вход через Telegram выполнен');
       }
+      updateWebLoginPlateVisibility();
     }
 
     if (tgUser) {
@@ -4170,7 +4299,7 @@
   // Account
   // ============================================================
 
-  // Phone login via Telegram code
+  // Phone login via Telegram code (Mini App) + simple phone login (web)
   window.startPhoneVerify = function () {
     var input = document.getElementById('web-login-phone');
     if (!input) return;
@@ -4218,6 +4347,7 @@
     });
   };
 
+  // Fallback вход по номеру для веба больше не используем (отключён по запросу)
   window.confirmPhoneCode = function () {
     var phoneInput = document.getElementById('web-login-phone');
     var codeInput = document.getElementById('web-login-code');
@@ -4284,22 +4414,9 @@
           '<div class="section-title">Профиль</div>' +
           '<div class="account-section">' +
             '<p style="margin-bottom:12px">Вы в гостевом режиме. Можно покупать без входа.</p>' +
-            '<p style="margin-bottom:14px;color:#666">Чтобы видеть историю заказов и синхронизацию с Mini App, войдите по номеру телефона с подтверждением через Telegram или через Telegram-логин.</p>' +
+            '<p style="margin-bottom:14px;color:#666">Чтобы видеть историю заказов и синхронизацию с Mini App, войдите через Telegram.</p>' +
             '<div class="profile-login-block">' +
-              '<div style="margin-bottom:8px;font-weight:500;font-size:14px">Вход по номеру телефона через Telegram</div>' +
-              '<div class="input-row" style="margin-bottom:8px">' +
-                '<input id="web-login-phone" class="input" type="tel" placeholder="+7 (___) ___-__-__" ' +
-                  'style="width:100%;padding:11px 14px;border:1px solid #ddd;border-radius:999px;font-size:14px;background:#fff;color:#111;box-sizing:border-box;outline:none">' +
-              '</div>' +
-              '<button id="web-login-send-code" class="nav-btn nav-btn--filled" style="width:100%;margin-bottom:10px" onclick="startPhoneVerify()">Отправить код в Telegram</button>' +
-              '<div id="web-login-code-block" style="display:none;margin-top:4px">' +
-                '<div class="input-row" style="margin-bottom:8px">' +
-                  '<input id="web-login-code" class="input" type="text" inputmode="numeric" maxlength="6" placeholder="Код из Telegram" ' +
-                    'style="width:100%;padding:11px 14px;border:1px solid #ddd;border-radius:999px;font-size:14px;background:#fff;color:#111;box-sizing:border-box;outline:none">' +
-                '</div>' +
-                '<button id="web-login-confirm-btn" class="nav-btn" style="width:100%;margin-bottom:14px" onclick="confirmPhoneCode()">Подтвердить код</button>' +
-              '</div>' +
-              '<div style="margin-bottom:8px;font-weight:500;font-size:14px">Или войдите через Telegram</div>' +
+              '<div style="margin-bottom:8px;font-weight:500;font-size:14px">Вход через Telegram</div>' +
               (!isTelegramRuntime ? '<div id="web-telegram-login-widget"></div>' : '') +
             '</div>' +
           '</div>' +
@@ -4403,11 +4520,15 @@
   }
 
   window.logoutUser = function () {
-    dbUser = null;
-    try { localStorage.removeItem('arka_user'); } catch (e) {}
-    try { localStorage.removeItem('arka_tg_id'); } catch (e) {}
-    showToast('Вы вышли из профиля');
-    navigateTo('home');
+    postJSON('/api/auth/logout', {}).catch(function () {}).finally(function () {
+      dbUser = null;
+      try { localStorage.removeItem('arka_user'); } catch (e) {}
+      try { localStorage.removeItem('arka_tg_id'); } catch (e) {}
+      try { sessionStorage.removeItem('arka_hide_phone_plate'); } catch (e) {}
+      updateWebLoginPlateVisibility();
+      showToast('Вы вышли из профиля');
+      navigateTo('home');
+    });
   };
 
   window.openAdminPanel = function () {
@@ -5132,7 +5253,13 @@
       showToast('Ошибка входа через Telegram');
       return;
     }
-    postJSON('/api/auth/telegram-web', user).then(function (r) {
+    var payload = Object.assign({}, user);
+    try {
+      if (dbUser && dbUser.telegram_id && String(dbUser.telegram_id).indexOf('phone_') === 0) {
+        payload.merge_from_telegram_id = dbUser.telegram_id;
+      }
+    } catch (e) {}
+    postJSON('/api/auth/telegram-web', payload).then(function (r) {
       if (!r || !r.user) {
         var msg = (r && (r.error || r.message)) ? String(r.error || r.message) : 'Не удалось выполнить вход';
         showToast(msg);
@@ -5141,6 +5268,7 @@
       dbUser = r.user;
       try { localStorage.setItem('arka_tg_id', String(r.user.telegram_id || user.id)); } catch (e) {}
       try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
+      updateWebLoginPlateVisibility();
       showToast('Вход выполнен');
       navigateTo('account');
     }).catch(function (err) {

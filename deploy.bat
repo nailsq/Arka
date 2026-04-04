@@ -12,10 +12,37 @@ if errorlevel 1 (
 
 del /F /Q "%LOCALAPPDATA%\Temp\arcaflowers-deploy.lock" 2>nul
 
-REM SSH: Cyrillic user path breaks Git/MSYS; HOME uses ASCII-only path for ssh keys
-set "HOME=%ProgramData%\arka-git-ssh"
-if not exist "%HOME%" mkdir "%HOME%" 2>nul
-if not exist "%HOME%\.ssh" mkdir "%HOME%\.ssh" 2>nul
+REM SSH keys: раньше HOME всегда был ProgramData\arka-git-ssh — без ключей там
+REM git push production падал с Permission denied (publickey).
+REM Теперь: если в arka-git-ssh\.ssh есть ключ — используем его; иначе — %USERPROFILE%\.ssh
+REM (OpenSSH из System32 нормально работает с кириллицей в пути профиля.)
+set "ARKA_SSH_HOME=%ProgramData%\arka-git-ssh"
+set "USE_ARKA_HOME="
+if exist "%ARKA_SSH_HOME%\.ssh\id_ed25519" set "USE_ARKA_HOME=1"
+if exist "%ARKA_SSH_HOME%\.ssh\id_rsa" set "USE_ARKA_HOME=1"
+if defined USE_ARKA_HOME (
+  set "HOME=%ARKA_SSH_HOME%"
+  if not exist "!HOME!" mkdir "!HOME!" 2>nul
+  if not exist "!HOME!\.ssh" mkdir "!HOME!\.ssh" 2>nul
+  echo SSH: ключи из !HOME!\.ssh
+) else (
+  if defined USERPROFILE (
+    set "HOME=%USERPROFILE%"
+    echo SSH: ключи из !HOME!\.ssh ^(стандартная папка Windows^)
+  ) else (
+    set "HOME=%ProgramData%\arka-git-ssh"
+    if not exist "!HOME!" mkdir "!HOME!" 2>nul
+    if not exist "!HOME!\.ssh" mkdir "!HOME!\.ssh" 2>nul
+    echo SSH: USERPROFILE не задан, используется !HOME!\.ssh
+  )
+  if not exist "!HOME!\.ssh\id_ed25519" if not exist "!HOME!\.ssh\id_rsa" (
+    echo.
+    echo [ВНИМАНИЕ] В !HOME!\.ssh не найдены id_ed25519 / id_rsa.
+    echo Создайте ключ:  ssh-keygen -t ed25519 -C "deploy"
+    echo Или скопируйте ключи в %ProgramData%\arka-git-ssh\.ssh и снова deploy.bat
+    echo.
+  )
+)
 if defined USERPROFILE set "GIT_CONFIG_GLOBAL=%USERPROFILE%\.gitconfig"
 
 if exist "%SystemRoot%\System32\OpenSSH\ssh.exe" (
@@ -155,7 +182,13 @@ if errorlevel 1 (
 
 echo.
 echo ============================================================
-echo   PUSH OK. On server ^(SSH^): git pull + pm2 restart arka-flowers
+echo   PUSH OK — код на сервере ^(bare repo^).
+echo.
+echo   Если установлен hook post-receive ^(см. scripts\post-receive-hook.sh^),
+echo   сайт /var/www уже обновлён и PM2 перезапущен.
+echo.
+echo   Если hook ещё не ставили: дважды щёлкните  restart-production.cmd
+echo   ^(введите пароль SSH^) — git pull + npm + pm2 restart.
 echo ============================================================
 echo.
 pause

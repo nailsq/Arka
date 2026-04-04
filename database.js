@@ -151,6 +151,18 @@ var SCHEMA = "\
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP\
   );\
 \
+  CREATE TABLE IF NOT EXISTS web_login_challenges (\
+    id INTEGER PRIMARY KEY AUTOINCREMENT,\
+    link_token TEXT UNIQUE NOT NULL,\
+    phone_norm TEXT NOT NULL,\
+    phone_display TEXT NOT NULL,\
+    code TEXT NOT NULL,\
+    telegram_id TEXT,\
+    expires_at DATETIME NOT NULL,\
+    used_at DATETIME,\
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP\
+  );\
+\
   CREATE TABLE IF NOT EXISTS admin_users (\
     id INTEGER PRIMARY KEY AUTOINCREMENT,\
     telegram_username TEXT NOT NULL UNIQUE,\

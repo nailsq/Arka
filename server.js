@@ -19,6 +19,19 @@ var PAYMENT_PROVIDER = process.env.PAYMENT_PROVIDER || 'test';
 var PUBLIC_URL = process.env.PUBLIC_URL || ('http://localhost:' + PORT);
 var ADMIN_TELEGRAM_IDS = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 
+var WEB_LOGIN_CHALLENGE_COOKIE = 'arka_web_challenge';
+
+var WEB_SESSION_COOKIE = 'arka_web_session';
+var WEB_SESSION_MAX_AGE_SEC = 30 * 24 * 60 * 60;
+var WEB_SESSION_SECRET = String(process.env.WEB_SESSION_SECRET || '').trim();
+if (!WEB_SESSION_SECRET) {
+  if (BOT_TOKEN && BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE') {
+    WEB_SESSION_SECRET = crypto.createHash('sha256').update('arka_web_sess_v1|' + BOT_TOKEN).digest('hex');
+  } else {
+    WEB_SESSION_SECRET = 'arka-flowers-web-dev-session-not-for-production';
+  }
+}
+
 var TOCHKA_API_URL = process.env.TOCHKA_API_URL || 'https://enter.tochka.com/sandbox/v2';
 var TOCHKA_JWT = String(process.env.TOCHKA_JWT || '').trim();
 if (!TOCHKA_JWT && process.env.TOCHKA_JWT_FILE) {
@@ -261,6 +274,110 @@ function validateTelegramLoginWidget(body) {
   };
 }
 
+function getCookieFromReq(req, name) {
+  var raw = req.headers.cookie;
+  if (!raw || typeof raw !== 'string') return '';
+  var parts = raw.split(';');
+  for (var i = 0; i < parts.length; i++) {
+    var seg = parts[i].trim();
+    if (seg.indexOf(name + '=') !== 0) continue;
+    try {
+      return decodeURIComponent(seg.slice(name.length + 1));
+    } catch (e) {
+      return seg.slice(name.length + 1);
+    }
+  }
+  return '';
+}
+
+function webSessionCookieSecureFlag() {
+  var ov = String(process.env.WEB_SESSION_SECURE || '').toLowerCase();
+  if (ov === '0' || ov === 'false') return false;
+  if (ov === '1' || ov === 'true') return true;
+  return /^https:/i.test(PUBLIC_URL) || process.env.NODE_ENV === 'production';
+}
+
+function signWebSessionPayload(userId, expSec) {
+  var payload = String(userId) + '.' + String(expSec);
+  var sig = crypto.createHmac('sha256', WEB_SESSION_SECRET).update(payload).digest('hex');
+  return payload + '.' + sig;
+}
+
+function verifyWebSessionToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  var parts = token.split('.');
+  if (parts.length !== 3) return null;
+  var uid = parseInt(parts[0], 10);
+  var exp = parseInt(parts[1], 10);
+  if (!uid || !exp || !parts[2]) return null;
+  if (Math.floor(Date.now() / 1000) > exp) return null;
+  var payload = parts[0] + '.' + parts[1];
+  var expected = crypto.createHmac('sha256', WEB_SESSION_SECRET).update(payload).digest('hex');
+  try {
+    var a = Buffer.from(expected, 'utf8');
+    var b = Buffer.from(parts[2], 'utf8');
+    if (a.length !== b.length) return null;
+    if (!crypto.timingSafeEqual(a, b)) return null;
+  } catch (e) {
+    return null;
+  }
+  return uid;
+}
+
+function attachWebSessionCookie(res, userId) {
+  if (!userId) return;
+  var expSec = Math.floor(Date.now() / 1000) + WEB_SESSION_MAX_AGE_SEC;
+  var token = signWebSessionPayload(userId, expSec);
+  var parts = [
+    WEB_SESSION_COOKIE + '=' + encodeURIComponent(token),
+    'Path=/',
+    'HttpOnly',
+    'Max-Age=' + WEB_SESSION_MAX_AGE_SEC,
+    'SameSite=Lax'
+  ];
+  if (webSessionCookieSecureFlag()) parts.push('Secure');
+  res.append('Set-Cookie', parts.join('; '));
+}
+
+function clearWebSessionCookie(res) {
+  var parts = [
+    WEB_SESSION_COOKIE + '=;',
+    'Path=/',
+    'HttpOnly',
+    'Max-Age=0',
+    'SameSite=Lax'
+  ];
+  if (webSessionCookieSecureFlag()) parts.push('Secure');
+  res.append('Set-Cookie', parts.join('; '));
+}
+
+var WEB_LOGIN_CHALLENGE_MAX_AGE_SEC = 600;
+
+function attachWebLoginChallengeCookie(res, linkToken) {
+  if (!linkToken) return;
+  var parts = [
+    WEB_LOGIN_CHALLENGE_COOKIE + '=' + encodeURIComponent(linkToken),
+    'Path=/',
+    'HttpOnly',
+    'Max-Age=' + WEB_LOGIN_CHALLENGE_MAX_AGE_SEC,
+    'SameSite=Lax'
+  ];
+  if (webSessionCookieSecureFlag()) parts.push('Secure');
+  res.append('Set-Cookie', parts.join('; '));
+}
+
+function clearWebLoginChallengeCookie(res) {
+  var parts = [
+    WEB_LOGIN_CHALLENGE_COOKIE + '=;',
+    'Path=/',
+    'HttpOnly',
+    'Max-Age=0',
+    'SameSite=Lax'
+  ];
+  if (webSessionCookieSecureFlag()) parts.push('Secure');
+  res.append('Set-Cookie', parts.join('; '));
+}
+
 function normalizeRuPhone(phone) {
   var d = String(phone || '').replace(/\D/g, '');
   if (d.length === 10 && d.charAt(0) === '9') d = '7' + d;
@@ -499,6 +616,120 @@ app.get('/api/client-config', function (req, res) {
   res.json({ telegram_bot_username: TELEGRAM_BOT_USERNAME });
 });
 
+app.get('/api/auth/session', async function (req, res) {
+  try {
+    var token = getCookieFromReq(req, WEB_SESSION_COOKIE);
+    var uid = verifyWebSessionToken(token);
+    if (!uid) return res.json({ user: null });
+    var user = await db.prepare('SELECT * FROM users WHERE id = ?').get(uid);
+    if (!user) return res.json({ user: null });
+    return res.json({ user: user });
+  } catch (err) {
+    return res.json({ user: null });
+  }
+});
+
+app.post('/api/auth/logout', function (req, res) {
+  clearWebSessionCookie(res);
+  clearWebLoginChallengeCookie(res);
+  res.json({ ok: true });
+});
+
+// ============================================================
+// WEB: вход по телефону + код в Telegram (через бота)
+// ============================================================
+
+app.post('/api/web-login/start', async function (req, res) {
+  try {
+    if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') {
+      return res.status(503).json({ error: 'Вход по телефону временно недоступен' });
+    }
+    if (!TELEGRAM_BOT_USERNAME) {
+      return res.status(503).json({ error: 'Укажите TELEGRAM_BOT_USERNAME в настройках сервера' });
+    }
+    var norm = normalizeRuPhone(req.body.phone);
+    if (!norm) {
+      return res.status(400).json({ error: 'Введите корректный номер телефона' });
+    }
+    var pretty = formatRuPhoneDisplay(norm);
+    var code = String(Math.floor(1000 + Math.random() * 9000));
+    var linkToken = crypto.randomBytes(20).toString('hex');
+    var expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+    await db.prepare(
+      'INSERT INTO web_login_challenges (link_token, phone_norm, phone_display, code, expires_at) VALUES (?,?,?,?,?)'
+    ).run(linkToken, norm, pretty, code, expiresAt);
+
+    attachWebLoginChallengeCookie(res, linkToken);
+    var botUrl = 'https://t.me/' + encodeURIComponent(TELEGRAM_BOT_USERNAME) + '?start=login_' + linkToken;
+    res.json({ ok: true, bot_url: botUrl, phone_display: pretty });
+  } catch (err) {
+    console.error('[WebLogin] start error:', err.message);
+    res.status(500).json({ error: 'Не удалось начать вход' });
+  }
+});
+
+app.post('/api/web-login/confirm', async function (req, res) {
+  try {
+    var mergeFrom = req.body.merge_from_telegram_id || '';
+    var phoneRaw = req.body.phone;
+    var code = String(req.body.code || '').replace(/\D/g, '');
+    var linkToken = getCookieFromReq(req, WEB_LOGIN_CHALLENGE_COOKIE);
+    if (!linkToken) {
+      return res.status(400).json({ error: 'Сессия истекла. Нажмите «Получить код» снова.' });
+    }
+    if (code.length !== 4) {
+      return res.status(400).json({ error: 'Введите 4 цифры кода из Telegram' });
+    }
+    var norm = normalizeRuPhone(phoneRaw);
+    if (!norm) {
+      return res.status(400).json({ error: 'Введите корректный номер телефона' });
+    }
+
+    var row = await db.prepare(
+      'SELECT * FROM web_login_challenges WHERE link_token = ? AND used_at IS NULL'
+    ).get(linkToken);
+    if (!row) {
+      return res.status(400).json({ error: 'Запрос не найден. Запросите код снова.' });
+    }
+    if (row.phone_norm !== norm) {
+      return res.status(400).json({ error: 'Номер не совпадает с тем, на который запрашивали код' });
+    }
+    var now = Date.now();
+    var exp = Date.parse(row.expires_at);
+    if (isFinite(exp) && now > exp) {
+      return res.status(400).json({ error: 'Срок действия кода истёк. Запросите новый.' });
+    }
+    if (!row.telegram_id) {
+      return res.status(400).json({ error: 'Сначала откройте бота по ссылке — код придёт в Telegram.' });
+    }
+    if (row.code !== code) {
+      return res.status(400).json({ error: 'Неверный код' });
+    }
+
+    await db.prepare('UPDATE web_login_challenges SET used_at = CURRENT_TIMESTAMP WHERE id = ?').run(row.id);
+    clearWebLoginChallengeCookie(res);
+
+    var user = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(row.telegram_id));
+    if (!user) {
+      var info = await db.prepare('INSERT INTO users (telegram_id, first_name, phone) VALUES (?,?,?)')
+        .run(String(row.telegram_id), 'Клиент', row.phone_display);
+      user = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+    } else {
+      await db.prepare('UPDATE users SET phone = ? WHERE id = ?').run(row.phone_display, user.id);
+      user = await db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
+    }
+
+    user = await mergeSyntheticUserIntoReal(mergeFrom, user);
+    user = await db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
+    attachWebSessionCookie(res, user.id);
+    res.json({ user: user });
+  } catch (err) {
+    console.error('[WebLogin] confirm error:', err.message);
+    res.status(500).json({ error: 'Не удалось выполнить вход' });
+  }
+});
+
 app.post('/api/auth/telegram-widget', async function (req, res) {
   var mergeFrom = req.body.merge_from_telegram_id || '';
   var bodyForWidget = Object.assign({}, req.body);
@@ -516,17 +747,21 @@ app.post('/api/auth/telegram-widget', async function (req, res) {
       existing.first_name = firstName;
     }
     existing = await mergeSyntheticUserIntoReal(mergeFrom, existing);
+    attachWebSessionCookie(res, existing.id);
     return res.json({ user: existing });
   }
   var info = await db.prepare('INSERT INTO users (telegram_id, first_name) VALUES (?, ?)').run(String(telegramId), firstName);
   var user = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
   user = await mergeSyntheticUserIntoReal(mergeFrom, user);
+  attachWebSessionCookie(res, user.id);
   res.json({ user: user });
 });
 
 // Web-only Telegram login (window.onTelegramAuth)
 app.post('/api/auth/telegram-web', async function (req, res) {
+  var mergeFrom = req.body.merge_from_telegram_id || '';
   var bodyForWidget = Object.assign({}, req.body);
+  delete bodyForWidget.merge_from_telegram_id;
   var tUser = validateTelegramLoginWidget(bodyForWidget);
   if (!tUser) {
     return res.status(403).json({ error: 'Invalid Telegram auth' });
@@ -539,11 +774,31 @@ app.post('/api/auth/telegram-web', async function (req, res) {
       await db.prepare('UPDATE users SET first_name = ? WHERE id = ?').run(firstName, existing.id);
       existing.first_name = firstName;
     }
+    existing = await mergeSyntheticUserIntoReal(mergeFrom, existing);
+    attachWebSessionCookie(res, existing.id);
     return res.json({ user: existing });
   }
   var info = await db.prepare('INSERT INTO users (telegram_id, first_name) VALUES (?, ?)').run(String(telegramId), firstName);
   var user = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+  user = await mergeSyntheticUserIntoReal(mergeFrom, user);
+  attachWebSessionCookie(res, user.id);
   res.json({ user: user });
+});
+
+// Simple callback page for browser-based Telegram OAuth flow
+app.get('/api/auth/telegram-web/callback', function (req, res) {
+  res.send(
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Вход через Telegram</title>' +
+    '<style>body{font-family:sans-serif;margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#fff;color:#111}' +
+    '.card{max-width:360px;padding:24px;border:1px solid #eee;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.04);text-align:center}' +
+    'h1{font-size:18px;margin:0 0 10px}p{font-size:14px;margin:0 0 16px;color:#555}' +
+    'button{padding:10px 20px;border-radius:999px;border:none;background:#000;color:#fff;cursor:pointer;font-size:14px}</style>' +
+    '</head><body><div class="card">' +
+    '<h1>Вход через Telegram</h1>' +
+    '<p>Вы можете закрыть это окно и вернуться на сайт.</p>' +
+    '<button onclick="window.close()">Закрыть</button>' +
+    '</div></body></html>'
+  );
 });
 
 function formatRuPhoneDisplay(norm11) {
@@ -575,11 +830,13 @@ app.post('/api/auth/phone', async function (req, res) {
       await db.prepare('UPDATE users SET phone = ? WHERE id = ?').run(pretty, row.id);
       row.phone = pretty;
     }
+    attachWebSessionCookie(res, row.id);
     return res.json({ user: row });
   }
 
   var info = await db.prepare('INSERT INTO users (telegram_id, first_name, phone) VALUES (?, ?, ?)').run(syntheticTg, 'Клиент', pretty);
   var user = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+  attachWebSessionCookie(res, user.id);
   res.json({ user: user });
 });
 
@@ -655,6 +912,7 @@ app.post('/api/phone/confirm', async function (req, res) {
       user = await db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
     }
 
+    attachWebSessionCookie(res, user.id);
     res.json({ user: user });
   } catch (err) {
     console.error('[PhoneVerify] confirm error:', err.message);
@@ -1688,7 +1946,48 @@ app.post('/api/telegram/webhook', async function (req, res) {
       var tgUsername = (tgMsg.from && tgMsg.from.username) || '';
       var tgIsAdmin = await isAdminUser(String(tgChatId), tgUsername);
 
-      if (tgText === '/start') {
+      if (tgText.indexOf('/start') === 0) {
+        var startPayload = tgText.replace(/^\/start\s*/, '').trim();
+        if (startPayload.indexOf('login_') === 0) {
+          var loginTok = startPayload.slice('login_'.length).trim();
+          if (loginTok) {
+            var ch = await db.prepare(
+              'SELECT * FROM web_login_challenges WHERE link_token = ? AND used_at IS NULL'
+            ).get(loginTok);
+            var nowMs = Date.now();
+            var chExp = ch ? Date.parse(ch.expires_at) : NaN;
+            if (!ch || !isFinite(chExp) || nowMs > chExp) {
+              await telegramApiCall('sendMessage', {
+                chat_id: tgChatId,
+                text: 'Ссылка для входа на сайт устарела или недействительна. Запросите код на сайте ещё раз.',
+                reply_markup: BOT_MAIN_KEYBOARD
+              });
+              return;
+            }
+            if (ch.telegram_id && String(ch.telegram_id) !== String(tgChatId)) {
+              await telegramApiCall('sendMessage', {
+                chat_id: tgChatId,
+                text: 'Эта ссылка уже использована в другом Telegram-аккаунте. Запросите новый код на сайте.',
+                reply_markup: BOT_MAIN_KEYBOARD
+              });
+              return;
+            }
+            if (!ch.telegram_id) {
+              await db.prepare('UPDATE web_login_challenges SET telegram_id = ? WHERE id = ?').run(String(tgChatId), ch.id);
+            }
+            var codeMsg =
+              '<b>Код для входа на сайт</b>\nНомер: ' + ch.phone_display +
+              '\n\n<code>' + ch.code + '</code>\n\nВведите эти 4 цифры на сайте. Никому не сообщайте код.';
+            await telegramApiCall('sendMessage', {
+              chat_id: tgChatId,
+              text: codeMsg,
+              parse_mode: 'HTML',
+              reply_markup: BOT_MAIN_KEYBOARD
+            });
+            return;
+          }
+        }
+
         await telegramApiCall('sendMessage', {
           chat_id: tgChatId,
           text: '<b>\u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u043e\u0432\u0430\u0442\u044c \u0432 ARKA STUDIO FLOWERS!</b>\n\n\u0417\u0434\u0435\u0441\u044c \u0432\u044b \u043c\u043e\u0436\u0435\u0442\u0435 \u0437\u0430\u043a\u0430\u0437\u0430\u0442\u044c \u043a\u0440\u0430\u0441\u0438\u0432\u044b\u0435 \u0431\u0443\u043a\u0435\u0442\u044b \u0438 \u0446\u0432\u0435\u0442\u043e\u0447\u043d\u044b\u0435 \u043a\u043e\u043c\u043f\u043e\u0437\u0438\u0446\u0438\u0438.\n\n\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439\u0442\u0435 \u043a\u043d\u043e\u043f\u043a\u0438 \u043d\u0438\u0436\u0435 \u0438\u043b\u0438 \u043d\u0430\u0436\u043c\u0438\u0442\u0435 \u041a\u0410\u0422\u0410\u041b\u041e\u0413 \u0434\u043b\u044f \u043e\u0442\u043a\u0440\u044b\u0442\u0438\u044f \u043c\u0430\u0433\u0430\u0437\u0438\u043d\u0430.',
