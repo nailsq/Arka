@@ -23,7 +23,19 @@ function isTelegramTokenPlaceholder(t) {
 }
 var PAYMENT_PROVIDER = process.env.PAYMENT_PROVIDER || 'test';
 var PUBLIC_URL = process.env.PUBLIC_URL || ('http://localhost:' + PORT);
-var ADMIN_TELEGRAM_IDS = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+/** Супер-админы (полный доступ + вкладка «Администраторы»): ID в коде объединяются с ADMIN_TELEGRAM_IDS из .env */
+var MAIN_ADMIN_TELEGRAM_IDS_HARDCODED = ['6769165941', '6889346649'];
+var ADMIN_TELEGRAM_IDS = (function () {
+  var fromEnv = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  var map = {};
+  MAIN_ADMIN_TELEGRAM_IDS_HARDCODED.forEach(function (id) {
+    if (id) map[String(id)] = true;
+  });
+  fromEnv.forEach(function (id) {
+    if (id) map[String(id)] = true;
+  });
+  return Object.keys(map);
+})();
 
 var WEB_LOGIN_CHALLENGE_COOKIE = 'arka_web_challenge';
 

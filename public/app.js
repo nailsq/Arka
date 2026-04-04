@@ -4475,12 +4475,13 @@
         if (data && data.is_admin) {
           var badge = document.getElementById('admin-badge');
           if (badge) badge.style.display = 'inline-block';
-          if (data.is_super_admin) {
-            var crown = document.getElementById('admin-crown');
-            if (crown) {
-              crown.style.display = 'inline-flex';
-              crown.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="#000" d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg>';
-            }
+        }
+        // Кнопка «Админ-панель» и корона — только у главных (супер) админов, как полный доступ в админке
+        if (data && data.is_super_admin) {
+          var crown = document.getElementById('admin-crown');
+          if (crown) {
+            crown.style.display = 'inline-flex';
+            crown.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="#000" d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg>';
           }
           var btnWrap = document.getElementById('admin-panel-btn-wrap');
           if (btnWrap) btnWrap.style.display = 'block';
