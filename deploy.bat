@@ -45,15 +45,17 @@ if defined USE_ARKA_HOME (
 )
 if defined USERPROFILE set "GIT_CONFIG_GLOBAL=%USERPROFILE%\.gitconfig"
 
+REM Git for Windows вызывает GIT_SSH_COMMAND через sh (MSYS): путь с C:\... ломается.
+REM Нужен путь со слешами /, например C:/Windows/System32/OpenSSH/ssh.exe
+set "GIT_WIN_SSH=%SystemRoot:\=/%/System32/OpenSSH/ssh.exe"
+set "GIT_SSH="
 if exist "%SystemRoot%\System32\OpenSSH\ssh.exe" (
-  set "GIT_SSH_COMMAND=%SystemRoot%\System32\OpenSSH\ssh.exe -o StrictHostKeyChecking=accept-new"
+  set "GIT_SSH_COMMAND=!GIT_WIN_SSH! -o StrictHostKeyChecking=accept-new"
 ) else (
   set "GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=accept-new"
 )
 
-REM Не пишем core.sshCommand в .git/config: Git for Windows передаёт значение в sh и путь
-REM к C:\Windows\System32\OpenSSH\ssh.exe ломается (command not found).
-REM Достаточно GIT_SSH_COMMAND на время сессии CMD.
+REM Не пишем core.sshCommand в .git/config (та же проблема со слешами в sh).
 git config --unset core.sshCommand 2>nul
 
 echo.
