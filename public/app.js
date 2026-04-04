@@ -1203,7 +1203,7 @@
       var forceAccount = false;
       try {
         var sp = new URLSearchParams(window.location.search || '');
-        forceAccount = sp.get('tg_auth') === '1';
+        forceAccount = sp.get('tg_auth') === '1' || sp.get('tg_web_login') === '1';
       } catch (e) {}
       if (initialRoute && initialRoute.page) {
         initialPage = initialRoute.page;
@@ -1224,7 +1224,7 @@
         try {
           window.history.replaceState({}, '', window.location.pathname + (window.location.hash || '#account'));
         } catch (e) {}
-        showToast('Вход через Telegram выполнен');
+        showToast('Вход выполнен');
       }
       updateWebLoginPlateVisibility();
     }

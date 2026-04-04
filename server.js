@@ -863,6 +863,27 @@ app.post('/api/auth/telegram-widget', async function (req, res) {
   res.json({ user: user });
 });
 
+/** Веб-вход Telegram (виджет / OAuth): пользователь + cookie сессии */
+async function applyTelegramWebOAuthSession(res, tUser, mergeFrom) {
+  var telegramId = String(tUser.id);
+  var firstName = tUser.first_name || '';
+  var existing = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(telegramId);
+  if (existing) {
+    if (firstName && firstName !== existing.first_name) {
+      await db.prepare('UPDATE users SET first_name = ? WHERE id = ?').run(firstName, existing.id);
+      existing.first_name = firstName;
+    }
+    existing = await mergeSyntheticUserIntoReal(mergeFrom, existing);
+    attachWebSessionCookie(res, existing.id);
+    return existing;
+  }
+  var info = await db.prepare('INSERT INTO users (telegram_id, first_name) VALUES (?, ?)').run(telegramId, firstName);
+  var user = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+  user = await mergeSyntheticUserIntoReal(mergeFrom, user);
+  attachWebSessionCookie(res, user.id);
+  return user;
+}
+
 // Web-only Telegram login (window.onTelegramAuth)
 app.post('/api/auth/telegram-web', async function (req, res) {
   var mergeFrom = req.body.merge_from_telegram_id || '';
@@ -872,39 +893,63 @@ app.post('/api/auth/telegram-web', async function (req, res) {
   if (!tUser) {
     return res.status(403).json({ error: 'Invalid Telegram auth' });
   }
-  var telegramId = tUser.id;
-  var firstName = tUser.first_name || '';
-  var existing = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(String(telegramId));
-  if (existing) {
-    if (firstName && firstName !== existing.first_name) {
-      await db.prepare('UPDATE users SET first_name = ? WHERE id = ?').run(firstName, existing.id);
-      existing.first_name = firstName;
-    }
-    existing = await mergeSyntheticUserIntoReal(mergeFrom, existing);
-    attachWebSessionCookie(res, existing.id);
-    return res.json({ user: existing });
+  try {
+    var user = await applyTelegramWebOAuthSession(res, tUser, mergeFrom);
+    res.json({ user: user });
+  } catch (err) {
+    console.error('[telegram-web]', err.message);
+    res.status(500).json({ error: 'Server error' });
   }
-  var info = await db.prepare('INSERT INTO users (telegram_id, first_name) VALUES (?, ?)').run(String(telegramId), firstName);
-  var user = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
-  user = await mergeSyntheticUserIntoReal(mergeFrom, user);
-  attachWebSessionCookie(res, user.id);
-  res.json({ user: user });
 });
 
-// Simple callback page for browser-based Telegram OAuth flow
-app.get('/api/auth/telegram-web/callback', function (req, res) {
-  res.send(
-    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Вход через Telegram</title>' +
-    '<style>body{font-family:sans-serif;margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#fff;color:#111}' +
-    '.card{max-width:360px;padding:24px;border:1px solid #eee;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.04);text-align:center}' +
-    'h1{font-size:18px;margin:0 0 10px}p{font-size:14px;margin:0 0 16px;color:#555}' +
-    'button{padding:10px 20px;border-radius:999px;border:none;background:#000;color:#fff;cursor:pointer;font-size:14px}</style>' +
-    '</head><body><div class="card">' +
-    '<h1>Вход через Telegram</h1>' +
-    '<p>Вы можете закрыть это окно и вернуться на сайт.</p>' +
-    '<button onclick="window.close()">Закрыть</button>' +
-    '</div></body></html>'
+function telegramOAuthCallbackErrorPage(title, msg) {
+  return (
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>' + title + '</title>' +
+    '<style>body{font-family:sans-serif;margin:16px;background:#fff;color:#111}a{color:#06c}</style></head><body>' +
+    '<h1 style="font-size:18px">' + title + '</h1><p>' + msg + '</p><p><a href="/">Перейти на сайт</a></p></body></html>'
   );
+}
+
+// Редирект oauth.telegram.org: в URL приходят id, hash, auth_date… — проверяем подпись, ставим cookie, редирект на сайт (мобильный «Войти через Telegram»).
+app.get('/api/auth/telegram-web/callback', async function (req, res) {
+  try {
+    var q = req.query || {};
+    if (!q.hash) {
+      return res.status(400).send(telegramOAuthCallbackErrorPage('Вход через Telegram', 'Нет данных авторизации. Откройте вход с сайта ещё раз.'));
+    }
+    var body = {
+      id: q.id,
+      first_name: q.first_name,
+      last_name: q.last_name,
+      username: q.username,
+      photo_url: q.photo_url,
+      auth_date: q.auth_date,
+      hash: q.hash
+    };
+    var tUser = validateTelegramLoginWidget(body);
+    if (!tUser) {
+      console.warn('[TG OAuth callback] неверная подпись или устарел auth_date');
+      return res.status(403).send(telegramOAuthCallbackErrorPage('Вход не выполнен', 'Попробуйте снова с сайта — «Войти через Telegram».'));
+    }
+    await applyTelegramWebOAuthSession(res, tUser, '');
+    var proto = (req.get('x-forwarded-proto') || '').split(',')[0].trim();
+    if (!proto) proto = req.secure ? 'https' : 'http';
+    var host = (req.get('x-forwarded-host') || req.get('host') || '').trim();
+    var redirectBase;
+    if (host) {
+      if (proto !== 'https' && (req.get('x-forwarded-ssl') === 'on' || /shoparkaflowers\.ru/i.test(host))) {
+        proto = 'https';
+      }
+      redirectBase = proto + '://' + host;
+    } else {
+      redirectBase = String(PUBLIC_URL || '').replace(/\/$/, '').replace(/^http:\/\//, 'https://');
+    }
+    res.redirect(302, redirectBase + '/?tg_web_login=1#account');
+  } catch (err) {
+    console.error('[TG OAuth callback]', err.message);
+    res.status(500).send(telegramOAuthCallbackErrorPage('Ошибка', 'Попробуйте позже.'));
+  }
 });
 
 function formatRuPhoneDisplay(norm11) {
