@@ -15,6 +15,7 @@ var ADMIN_LOGIN = process.env.ADMIN_LOGIN || 'admin';
 var ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 var BOT_TOKEN = String(process.env.BOT_TOKEN || process.env.CLIENT_BOT_TOKEN || '').trim();
 var TELEGRAM_BOT_USERNAME = (process.env.TELEGRAM_BOT_USERNAME || '').replace(/^@/, '').trim();
+var TELEGRAM_BOT_ID = String(process.env.TELEGRAM_BOT_ID || '').trim();
 var PAYMENT_PROVIDER = process.env.PAYMENT_PROVIDER || 'test';
 var PUBLIC_URL = process.env.PUBLIC_URL || ('http://localhost:' + PORT);
 var ADMIN_TELEGRAM_IDS = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
@@ -69,10 +70,10 @@ var upload = multer({
 var https = require('https');
 
 var resolveBotUsernamePromise = null;
-/** Если TELEGRAM_BOT_USERNAME не задан в .env, подставляем из Telegram getMe (нужен BOT_TOKEN). */
+/** Подставляет username и bot_id из getMe, если их нет в .env (нужен BOT_TOKEN). */
 function resolveTelegramBotUsernameFromApi() {
-  if (TELEGRAM_BOT_USERNAME) return Promise.resolve();
   if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') return Promise.resolve();
+  if (TELEGRAM_BOT_USERNAME && TELEGRAM_BOT_ID) return Promise.resolve();
   if (resolveBotUsernamePromise) return resolveBotUsernamePromise;
   resolveBotUsernamePromise = new Promise(function (resolve) {
     var opt = {
@@ -86,24 +87,36 @@ function resolveTelegramBotUsernameFromApi() {
       res.on('end', function () {
         try {
           var j = JSON.parse(Buffer.concat(chunks).toString());
-          if (j.ok && j.result && j.result.username) {
-            TELEGRAM_BOT_USERNAME = String(j.result.username).replace(/^@/, '').trim();
-            console.log('[TG] Имя бота для сайта (getMe): @' + TELEGRAM_BOT_USERNAME);
+          if (j.ok && j.result) {
+            if (j.result.username && !TELEGRAM_BOT_USERNAME) {
+              TELEGRAM_BOT_USERNAME = String(j.result.username).replace(/^@/, '').trim();
+              console.log('[TG] Имя бота для сайта (getMe): @' + TELEGRAM_BOT_USERNAME);
+            }
+            if (j.result.id != null && j.result.id !== '' && !TELEGRAM_BOT_ID) {
+              TELEGRAM_BOT_ID = String(j.result.id);
+            }
+            if (!TELEGRAM_BOT_USERNAME) {
+              console.warn('[TG] getMe: нет username. Задайте TELEGRAM_BOT_USERNAME в .env');
+            }
           } else {
-            console.warn('[TG] getMe: нет username в ответе. Задайте TELEGRAM_BOT_USERNAME в .env');
+            console.warn('[TG] getMe не удался:', j && j.description ? j.description : JSON.stringify(j).slice(0, 200));
+            console.warn('[TG] Проверьте BOT_TOKEN в .env на этом сервере или задайте TELEGRAM_BOT_USERNAME вручную.');
           }
         } catch (e) {
           console.error('[TG] getMe parse error:', e.message);
         }
+        if (!TELEGRAM_BOT_USERNAME) resolveBotUsernamePromise = null;
         resolve();
       });
     });
     req.on('error', function (err) {
       console.error('[TG] getMe error:', err.message);
+      resolveBotUsernamePromise = null;
       resolve();
     });
     req.setTimeout(12000, function () {
       req.destroy();
+      resolveBotUsernamePromise = null;
       resolve();
     });
     req.end();
@@ -659,7 +672,7 @@ app.get('/api/client-config', async function (req, res) {
   try {
     await resolveTelegramBotUsernameFromApi();
   } catch (e) {}
-  res.json({ telegram_bot_username: TELEGRAM_BOT_USERNAME });
+  res.json({ telegram_bot_username: TELEGRAM_BOT_USERNAME, bot_id: TELEGRAM_BOT_ID });
 });
 
 app.get('/api/auth/session', async function (req, res) {

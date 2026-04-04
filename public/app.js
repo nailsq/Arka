@@ -366,6 +366,9 @@
         if (cfg && cfg.telegram_bot_username) {
           webTelegramBotUsername = String(cfg.telegram_bot_username).replace(/^@/, '').trim();
         }
+        if (cfg && cfg.bot_id) {
+          webTelegramBotId = String(cfg.bot_id).trim();
+        }
         return webTelegramBotUsername || '';
       })
       .catch(function () {
