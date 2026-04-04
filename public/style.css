@@ -2604,6 +2604,68 @@ body.web-mode .web-login-plate:not([hidden]) {
   }
 }
 
+/* Профиль (гость): вход по телефону — тот же визуальный язык, что у плашки */
+.profile-phone-login {
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  text-align: left;
+}
+
+.profile-phone-login-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #333;
+  margin: 0 0 8px;
+}
+
+.profile-phone-login-hint {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #666;
+  margin: 0 0 12px;
+}
+
+.profile-phone-step2 {
+  margin-top: 4px;
+}
+
+.profile-phone-step-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #777;
+  margin: 14px 0 8px;
+}
+
+.profile-phone-step2 .profile-phone-step-label:first-child {
+  margin-top: 6px;
+}
+
+.profile-phone-login-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.profile-phone-login-row--code {
+  margin-top: 2px;
+}
+
+body.web-mode .web-flow-shell--profile .profile-phone-login-row .nav-btn--filled {
+  min-height: 42px;
+}
+
+@media (max-width: 560px) {
+  .profile-phone-login-row .nav-btn {
+    width: 100%;
+  }
+}
+
 /* Footer */
 #footer {
   border-top: 1px solid #eee;

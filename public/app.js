@@ -1218,6 +1218,81 @@
     updateWebLoginPlateVisibility();
   }
 
+  function setupProfilePhoneLogin() {
+    if (isTelegramRuntime) return;
+    var phoneIn = document.getElementById('profile-page-phone');
+    var btnStart = document.getElementById('profile-page-phone-btn');
+    var btnGo = document.getElementById('profile-page-code-btn');
+    if (!phoneIn || !btnStart || !btnGo) return;
+    phoneIn.oninput = function () { formatPhoneInput(phoneIn); };
+    btnStart.onclick = function () {
+      var phone = (phoneIn.value || '').trim();
+      if (!phone) {
+        showToast('Введите номер телефона');
+        phoneIn.focus();
+        return;
+      }
+      if (!validatePhone(phone)) {
+        showToast('Проверьте формат номера');
+        return;
+      }
+      btnStart.disabled = true;
+      postJSON('/api/web-login/start', { phone: phone }).then(function (r) {
+        if (r && r.ok && r.bot_url) {
+          var link = document.getElementById('profile-page-bot-link');
+          if (link) link.href = r.bot_url;
+          var s2 = document.getElementById('profile-page-step2');
+          if (s2) s2.style.display = 'block';
+          showToast('Откройте бота — код придёт в Telegram');
+        } else {
+          showToast((r && r.error) ? String(r.error) : 'Не удалось начать вход');
+        }
+      }).catch(function (err) {
+        showToast('Ошибка: ' + ((err && err.message) ? err.message : 'нет соединения'));
+      }).finally(function () {
+        btnStart.disabled = false;
+      });
+    };
+    btnGo.onclick = function () {
+      var phone = (phoneIn.value || '').trim();
+      var codeEl = document.getElementById('profile-page-code');
+      var code = codeEl ? String(codeEl.value || '').replace(/\D/g, '') : '';
+      if (!validatePhone(phone)) {
+        showToast('Проверьте номер телефона');
+        return;
+      }
+      if (code.length !== 4) {
+        showToast('Введите 4 цифры кода');
+        return;
+      }
+      var mergeFrom = '';
+      try {
+        if (dbUser && dbUser.telegram_id && String(dbUser.telegram_id).indexOf('phone_') === 0) {
+          mergeFrom = dbUser.telegram_id;
+        }
+      } catch (e) {}
+      btnGo.disabled = true;
+      postJSON('/api/web-login/confirm', { phone: phone, code: code, merge_from_telegram_id: mergeFrom }).then(function (r) {
+        if (r && r.user) {
+          dbUser = r.user;
+          try { localStorage.setItem('arka_tg_id', String(r.user.telegram_id || '')); } catch (e) {}
+          try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
+          try { sessionStorage.removeItem('arka_hide_phone_plate'); } catch (e) {}
+          resetWebLoginPlateSteps();
+          updateWebLoginPlateVisibility();
+          showToast('Добро пожаловать!');
+          showAccount();
+        } else {
+          showToast((r && r.error) ? String(r.error) : 'Не удалось войти');
+        }
+      }).catch(function (err) {
+        showToast('Ошибка: ' + ((err && err.message) ? err.message : 'нет соединения'));
+      }).finally(function () {
+        btnGo.disabled = false;
+      });
+    };
+  }
+
   function init() {
     applyRuntimeLayoutMode();
     initSitePreloader();
@@ -4419,11 +4494,29 @@
               '<div style="margin-bottom:8px;font-weight:500;font-size:14px">Вход через Telegram</div>' +
               (!isTelegramRuntime ? '<div id="web-telegram-login-widget"></div>' : '') +
             '</div>' +
+            (!isTelegramRuntime
+              ? '<div class="profile-phone-login">' +
+                '<div class="profile-phone-login-title">Вход по номеру телефона</div>' +
+                '<p class="profile-phone-login-hint">Введите номер — в Telegram придёт <strong>4 цифры</strong> от бота магазина.</p>' +
+                '<div class="profile-phone-login-row">' +
+                '<input type="tel" id="profile-page-phone" class="web-login-plate-input" placeholder="+7 (___) ___-__-__" maxlength="18" autocomplete="tel">' +
+                '<button type="button" id="profile-page-phone-btn" class="nav-btn nav-btn--filled">Получить код</button>' +
+                '</div>' +
+                '<div id="profile-page-step2" class="profile-phone-step2" style="display:none">' +
+                '<p class="profile-phone-step-label">Шаг 1 — откройте бота и нажмите «Start»</p>' +
+                '<a id="profile-page-bot-link" href="#" target="_blank" rel="noopener" class="nav-btn nav-btn--filled web-login-plate-bot-link">Открыть Telegram-бота</a>' +
+                '<p class="profile-phone-step-label">Шаг 2 — введите код из чата</p>' +
+                '<div class="profile-phone-login-row profile-phone-login-row--code">' +
+                '<input type="text" id="profile-page-code" class="web-login-plate-input web-login-plate-code" inputmode="numeric" autocomplete="one-time-code" maxlength="4" placeholder="0000" aria-label="Код из Telegram">' +
+                '<button type="button" id="profile-page-code-btn" class="nav-btn">Войти</button>' +
+                '</div></div></div>'
+              : '') +
           '</div>' +
           '</div>' +
         '</div>'
       );
       if (!isTelegramRuntime) mountWebTelegramLoginWidget('web-telegram-login-widget');
+      setupProfilePhoneLogin();
       return;
     }
 
