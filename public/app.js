@@ -1094,129 +1094,13 @@
     });
   }
 
-  function isPhoneOnlyWebUser(u) {
-    return !!(u && u.telegram_id && String(u.telegram_id).indexOf('phone_') === 0);
-  }
-
-  function shouldShowWebLoginPlate() {
-    if (isTelegramRuntime) return false;
-    if (!dbUser) return true;
-    return isPhoneOnlyWebUser(dbUser);
-  }
-
-  function updateWebLoginPlateVisibility() {
-    var plate = document.getElementById('web-login-plate');
-    if (!plate) return;
-    try {
-      if (sessionStorage.getItem('arka_hide_phone_plate') === '1') {
-        plate.setAttribute('hidden', '');
-        return;
-      }
-    } catch (e) {}
-    if (shouldShowWebLoginPlate()) {
-      plate.removeAttribute('hidden');
-    } else {
-      plate.setAttribute('hidden', '');
-    }
-  }
+  function updateWebLoginPlateVisibility() {}
 
   function resetWebLoginPlateSteps() {
-    var s2 = document.getElementById('web-login-plate-step2');
+    var s2 = document.getElementById('profile-page-step2');
     if (s2) s2.style.display = 'none';
-    var c = document.getElementById('plate-code-input');
+    var c = document.getElementById('profile-page-code');
     if (c) c.value = '';
-  }
-
-  function initWebLoginPlate() {
-    if (isTelegramRuntime) return;
-    var phoneIn = document.getElementById('plate-phone-input');
-    var btnStart = document.getElementById('plate-phone-submit');
-    var btnGo = document.getElementById('plate-code-submit');
-    var btnClose = document.getElementById('web-login-plate-close');
-    if (phoneIn && !phoneIn._arkaBound) {
-      phoneIn._arkaBound = true;
-      phoneIn.addEventListener('input', function () { formatPhoneInput(phoneIn); });
-    }
-    if (btnStart && !btnStart._arkaBound) {
-      btnStart._arkaBound = true;
-      btnStart.onclick = function () {
-        var phone = (phoneIn && phoneIn.value) ? phoneIn.value.trim() : '';
-        if (!phone) {
-          showToast('Введите номер телефона');
-          if (phoneIn) phoneIn.focus();
-          return;
-        }
-        if (!validatePhone(phone)) {
-          showToast('Проверьте формат номера');
-          return;
-        }
-        btnStart.disabled = true;
-        postJSON('/api/web-login/start', { phone: phone }).then(function (r) {
-          if (r && r.ok && r.bot_url) {
-            var link = document.getElementById('plate-bot-link');
-            if (link) link.href = r.bot_url;
-            var s2 = document.getElementById('web-login-plate-step2');
-            if (s2) s2.style.display = 'block';
-            showToast('Откройте бота — код придёт в Telegram');
-          } else {
-            showToast((r && r.error) ? String(r.error) : 'Не удалось начать вход');
-          }
-        }).catch(function (err) {
-          showToast('Ошибка: ' + ((err && err.message) ? err.message : 'нет соединения'));
-        }).finally(function () {
-          btnStart.disabled = false;
-        });
-      };
-    }
-    if (btnGo && !btnGo._arkaBound) {
-      btnGo._arkaBound = true;
-      btnGo.onclick = function () {
-        var phone = (phoneIn && phoneIn.value) ? phoneIn.value.trim() : '';
-        var codeEl = document.getElementById('plate-code-input');
-        var code = codeEl ? String(codeEl.value || '').replace(/\D/g, '') : '';
-        if (!validatePhone(phone)) {
-          showToast('Проверьте номер телефона');
-          return;
-        }
-        if (code.length !== 4) {
-          showToast('Введите 4 цифры кода');
-          return;
-        }
-        var mergeFrom = '';
-        try {
-          if (dbUser && dbUser.telegram_id && String(dbUser.telegram_id).indexOf('phone_') === 0) {
-            mergeFrom = dbUser.telegram_id;
-          }
-        } catch (e) {}
-        btnGo.disabled = true;
-        postJSON('/api/web-login/confirm', { phone: phone, code: code, merge_from_telegram_id: mergeFrom }).then(function (r) {
-          if (r && r.user) {
-            dbUser = r.user;
-            try { localStorage.setItem('arka_tg_id', String(r.user.telegram_id || '')); } catch (e) {}
-            try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
-            try { sessionStorage.removeItem('arka_hide_phone_plate'); } catch (e) {}
-            resetWebLoginPlateSteps();
-            updateWebLoginPlateVisibility();
-            showToast('Добро пожаловать!');
-            navigateTo('account');
-          } else {
-            showToast((r && r.error) ? String(r.error) : 'Не удалось войти');
-          }
-        }).catch(function (err) {
-          showToast('Ошибка: ' + ((err && err.message) ? err.message : 'нет соединения'));
-        }).finally(function () {
-          btnGo.disabled = false;
-        });
-      };
-    }
-    if (btnClose && !btnClose._arkaBound) {
-      btnClose._arkaBound = true;
-      btnClose.onclick = function () {
-        try { sessionStorage.setItem('arka_hide_phone_plate', '1'); } catch (e) {}
-        updateWebLoginPlateVisibility();
-      };
-    }
-    updateWebLoginPlateVisibility();
   }
 
   function setupProfilePhoneLogin() {
@@ -1299,7 +1183,6 @@
     initSitePreloader();
     initWebQuickNav();
     initCookieConsent();
-    initWebLoginPlate();
 
     var settingsReady = fetchAppSettings().catch(function () {
       appSettings = appSettings || {};
