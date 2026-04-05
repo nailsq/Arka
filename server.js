@@ -1109,10 +1109,16 @@ function telegramOAuthCallbackMissingParamsPage() {
     '<style>body{font-family:sans-serif;margin:16px;background:#fff;color:#111}a{color:#06c}code{font-size:13px}</style></head><body>' +
     recover +
     '<h1 style="font-size:18px">Вход через Telegram</h1>' +
-    '<p>Сервер не получил ни старых параметров (<code>id</code> + <code>hash</code>), ни кода OIDC (<code>code</code>). Telegram сейчас чаще использует <strong>OpenID Connect</strong>: нужен <strong>Client Secret</strong> и кнопка «Войти» должна вести на <code>/api/auth/telegram-web/start</code> (так сделано в актуальной версии сайта).</p>' +
-    '<p>В <strong>@BotFather</strong> → ваш бот → <strong>Bot Settings → Web Login</strong>: добавьте в <strong>Allowed URLs</strong> точный callback, например <code>https://ваш-домен.ru/api/auth/telegram-web/callback</code>, скопируйте <strong>Client Secret</strong> в переменную <code>TELEGRAM_OIDC_CLIENT_SECRET</code> в <code>.env</code> на сервере и перезапустите PM2.</p>' +
-    '<p>Команда <code>/setdomain</code> по-прежнему нужна для старого виджета, но для редиректа с oauth.telegram.org без секрета вход не завершится.</p>' +
-    '<p>Затем с <a href="/">главной</a> снова откройте профиль и нажмите «Войти через Telegram». Эту страницу нельзя открывать из закладок.</p>' +
+    '<p>Сервер не получил данные от Telegram (в адресе нет параметров после <code>callback</code>). Обычно так бывает, если открыли эту страницу вручную, из закладки или после ссылки «запасной вход», а не после кнопки виджета на сайте.</p>' +
+    '<p><strong>Что сделать:</strong></p>' +
+    '<ol style="padding-left:20px">' +
+    '<li>Откройте магазин по тому же адресу, что в @BotFather (у вас: <strong>https://www.shoparkaflowers.ru</strong> — с <code>www</code>).</li>' +
+    '<li>Обновите страницу с очисткой кэша или подождите минуту после деплоя (нужна актуальная версия <code>app.js</code>).</li>' +
+    '<li>Профиль → войдите через <strong>официальную кнопку Telegram</strong> (виджет под текстом), подтвердите в приложении Telegram.</li>' +
+    '<li>Не используйте ссылку «Запасной вариант входа», если основной виджет ещё не пробовали.</li>' +
+    '</ol>' +
+    '<p>С <a href="/">главной страницы</a> начните вход заново. Эту страницу нельзя сохранять в закладки.</p>' +
+    '<p style="font-size:13px;color:#444">Дополнительно (не у всех ботов в BotFather есть): <strong>Client Secret</strong> в <code>.env</code> как <code>TELEGRAM_OIDC_CLIENT_SECRET</code> включает альтернативный вход через <code>/api/auth/telegram-web/start</code>.</p>' +
     '<p>Если параметры пришли во фрагменте после <code>#</code>, скрипт выше попробует перенаправить автоматически.</p>' +
     '<p><a href="/">Перейти на сайт</a></p></body></html>'
   );
