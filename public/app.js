@@ -11,6 +11,7 @@
   var webTelegramBotUsername = '';
   var webTelegramBotId = '';
   var webTelegramAuthUrl = '';
+  var webTelegramOidcReady = false;
   var desktopHeroShownThisLoad = false;
 
   // ============================================================
@@ -369,6 +370,7 @@
         if (cfg && cfg.bot_id) {
           webTelegramBotId = String(cfg.bot_id).trim();
         }
+        webTelegramOidcReady = !!(cfg && cfg.telegram_oidc_ready);
         return webTelegramBotUsername || '';
       })
       .catch(function () {
@@ -395,6 +397,7 @@
       var isMobileWeb = !isTelegramRuntime && (window.innerWidth || 0) <= 560;
       var origin = window.location.origin;
       var returnTo = origin + '/api/auth/telegram-web/callback';
+      var oidcStartUrl = origin + '/api/auth/telegram-web/start';
       var oauthUrl = '';
       if (webTelegramBotId) {
         oauthUrl = 'https://oauth.telegram.org/auth?bot_id=' + encodeURIComponent(webTelegramBotId) +
@@ -402,28 +405,97 @@
           '&return_to=' + encodeURIComponent(returnTo) +
           '&request_access=write';
       }
-      // Mobile web: prefer direct Telegram OAuth URL to avoid bot/game redirects.
-      var primaryAuthUrl = isMobileWeb ? (oauthUrl || webTelegramAuthUrl) : (webTelegramAuthUrl || oauthUrl);
+
+      function appendOpenBotLink() {
+        if (!webTelegramBotUsername) return;
+        var linkWrap = document.createElement('div');
+        linkWrap.style.marginTop = '10px';
+        linkWrap.innerHTML =
+          '<a class="nav-btn" href="https://t.me/' + encodeURIComponent(webTelegramBotUsername) +
+          '" target="_blank" rel="noopener">Открыть Telegram-бота</a>';
+        container.appendChild(linkWrap);
+      }
+
+      function appendHttpsWarn() {
+        if (window.location.protocol === 'https:' || window.location.hostname === 'localhost') return;
+        var warn = document.createElement('div');
+        warn.className = 'empty-state';
+        warn.style.padding = '8px 0 0';
+        warn.style.fontSize = '12px';
+        warn.style.color = '#7a1f1f';
+        warn.textContent = 'Для стабильного входа через Telegram нужен HTTPS-домен.';
+        container.appendChild(warn);
+      }
+
+      // OIDC: на сервере задан TELEGRAM_OIDC_CLIENT_SECRET — кнопка ведёт на /start.
+      if (webTelegramOidcReady) {
+        var oidWrap = document.createElement('div');
+        oidWrap.style.marginBottom = isMobileWeb ? '8px' : '10px';
+        oidWrap.innerHTML =
+          '<a class="nav-btn nav-btn--filled" href="' + oidcStartUrl + '">Войти через Telegram</a>';
+        container.appendChild(oidWrap);
+        appendOpenBotLink();
+        if (!isMobileWeb) {
+          var scriptOidc = document.createElement('script');
+          scriptOidc.async = true;
+          scriptOidc.src = 'https://telegram.org/js/telegram-widget.js?22';
+          scriptOidc.setAttribute('data-telegram-login', botUsername);
+          scriptOidc.setAttribute('data-size', 'large');
+          scriptOidc.setAttribute('data-userpic', 'false');
+          scriptOidc.setAttribute('data-request-access', 'write');
+          scriptOidc.setAttribute('data-onauth', 'onTelegramAuth(user)');
+          container.appendChild(scriptOidc);
+          if (oauthUrl) {
+            var oauthWrapO = document.createElement('div');
+            oauthWrapO.style.marginTop = '8px';
+            oauthWrapO.innerHTML =
+              '<a class="nav-btn nav-btn--filled" href="' + oauthUrl + '">Войти через Telegram (резерв)</a>';
+            container.appendChild(oauthWrapO);
+          }
+        }
+        appendHttpsWarn();
+        return;
+      }
+
+      // Без OIDC: прямая ссылка oauth.telegram.org часто не передаёт id/hash. На мобильном — виджет с data-auth-url.
+      if (isMobileWeb) {
+        var hint = document.createElement('div');
+        hint.className = 'empty-state';
+        hint.style.padding = '4px 0 8px';
+        hint.style.fontSize = '13px';
+        hint.textContent = 'Нажмите кнопку Telegram ниже и подтвердите вход в приложении.';
+        container.appendChild(hint);
+        var scriptM = document.createElement('script');
+        scriptM.async = true;
+        scriptM.src = 'https://telegram.org/js/telegram-widget.js?22';
+        scriptM.setAttribute('data-telegram-login', botUsername);
+        scriptM.setAttribute('data-size', 'large');
+        scriptM.setAttribute('data-userpic', 'false');
+        scriptM.setAttribute('data-request-access', 'write');
+        scriptM.setAttribute('data-auth-url', returnTo);
+        container.appendChild(scriptM);
+        appendOpenBotLink();
+        if (oauthUrl) {
+          var alt = document.createElement('div');
+          alt.style.marginTop = '10px';
+          alt.style.fontSize = '12px';
+          alt.innerHTML =
+            '<a href="' + oauthUrl + '">Запасной вариант входа</a>';
+          container.appendChild(alt);
+        }
+        appendHttpsWarn();
+        return;
+      }
+
+      var primaryAuthUrl = webTelegramAuthUrl || oauthUrl;
       if (primaryAuthUrl) {
         var directWrap = document.createElement('div');
-        directWrap.style.marginBottom = isMobileWeb ? '8px' : '10px';
+        directWrap.style.marginBottom = '10px';
         directWrap.innerHTML =
           '<a class="nav-btn nav-btn--filled" href="' + primaryAuthUrl + '">' +
           'Войти через Telegram' +
           '</a>';
         container.appendChild(directWrap);
-      }
-      // On mobile web direct redirect auth is much more stable than embedded widget.
-      if (isMobileWeb) {
-        if (webTelegramBotUsername) {
-          var mobileHint = document.createElement('div');
-          mobileHint.style.marginTop = '6px';
-          mobileHint.innerHTML =
-            '<a class="nav-btn" href="https://t.me/' + encodeURIComponent(webTelegramBotUsername) +
-            '" target="_blank" rel="noopener">Открыть Telegram-бота</a>';
-          container.appendChild(mobileHint);
-        }
-        return;
       }
       var script = document.createElement('script');
       script.async = true;
@@ -437,15 +509,7 @@
       }
       script.setAttribute('data-onauth', 'onTelegramAuth(user)');
       container.appendChild(script);
-      if (webTelegramBotUsername) {
-        var linkWrap = document.createElement('div');
-        linkWrap.style.marginTop = '10px';
-        linkWrap.innerHTML =
-          '<a class="nav-btn" href="https://t.me/' + encodeURIComponent(webTelegramBotUsername) +
-          '" target="_blank" rel="noopener">Открыть Telegram-бота</a>';
-        container.appendChild(linkWrap);
-      }
-      // Fallback OAuth link (works when embedded widget callback is blocked).
+      appendOpenBotLink();
       if (oauthUrl) {
         var oauthWrap = document.createElement('div');
         oauthWrap.style.marginTop = '8px';
@@ -455,15 +519,7 @@
           '</a>';
         container.appendChild(oauthWrap);
       }
-      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-        var warn = document.createElement('div');
-        warn.className = 'empty-state';
-        warn.style.padding = '8px 0 0';
-        warn.style.fontSize = '12px';
-        warn.style.color = '#7a1f1f';
-        warn.textContent = 'Для стабильного входа через Telegram нужен HTTPS-домен.';
-        container.appendChild(warn);
-      }
+      appendHttpsWarn();
     });
   }
 

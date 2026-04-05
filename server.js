@@ -17,6 +17,9 @@ var BOT_TOKEN = String(process.env.BOT_TOKEN || process.env.CLIENT_BOT_TOKEN || 
 var ADMIN_BOT_TOKEN = String(process.env.ADMIN_BOT_TOKEN || '').trim();
 var TELEGRAM_BOT_USERNAME = (process.env.TELEGRAM_BOT_USERNAME || '').replace(/^@/, '').trim();
 var TELEGRAM_BOT_ID = String(process.env.TELEGRAM_BOT_ID || '').trim();
+/** Web Login в @BotFather → Bot Settings → Web Login: Client Secret (обязателен для редиректа oauth.telegram.org в 2025+) */
+var TELEGRAM_OIDC_CLIENT_SECRET = String(process.env.TELEGRAM_OIDC_CLIENT_SECRET || '').trim();
+var TELEGRAM_OIDC_CLIENT_ID = String(process.env.TELEGRAM_OIDC_CLIENT_ID || '').trim();
 
 function isTelegramTokenPlaceholder(t) {
   return !t || t === 'YOUR_BOT_TOKEN_HERE';
@@ -483,6 +486,174 @@ function clearWebLoginChallengeCookie(res) {
   res.append('Set-Cookie', parts.join('; '));
 }
 
+var TG_OIDC_PKCE_MAX_AGE_SEC = 600;
+var TG_OIDC_VERIFIER_COOKIE = 'arka_tg_pkce_v';
+var TG_OIDC_STATE_COOKIE = 'arka_tg_oauth_st';
+
+function attachTelegramOidcPkceCookies(res, verifier, state) {
+  var tail = ['Path=/', 'HttpOnly', 'SameSite=Lax', 'Max-Age=' + TG_OIDC_PKCE_MAX_AGE_SEC];
+  if (webSessionCookieSecureFlag()) tail.push('Secure');
+  var t = tail.join('; ');
+  res.append('Set-Cookie', TG_OIDC_VERIFIER_COOKIE + '=' + encodeURIComponent(verifier) + '; ' + t);
+  res.append('Set-Cookie', TG_OIDC_STATE_COOKIE + '=' + encodeURIComponent(state) + '; ' + t);
+}
+
+function clearTelegramOidcPkceCookies(res) {
+  var tail = ['Path=/', 'HttpOnly', 'SameSite=Lax', 'Max-Age=0'];
+  if (webSessionCookieSecureFlag()) tail.push('Secure');
+  var t = tail.join('; ');
+  res.append('Set-Cookie', TG_OIDC_VERIFIER_COOKIE + '=; ' + t);
+  res.append('Set-Cookie', TG_OIDC_STATE_COOKIE + '=; ' + t);
+}
+
+function webOAuthPublicBaseFromReq(req) {
+  var proto = (req.get('x-forwarded-proto') || '').split(',')[0].trim();
+  if (!proto) proto = req.secure ? 'https' : 'http';
+  var host = (req.get('x-forwarded-host') || req.get('host') || '').trim();
+  if (host) {
+    if (proto !== 'https' && (req.get('x-forwarded-ssl') === 'on' || /shoparkaflowers\.ru/i.test(host))) {
+      proto = 'https';
+    }
+    return proto + '://' + host;
+  }
+  return String(PUBLIC_URL || '').replace(/\/$/, '').replace(/^http:\/\//, 'https://');
+}
+
+function telegramWebOAuthRedirectUri(req) {
+  return webOAuthPublicBaseFromReq(req) + '/api/auth/telegram-web/callback';
+}
+
+function base64urlFromBuffer(buf) {
+  return buf
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function telegramOidcPkcePair() {
+  var verifier = base64urlFromBuffer(crypto.randomBytes(32));
+  var challenge = base64urlFromBuffer(crypto.createHash('sha256').update(verifier).digest());
+  return { verifier: verifier, challenge: challenge };
+}
+
+function jwtSegmentDecodeB64Url(seg) {
+  var s = String(seg || '').replace(/-/g, '+').replace(/_/g, '/');
+  var pad = (4 - (s.length % 4)) % 4;
+  if (pad) s += new Array(pad + 1).join('=');
+  return Buffer.from(s, 'base64').toString('utf8');
+}
+
+var telegramJwksCache = { keys: null, exp: 0 };
+
+function fetchTelegramOidcJwks() {
+  return new Promise(function (resolve, reject) {
+    if (telegramJwksCache.keys && Date.now() < telegramJwksCache.exp) {
+      return resolve(telegramJwksCache.keys);
+    }
+    https
+      .get({ hostname: 'oauth.telegram.org', path: '/.well-known/jwks.json', timeout: 15000 }, function (res) {
+        var chunks = [];
+        res.on('data', function (c) {
+          chunks.push(c);
+        });
+        res.on('end', function () {
+          try {
+            var j = JSON.parse(Buffer.concat(chunks).toString());
+            telegramJwksCache.keys = j.keys || [];
+            telegramJwksCache.exp = Date.now() + 3600000;
+            resolve(telegramJwksCache.keys);
+          } catch (e) {
+            reject(e);
+          }
+        });
+      })
+      .on('error', reject);
+  });
+}
+
+function verifyTelegramOidcJwtRs256(idToken, expectedAud) {
+  return fetchTelegramOidcJwks().then(function (keys) {
+    var parts = idToken.split('.');
+    if (parts.length !== 3) return null;
+    var header = JSON.parse(jwtSegmentDecodeB64Url(parts[0]));
+    var payload = JSON.parse(jwtSegmentDecodeB64Url(parts[1]));
+    if (payload.iss !== 'https://oauth.telegram.org') return null;
+    var exp = Number(payload.exp);
+    if (exp && Math.floor(Date.now() / 1000) > exp + 120) return null;
+    var audOk = false;
+    var expAud = String(expectedAud);
+    if (Array.isArray(payload.aud)) {
+      audOk = payload.aud.some(function (a) {
+        return String(a) === expAud;
+      });
+    } else {
+      audOk = String(payload.aud) === expAud;
+    }
+    if (!audOk) return null;
+    var kid = header.kid;
+    var jwk = null;
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i] && keys[i].kid === kid) {
+        jwk = keys[i];
+        break;
+      }
+    }
+    if (!jwk) return null;
+    var keyObj = crypto.createPublicKey({ key: jwk, format: 'jwk' });
+    var signingInput = parts[0] + '.' + parts[1];
+    var sigRaw = parts[2].replace(/-/g, '+').replace(/_/g, '/');
+    var pad = (4 - (sigRaw.length % 4)) % 4;
+    if (pad) sigRaw += new Array(pad + 1).join('=');
+    var sig = Buffer.from(sigRaw, 'base64');
+    var ok = crypto.verify('RSA-SHA256', Buffer.from(signingInput, 'utf8'), keyObj, sig);
+    return ok ? payload : null;
+  });
+}
+
+function telegramOidcTokenExchange(code, redirectUri, clientId, clientSecret, codeVerifier) {
+  var body = querystring.stringify({
+    grant_type: 'authorization_code',
+    code: code,
+    redirect_uri: redirectUri,
+    client_id: String(clientId),
+    code_verifier: codeVerifier
+  });
+  var auth = Buffer.from(String(clientId) + ':' + String(clientSecret)).toString('base64');
+  return new Promise(function (resolve, reject) {
+    var reqOut = https.request(
+      {
+        hostname: 'oauth.telegram.org',
+        path: '/token',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(body),
+          Authorization: 'Basic ' + auth
+        },
+        timeout: 25000
+      },
+      function (res) {
+        var chunks = [];
+        res.on('data', function (c) {
+          chunks.push(c);
+        });
+        res.on('end', function () {
+          var txt = Buffer.concat(chunks).toString('utf8');
+          try {
+            resolve(JSON.parse(txt));
+          } catch (e) {
+            resolve({ _parse_error: true, body: txt.slice(0, 500), status: res.statusCode });
+          }
+        });
+      }
+    );
+    reqOut.on('error', reject);
+    reqOut.write(body);
+    reqOut.end();
+  });
+}
+
 function normalizeRuPhone(phone) {
   var d = String(phone || '').replace(/\D/g, '');
   if (d.length === 10 && d.charAt(0) === '9') d = '7' + d;
@@ -721,7 +892,13 @@ app.get('/api/client-config', async function (req, res) {
   try {
     await resolveTelegramBotUsernameFromApi();
   } catch (e) {}
-  res.json({ telegram_bot_username: TELEGRAM_BOT_USERNAME, bot_id: TELEGRAM_BOT_ID });
+  var oid = String(TELEGRAM_OIDC_CLIENT_ID || TELEGRAM_BOT_ID || '').trim();
+  var oidcReady = !!TELEGRAM_OIDC_CLIENT_SECRET && !!oid;
+  res.json({
+    telegram_bot_username: TELEGRAM_BOT_USERNAME,
+    bot_id: TELEGRAM_BOT_ID,
+    telegram_oidc_ready: oidcReady
+  });
 });
 
 app.get('/api/auth/session', async function (req, res) {
@@ -932,11 +1109,11 @@ function telegramOAuthCallbackMissingParamsPage() {
     '<style>body{font-family:sans-serif;margin:16px;background:#fff;color:#111}a{color:#06c}code{font-size:13px}</style></head><body>' +
     recover +
     '<h1 style="font-size:18px">Вход через Telegram</h1>' +
-    '<p>Сервер не получил параметры от Telegram (в адресе нет <code>?id=…&amp;hash=…</code>).</p>' +
-    '<p><strong>Чаще всего</strong> не привязан домен к боту: в Telegram откройте <strong>@BotFather</strong> → ваш бот → команда <strong>/setdomain</strong> → укажите тот же хост, с которого заходите на сайт ' +
-    '(например <code>shoparkaflowers.ru</code> или <code>www.shoparkaflowers.ru</code> — как в браузере, без <code>https://</code>).</p>' +
+    '<p>Сервер не получил ни старых параметров (<code>id</code> + <code>hash</code>), ни кода OIDC (<code>code</code>). Telegram сейчас чаще использует <strong>OpenID Connect</strong>: нужен <strong>Client Secret</strong> и кнопка «Войти» должна вести на <code>/api/auth/telegram-web/start</code> (так сделано в актуальной версии сайта).</p>' +
+    '<p>В <strong>@BotFather</strong> → ваш бот → <strong>Bot Settings → Web Login</strong>: добавьте в <strong>Allowed URLs</strong> точный callback, например <code>https://ваш-домен.ru/api/auth/telegram-web/callback</code>, скопируйте <strong>Client Secret</strong> в переменную <code>TELEGRAM_OIDC_CLIENT_SECRET</code> в <code>.env</code> на сервере и перезапустите PM2.</p>' +
+    '<p>Команда <code>/setdomain</code> по-прежнему нужна для старого виджета, но для редиректа с oauth.telegram.org без секрета вход не завершится.</p>' +
     '<p>Затем с <a href="/">главной</a> снова откройте профиль и нажмите «Войти через Telegram». Эту страницу нельзя открывать из закладок.</p>' +
-    '<p>Если параметры пришли во фрагменте адреса после <code>#</code>, выше скрипт попробует перенаправить автоматически.</p>' +
+    '<p>Если параметры пришли во фрагменте после <code>#</code>, скрипт выше попробует перенаправить автоматически.</p>' +
     '<p><a href="/">Перейти на сайт</a></p></body></html>'
   );
 }
@@ -984,18 +1161,118 @@ function telegramOAuthQueryFromReq(req) {
   return out;
 }
 
-// Редирект oauth.telegram.org: в URL приходят id, hash, auth_date… — проверяем подпись, ставим cookie, редирект на сайт (мобильный «Войти через Telegram»).
+// Начало входа (OIDC + PKCE): редирект на oauth.telegram.org — актуальный способ вместо bot_id+return_to без code.
+app.get('/api/auth/telegram-web/start', async function (req, res) {
+  res.set('Cache-Control', 'no-store');
+  try {
+    await resolveTelegramBotUsernameFromApi();
+    var secret = TELEGRAM_OIDC_CLIENT_SECRET;
+    var clientId = String(TELEGRAM_OIDC_CLIENT_ID || TELEGRAM_BOT_ID || '').trim();
+    var redirectUri = telegramWebOAuthRedirectUri(req);
+    if (!secret || !clientId) {
+      return res.status(503).type('html').send(
+        telegramOAuthCallbackErrorPage(
+          'Вход через Telegram',
+          'В .env на сервере задайте TELEGRAM_OIDC_CLIENT_SECRET (из @BotFather → Bot Settings → Web Login → Client Secret). ' +
+            'В Allowed URLs добавьте точно: ' +
+            redirectUri
+        )
+      );
+    }
+    var pair = telegramOidcPkcePair();
+    var state = crypto.randomBytes(16).toString('hex');
+    attachTelegramOidcPkceCookies(res, pair.verifier, state);
+    var authUrl =
+      'https://oauth.telegram.org/auth?' +
+      querystring.stringify({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        scope: 'openid profile telegram:bot_access',
+        state: state,
+        code_challenge: pair.challenge,
+        code_challenge_method: 'S256'
+      });
+    res.redirect(302, authUrl);
+  } catch (err) {
+    console.error('[TG OIDC start]', err.message);
+    res.status(500).send(telegramOAuthCallbackErrorPage('Ошибка', 'Попробуйте позже.'));
+  }
+});
+
+// Callback: OIDC ?code=… (новый поток) или legacy ?id=…&hash=… (виджет / старый редирект).
 app.get('/api/auth/telegram-web/callback', async function (req, res) {
   res.set('X-Arka-Tg-OAuth', 'v2');
   try {
     var q = telegramOAuthQueryFromReq(req);
+    if (q.error) {
+      console.warn('[TG OAuth callback] provider error:', q.error, q.error_description || '');
+      clearTelegramOidcPkceCookies(res);
+      return res
+        .status(400)
+        .send(telegramOAuthCallbackErrorPage('Вход через Telegram', String(q.error_description || q.error || 'Отменено')));
+    }
+
+    var code = q.code || '';
+    var stateParam = q.state || '';
+    var secretOidc = TELEGRAM_OIDC_CLIENT_SECRET;
+    await resolveTelegramBotUsernameFromApi();
+    var clientIdOidc = String(TELEGRAM_OIDC_CLIENT_ID || TELEGRAM_BOT_ID || '').trim();
+
+    if (code && secretOidc && clientIdOidc) {
+      var savedState = getCookieFromReq(req, TG_OIDC_STATE_COOKIE);
+      var verifier = getCookieFromReq(req, TG_OIDC_VERIFIER_COOKIE);
+      if (!stateParam || stateParam !== savedState || !verifier) {
+        clearTelegramOidcPkceCookies(res);
+        return res.status(400).send(
+          telegramOAuthCallbackErrorPage(
+            'Вход не выполнен',
+            'Сессия авторизации устарела. Закройте вкладку и на сайте снова нажмите «Войти через Telegram».'
+          )
+        );
+      }
+      clearTelegramOidcPkceCookies(res);
+      var redirectUriCb = telegramWebOAuthRedirectUri(req);
+      var tokenJson = await telegramOidcTokenExchange(code, redirectUriCb, clientIdOidc, secretOidc, verifier);
+      if (!tokenJson || !tokenJson.id_token || tokenJson.error) {
+        console.warn('[TG OIDC token]', tokenJson && (tokenJson.error_description || tokenJson.error || JSON.stringify(tokenJson).slice(0, 500)));
+        return res.status(403).send(
+          telegramOAuthCallbackErrorPage(
+            'Вход не выполнен',
+            'Обмен кода на токен не удался. Проверьте TELEGRAM_OIDC_CLIENT_SECRET и что в Allowed URLs указан ровно: ' + redirectUriCb
+          )
+        );
+      }
+      var payload = await verifyTelegramOidcJwtRs256(tokenJson.id_token, clientIdOidc);
+      if (!payload) {
+        console.warn('[TG OIDC] id_token verify failed');
+        return res.status(403).send(telegramOAuthCallbackErrorPage('Вход не выполнен', 'Не удалось проверить подпись id_token.'));
+      }
+      var tgId = payload.id != null && payload.id !== '' ? String(payload.id) : String(payload.sub || '');
+      if (!tgId) {
+        return res.status(403).send(telegramOAuthCallbackErrorPage('Вход не выполнен', 'В токене нет id пользователя.'));
+      }
+      var fullName = String(payload.name || '').trim();
+      var firstName = fullName ? fullName.split(/\s+/)[0] : '';
+      if (!firstName) firstName = String(payload.preferred_username || 'User');
+      var tUserOidc = {
+        id: tgId,
+        first_name: firstName,
+        last_name: '',
+        username: String(payload.preferred_username || ''),
+        photo_url: String(payload.picture || '')
+      };
+      await applyTelegramWebOAuthSession(res, tUserOidc, '');
+      var redirectBaseOidc = webOAuthPublicBaseFromReq(req);
+      return res.redirect(302, redirectBaseOidc + '/?tg_web_login=1#account');
+    }
+
     if (!q.hash) {
       var pathOnly = String(req.originalUrl || req.url || '').split('?')[0];
       var qKeys = Object.keys(q);
       console.warn(
-        '[TG OAuth callback] нет hash: path=' + pathOnly + ' mergedKeys=' + qKeys.join(',') +
-          ' queryInUrl=' + (String(req.originalUrl || req.url || '').indexOf('?') >= 0) +
-          ' (проверьте @BotFather /setdomain для этого домена)'
+        '[TG OAuth callback] нет hash/code: path=' + pathOnly + ' mergedKeys=' + qKeys.join(',') +
+          ' queryInUrl=' + (String(req.originalUrl || req.url || '').indexOf('?') >= 0)
       );
       res.set('Cache-Control', 'no-store');
       return res.status(400).type('html').send(telegramOAuthCallbackMissingParamsPage());
@@ -1019,18 +1296,7 @@ app.get('/api/auth/telegram-web/callback', async function (req, res) {
       return res.status(403).send(telegramOAuthCallbackErrorPage('Вход не выполнен', 'Попробуйте снова с сайта — «Войти через Telegram».'));
     }
     await applyTelegramWebOAuthSession(res, tUser, '');
-    var proto = (req.get('x-forwarded-proto') || '').split(',')[0].trim();
-    if (!proto) proto = req.secure ? 'https' : 'http';
-    var host = (req.get('x-forwarded-host') || req.get('host') || '').trim();
-    var redirectBase;
-    if (host) {
-      if (proto !== 'https' && (req.get('x-forwarded-ssl') === 'on' || /shoparkaflowers\.ru/i.test(host))) {
-        proto = 'https';
-      }
-      redirectBase = proto + '://' + host;
-    } else {
-      redirectBase = String(PUBLIC_URL || '').replace(/\/$/, '').replace(/^http:\/\//, 'https://');
-    }
+    var redirectBase = webOAuthPublicBaseFromReq(req);
     res.redirect(302, redirectBase + '/?tg_web_login=1#account');
   } catch (err) {
     console.error('[TG OAuth callback]', err.message);
