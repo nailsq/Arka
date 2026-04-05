@@ -141,6 +141,8 @@ function resolveTelegramBotUsernameFromApi() {
   return resolveBotUsernamePromise;
 }
 
+app.set('trust proxy', 1);
+
 app.use(express.json());
 app.use(express.text({ type: 'text/plain' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -911,10 +913,33 @@ function telegramOAuthCallbackErrorPage(title, msg) {
   );
 }
 
+/** Параметры OAuth из строки запроса (надёжнее req.query за прокси / кодировками). */
+function telegramOAuthQueryFromReq(req) {
+  var u = String(req.originalUrl || req.url || '');
+  var qm = u.indexOf('?');
+  if (qm < 0) return {};
+  var raw = u.slice(qm + 1);
+  var h = raw.indexOf('#');
+  if (h >= 0) raw = raw.slice(0, h);
+  var out = {};
+  raw.split('&').forEach(function (seg) {
+    if (!seg) return;
+    var eq = seg.indexOf('=');
+    var k = eq >= 0 ? decodeURIComponent(seg.slice(0, eq).replace(/\+/g, ' ')) : seg;
+    var v = eq >= 0 ? decodeURIComponent(seg.slice(eq + 1).replace(/\+/g, ' ')) : '';
+    out[k] = v;
+  });
+  return out;
+}
+
 // Редирект oauth.telegram.org: в URL приходят id, hash, auth_date… — проверяем подпись, ставим cookie, редирект на сайт (мобильный «Войти через Telegram»).
 app.get('/api/auth/telegram-web/callback', async function (req, res) {
+  res.set('X-Arka-Tg-OAuth', 'v2');
   try {
-    var q = req.query || {};
+    var q = telegramOAuthQueryFromReq(req);
+    if (!q.hash && req.query && req.query.hash) {
+      q = req.query;
+    }
     if (!q.hash) {
       return res.status(400).send(telegramOAuthCallbackErrorPage('Вход через Telegram', 'Нет данных авторизации. Откройте вход с сайта ещё раз.'));
     }
@@ -929,7 +954,7 @@ app.get('/api/auth/telegram-web/callback', async function (req, res) {
     };
     var tUser = validateTelegramLoginWidget(body);
     if (!tUser) {
-      console.warn('[TG OAuth callback] неверная подпись или устарел auth_date');
+      console.warn('[TG OAuth callback] неверная подпись или устарел auth_date; id=' + (q.id || '') + ' keys=' + Object.keys(q).join(','));
       return res.status(403).send(telegramOAuthCallbackErrorPage('Вход не выполнен', 'Попробуйте снова с сайта — «Войти через Telegram».'));
     }
     await applyTelegramWebOAuthSession(res, tUser, '');
