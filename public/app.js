@@ -463,7 +463,8 @@
         hint.className = 'empty-state';
         hint.style.padding = '4px 0 8px';
         hint.style.fontSize = '13px';
-        hint.textContent = 'Нажмите кнопку Telegram ниже и подтвердите вход в приложении.';
+        hint.textContent =
+          'Нажмите кнопку Telegram ниже и подтвердите вход в приложении. Вход идёт через сайт (без пустой страницы callback).';
         container.appendChild(hint);
         var scriptM = document.createElement('script');
         scriptM.async = true;
@@ -472,7 +473,8 @@
         scriptM.setAttribute('data-size', 'large');
         scriptM.setAttribute('data-userpic', 'false');
         scriptM.setAttribute('data-request-access', 'write');
-        scriptM.setAttribute('data-auth-url', returnTo);
+        // Как на десктопе: только JS-callback → POST /api/auth/telegram-web (редирект на /callback на мобильных часто без ?id&hash).
+        scriptM.setAttribute('data-onauth', 'onTelegramAuth(user)');
         container.appendChild(scriptM);
         appendOpenBotLink();
         if (oauthUrl) {
@@ -521,6 +523,36 @@
       }
       appendHttpsWarn();
     });
+  }
+
+  /** Видимая кнопка входа (сервер подставляет href с учётом Host / OIDC). */
+  function wireWebTelegramPrimaryButton(btnId) {
+    var btn = document.getElementById(btnId);
+    if (!btn) return;
+    fetchJSON('/api/auth/telegram-links?_=' + Date.now())
+      .then(function (x) {
+        if (!btn.parentNode) return;
+        if (x && x.primary_href) {
+          btn.href = x.primary_href;
+          btn.textContent = 'Войти через Telegram';
+          btn.style.display = 'inline-block';
+          btn.removeAttribute('aria-disabled');
+        } else {
+          btn.removeAttribute('href');
+          btn.style.display = 'inline-block';
+          btn.setAttribute('role', 'button');
+          btn.textContent = 'Вход через Telegram недоступен';
+          btn.onclick = function () {
+            showToast('На сервере проверьте BOT_TOKEN и доступность getMe (bot id).');
+          };
+        }
+      })
+      .catch(function () {
+        if (btn.parentNode) {
+          btn.href = window.location.pathname + '#account';
+          btn.style.display = 'inline-block';
+        }
+      });
   }
 
   function initCookieConsent() {
@@ -1131,6 +1163,12 @@
     return fetchJSON('/api/auth/session').then(function (r) {
       var nextUser = (r && r.user) ? r.user : null;
       if (!nextUser) {
+        dbUser = null;
+        try {
+          localStorage.removeItem('arka_user');
+          localStorage.removeItem('arka_tg_id');
+        } catch (e) {}
+        if (activeTab === 'account') showAccount();
         updateWebLoginPlateVisibility();
         return false;
       }
@@ -1318,8 +1356,20 @@
         dbUser = r.user;
         try { localStorage.setItem('arka_tg_id', String(r.user.telegram_id || '')); } catch (e) {}
         try { localStorage.setItem('arka_user', JSON.stringify(r.user)); } catch (e) {}
+      } else {
+        dbUser = null;
+        try {
+          localStorage.removeItem('arka_user');
+          localStorage.removeItem('arka_tg_id');
+        } catch (e) {}
       }
-    }).catch(function () {}).finally(function () {
+    }).catch(function () {
+      dbUser = null;
+      try {
+        localStorage.removeItem('arka_user');
+        localStorage.removeItem('arka_tg_id');
+      } catch (e) {}
+    }).finally(function () {
       settingsReady.finally(function () {
         finishInitUI();
       });
@@ -3205,6 +3255,7 @@
           (!isTelegramRuntime && allowGuestCheckout
             ? '<div class="checkout-guest-hint">' +
                 '<div class="checkout-guest-hint-text">Можно оформить заказ без регистрации. Чтобы сохранялись адреса и история заказов, войдите через Telegram.</div>' +
+                '<a class="nav-btn nav-btn--filled" id="checkout-telegram-direct-btn" style="display:none;margin-bottom:10px" rel="noopener" href="#">Войти через Telegram</a>' +
                 '<div id="checkout-telegram-login-widget"></div>' +
               '</div>'
             : '') +
@@ -3368,6 +3419,7 @@
     updateStepButtons();
     if (!isTelegramRuntime && allowGuestCheckout) {
       mountWebTelegramLoginWidget('checkout-telegram-login-widget');
+      wireWebTelegramPrimaryButton('checkout-telegram-direct-btn');
     }
     startAbandonTimer();
   }
@@ -4425,7 +4477,7 @@
 
   function showAccount() {
     setActiveTab('account');
-    if (!tgUser && !dbUser && !getTelegramId()) {
+    if (!tgUser && !dbUser) {
       renderWithWebTop(
         '<div class="web-flow-shell web-flow-shell--profile">' +
           '<div class="web-centered-page-card">' +
@@ -4435,7 +4487,11 @@
             '<p style="margin-bottom:14px;color:#666">Чтобы видеть историю заказов и синхронизацию с Mini App, войдите через Telegram.</p>' +
             '<div class="profile-login-block">' +
               '<div style="margin-bottom:8px;font-weight:500;font-size:14px">Вход через Telegram</div>' +
-              (!isTelegramRuntime ? '<div id="web-telegram-login-widget"></div>' : '') +
+              (!isTelegramRuntime
+                ? '<a class="nav-btn nav-btn--filled" id="web-telegram-direct-btn" style="display:none;margin-bottom:12px" rel="noopener" href="#">Открыть вход Telegram</a>' +
+                  '<p style="font-size:12px;color:#666;margin:0 0 10px">Синяя кнопка выше — переход к Telegram. Ниже — официальная кнопка в рамке (часто удобнее на телефоне).</p>' +
+                  '<div id="web-telegram-login-widget"></div>'
+                : '') +
             '</div>' +
             (!isTelegramRuntime
               ? '<div class="profile-phone-login">' +
@@ -4458,7 +4514,10 @@
           '</div>' +
         '</div>'
       );
-      if (!isTelegramRuntime) mountWebTelegramLoginWidget('web-telegram-login-widget');
+      if (!isTelegramRuntime) {
+        mountWebTelegramLoginWidget('web-telegram-login-widget');
+        wireWebTelegramPrimaryButton('web-telegram-direct-btn');
+      }
       setupProfilePhoneLogin();
       return;
     }

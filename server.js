@@ -901,6 +901,39 @@ app.get('/api/client-config', async function (req, res) {
   });
 });
 
+/** Ссылки для явной кнопки «Войти через Telegram» в профиле/чекауте (OIDC или legacy oauth). */
+app.get('/api/auth/telegram-links', async function (req, res) {
+  try {
+    await resolveTelegramBotUsernameFromApi();
+  } catch (e) {}
+  var base = webOAuthPublicBaseFromReq(req);
+  var callback = base + '/api/auth/telegram-web/callback';
+  var id = String(TELEGRAM_OIDC_CLIENT_ID || TELEGRAM_BOT_ID || '').trim();
+  var out = {
+    telegram_bot_username: TELEGRAM_BOT_USERNAME,
+    bot_id: id,
+    site_origin: base,
+    callback: callback,
+    flow: 'none',
+    primary_href: ''
+  };
+  if (TELEGRAM_OIDC_CLIENT_SECRET && id) {
+    out.flow = 'oidc';
+    out.primary_href = base + '/api/auth/telegram-web/start';
+  } else if (id) {
+    out.flow = 'oauth_legacy';
+    out.primary_href =
+      'https://oauth.telegram.org/auth?bot_id=' +
+      encodeURIComponent(id) +
+      '&origin=' +
+      encodeURIComponent(base) +
+      '&return_to=' +
+      encodeURIComponent(callback) +
+      '&request_access=write';
+  }
+  res.json(out);
+});
+
 app.get('/api/auth/session', async function (req, res) {
   try {
     var token = getCookieFromReq(req, WEB_SESSION_COOKIE);
@@ -1114,8 +1147,8 @@ function telegramOAuthCallbackMissingParamsPage() {
     '<ol style="padding-left:20px">' +
     '<li>Откройте магазин по тому же адресу, что в @BotFather (у вас: <strong>https://www.shoparkaflowers.ru</strong> — с <code>www</code>).</li>' +
     '<li>Обновите страницу с очисткой кэша или подождите минуту после деплоя (нужна актуальная версия <code>app.js</code>).</li>' +
-    '<li>Профиль → войдите через <strong>официальную кнопку Telegram</strong> (виджет под текстом), подтвердите в приложении Telegram.</li>' +
-    '<li>Не используйте ссылку «Запасной вариант входа», если основной виджет ещё не пробовали.</li>' +
+    '<li>Профиль → <strong>официальная кнопка Telegram</strong> (виджет). После подтверждения вы должны <strong>остаться на сайте</strong> (вход через скрипт). Если открылась пустая страница <code>…/callback</code> — обновите сайт до версии <code>app.js</code> от 20260404-12.</li>' +
+    '<li>Не используйте ссылку «Запасной вариант входа», если виджет ещё не пробовали.</li>' +
     '</ol>' +
     '<p>С <a href="/">главной страницы</a> начните вход заново. Эту страницу нельзя сохранять в закладки.</p>' +
     '<p style="font-size:13px;color:#444">Дополнительно (не у всех ботов в BotFather есть): <strong>Client Secret</strong> в <code>.env</code> как <code>TELEGRAM_OIDC_CLIENT_SECRET</code> включает альтернативный вход через <code>/api/auth/telegram-web/start</code>.</p>' +
