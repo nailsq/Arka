@@ -85,6 +85,7 @@ var upload = multer({
 });
 
 var https = require('https');
+var querystring = require('querystring');
 
 var resolveBotUsernamePromise = null;
 /** Подставляет username и bot_id из getMe, если их нет в .env (нужен BOT_TOKEN). */
@@ -913,22 +914,46 @@ function telegramOAuthCallbackErrorPage(title, msg) {
   );
 }
 
-/** Параметры OAuth из строки запроса (надёжнее req.query за прокси / кодировками). */
+/** Параметры OAuth: req.query + querystring из URL (устойчиво к & внутри photo_url) + заголовки nginx. */
 function telegramOAuthQueryFromReq(req) {
-  var u = String(req.originalUrl || req.url || '');
-  var qm = u.indexOf('?');
-  if (qm < 0) return {};
-  var raw = u.slice(qm + 1);
-  var h = raw.indexOf('#');
-  if (h >= 0) raw = raw.slice(0, h);
   var out = {};
-  raw.split('&').forEach(function (seg) {
-    if (!seg) return;
-    var eq = seg.indexOf('=');
-    var k = eq >= 0 ? decodeURIComponent(seg.slice(0, eq).replace(/\+/g, ' ')) : seg;
-    var v = eq >= 0 ? decodeURIComponent(seg.slice(eq + 1).replace(/\+/g, ' ')) : '';
-    out[k] = v;
+  function mergeParsed(parsed) {
+    if (!parsed || typeof parsed !== 'object') return;
+    Object.keys(parsed).forEach(function (k) {
+      var v = parsed[k];
+      if (v === undefined || v === null) return;
+      out[k] = Array.isArray(v) ? String(v[v.length - 1]) : String(v);
+    });
+  }
+  if (req.query && typeof req.query === 'object') mergeParsed(req.query);
+
+  function mergeFromQueryString(raw) {
+    if (!raw || typeof raw !== 'string') return;
+    var h = raw.indexOf('#');
+    if (h >= 0) raw = raw.slice(0, h);
+    if (!raw) return;
+    try {
+      mergeParsed(querystring.parse(raw));
+    } catch (e) {}
+  }
+
+  var urls = [
+    req.url,
+    req.originalUrl,
+    req.get('x-original-uri') || '',
+    req.get('x-forwarded-uri') || ''
+  ];
+  var bestRaw = '';
+  urls.forEach(function (u) {
+    if (!u || typeof u !== 'string') return;
+    var qm = u.indexOf('?');
+    if (qm < 0) return;
+    var raw = u.slice(qm + 1);
+    var h = raw.indexOf('#');
+    if (h >= 0) raw = raw.slice(0, h);
+    if (raw.length > bestRaw.length) bestRaw = raw;
   });
+  mergeFromQueryString(bestRaw);
   return out;
 }
 
@@ -937,20 +962,33 @@ app.get('/api/auth/telegram-web/callback', async function (req, res) {
   res.set('X-Arka-Tg-OAuth', 'v2');
   try {
     var q = telegramOAuthQueryFromReq(req);
-    if (!q.hash && req.query && req.query.hash) {
-      q = req.query;
-    }
     if (!q.hash) {
-      return res.status(400).send(telegramOAuthCallbackErrorPage('Вход через Telegram', 'Нет данных авторизации. Откройте вход с сайта ещё раз.'));
+      var pathOnly = String(req.originalUrl || req.url || '').split('?')[0];
+      var qKeys = Object.keys(q);
+      console.warn(
+        '[TG OAuth callback] нет hash: path=' + pathOnly + ' mergedKeys=' + qKeys.join(',') +
+          ' queryInUrl=' + (String(req.originalUrl || req.url || '').indexOf('?') >= 0)
+      );
+      return res.status(400).send(
+        telegramOAuthCallbackErrorPage(
+          'Вход через Telegram',
+          'Нет данных авторизации (Telegram не передал параметры). Откройте сайт, зайдите в профиль и снова нажмите «Войти через Telegram». ' +
+            'Убедитесь, что в @BotFather для бота указан домен сайта (Login / Web). Не открывайте эту страницу из закладок.'
+        )
+      );
+    }
+    function qv(x) {
+      if (x === undefined || x === null) return '';
+      return String(x);
     }
     var body = {
-      id: q.id,
-      first_name: q.first_name,
-      last_name: q.last_name,
-      username: q.username,
-      photo_url: q.photo_url,
-      auth_date: q.auth_date,
-      hash: q.hash
+      id: qv(q.id),
+      first_name: qv(q.first_name),
+      last_name: qv(q.last_name),
+      username: qv(q.username),
+      photo_url: qv(q.photo_url),
+      auth_date: qv(q.auth_date),
+      hash: qv(q.hash)
     };
     var tUser = validateTelegramLoginWidget(body);
     if (!tUser) {

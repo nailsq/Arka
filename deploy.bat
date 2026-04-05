@@ -190,6 +190,10 @@ echo.
 echo   Если установлен hook post-receive ^(см. scripts\post-receive-hook.sh^),
 echo   сайт /var/www уже обновлён и PM2 перезапущен.
 echo.
+echo   Если в логе remote: [PM2][ERROR] Process 0 not found — на сервере старый hook
+echo   ^(pm2 restart 0^). Скопируйте заново: scripts\post-receive-hook.sh в
+echo   /var/git/arka-flowers.git/hooks/post-receive и chmod +x ^(см. комментарий в начале файла^).
+echo.
 echo   Если hook ещё не ставили: дважды щёлкните  restart-production.cmd
 echo   ^(введите пароль SSH^) — git pull + npm + pm2 restart.
 echo ============================================================
