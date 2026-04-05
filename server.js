@@ -914,6 +914,33 @@ function telegramOAuthCallbackErrorPage(title, msg) {
   );
 }
 
+/** Нет query на сервере: часть клиентов/редиректов кладёт параметры во фрагмент # — переносим в ? и повторяем запрос. Плюс подсказка про /setdomain. */
+function telegramOAuthCallbackMissingParamsPage() {
+  var recover =
+    '<script>' +
+    '(function(){try{' +
+    'var h=location.hash||"";' +
+    'var q=h.charAt(0)==="#"?h.slice(1):h;' +
+    'if(q&&/(^|&)id=/.test(q)&&/(^|&)hash=/.test(q)){' +
+    'location.replace(location.pathname+"?"+q);' +
+    '}' +
+    '}catch(e){}})();' +
+    '</script>';
+  return (
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>Вход через Telegram</title>' +
+    '<style>body{font-family:sans-serif;margin:16px;background:#fff;color:#111}a{color:#06c}code{font-size:13px}</style></head><body>' +
+    recover +
+    '<h1 style="font-size:18px">Вход через Telegram</h1>' +
+    '<p>Сервер не получил параметры от Telegram (в адресе нет <code>?id=…&amp;hash=…</code>).</p>' +
+    '<p><strong>Чаще всего</strong> не привязан домен к боту: в Telegram откройте <strong>@BotFather</strong> → ваш бот → команда <strong>/setdomain</strong> → укажите тот же хост, с которого заходите на сайт ' +
+    '(например <code>shoparkaflowers.ru</code> или <code>www.shoparkaflowers.ru</code> — как в браузере, без <code>https://</code>).</p>' +
+    '<p>Затем с <a href="/">главной</a> снова откройте профиль и нажмите «Войти через Telegram». Эту страницу нельзя открывать из закладок.</p>' +
+    '<p>Если параметры пришли во фрагменте адреса после <code>#</code>, выше скрипт попробует перенаправить автоматически.</p>' +
+    '<p><a href="/">Перейти на сайт</a></p></body></html>'
+  );
+}
+
 /** Параметры OAuth: req.query + querystring из URL (устойчиво к & внутри photo_url) + заголовки nginx. */
 function telegramOAuthQueryFromReq(req) {
   var out = {};
@@ -967,15 +994,11 @@ app.get('/api/auth/telegram-web/callback', async function (req, res) {
       var qKeys = Object.keys(q);
       console.warn(
         '[TG OAuth callback] нет hash: path=' + pathOnly + ' mergedKeys=' + qKeys.join(',') +
-          ' queryInUrl=' + (String(req.originalUrl || req.url || '').indexOf('?') >= 0)
+          ' queryInUrl=' + (String(req.originalUrl || req.url || '').indexOf('?') >= 0) +
+          ' (проверьте @BotFather /setdomain для этого домена)'
       );
-      return res.status(400).send(
-        telegramOAuthCallbackErrorPage(
-          'Вход через Telegram',
-          'Нет данных авторизации (Telegram не передал параметры). Откройте сайт, зайдите в профиль и снова нажмите «Войти через Telegram». ' +
-            'Убедитесь, что в @BotFather для бота указан домен сайта (Login / Web). Не открывайте эту страницу из закладок.'
-        )
-      );
+      res.set('Cache-Control', 'no-store');
+      return res.status(400).type('html').send(telegramOAuthCallbackMissingParamsPage());
     }
     function qv(x) {
       if (x === undefined || x === null) return '';
